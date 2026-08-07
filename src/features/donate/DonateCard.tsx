@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy } from 'lucide-react';
+import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy, QrCode } from 'lucide-react';
 
 interface DonateCardProps {
   // Props
@@ -7,15 +7,9 @@ interface DonateCardProps {
 
 export const DonateCard: React.FC<DonateCardProps> = () => {
   const [copied, setCopied] = useState(false);
-  const [selectedSum, setSelectedSum] = useState<number>(250);
+  const [imgError, setImgError] = useState(false);
 
-  // Ссылки на донатные платформы (пользователь может заменить на свои реальные адреса)
-  const donateLinks = {
-    cloudtips: 'https://pay.cloudtips.ru/',
-    boosty: 'https://boosty.to/',
-    donationalerts: 'https://www.donationalerts.com/',
-    yoomoney: 'https://yoomoney.ru/'
-  };
+  const donationUrl = 'https://pay.cloudtips.ru/p/05d48070';
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.origin);
@@ -28,163 +22,182 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
       className="panel"
       style={{
         width: '100%',
-        background: 'linear-gradient(135deg, rgba(110, 86, 248, 0.12) 0%, rgba(25, 22, 54, 0.95) 100%)',
-        border: '1px solid color-mix(in srgb, var(--brand) 40%, var(--ink-700))',
+        background: 'linear-gradient(135deg, rgba(110, 86, 248, 0.08) 0%, rgba(20, 17, 44, 0.95) 100%)',
+        border: '1px solid color-mix(in srgb, var(--brand) 30%, var(--ink-700))',
         borderRadius: 'var(--r-lg)',
-        padding: '20px',
+        padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        gap: '14px',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+        boxShadow: '0 6px 24px rgba(0,0,0,0.25)'
       }}
     >
       {/* Декоративная подсветка */}
       <div
         style={{
           position: 'absolute',
-          top: '-40px',
-          right: '-40px',
-          width: '120px',
-          height: '120px',
+          top: '-30px',
+          right: '-30px',
+          width: '100px',
+          height: '100px',
           background: 'var(--brand)',
-          opacity: 0.15,
+          opacity: 0.12,
           borderRadius: '50%',
-          filter: 'blur(30px)',
+          filter: 'blur(25px)',
           pointerEvents: 'none'
         }}
       />
 
-      {/* Заголовок блока */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: 'var(--r-md)',
-              background: 'linear-gradient(135deg, var(--brand) 0%, #9B82FC 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 12px rgba(110, 86, 248, 0.35)'
-            }}
-          >
-            <Coffee size={24} />
+      {/* Верхний ряд: заголовок и краткое описание */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: 'var(--r-md)',
+            background: 'linear-gradient(135deg, var(--brand) 0%, #9B82FC 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#FFFFFF',
+            boxShadow: '0 3px 10px rgba(110, 86, 248, 0.3)',
+            flexShrink: 0
+          }}
+        >
+          <Coffee size={22} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--ink-050)' }}>
+              Поддержать автора
+            </h3>
+            <Sparkles size={14} color="var(--brand)" />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: 'var(--ink-050)' }}>
-                Поддержать автора
-              </h3>
-              <Sparkles size={16} color="var(--brand)" />
-            </div>
-            <span style={{ fontSize: '12px', color: 'var(--ink-300)', lineHeight: 1.4 }}>
-              Понравился тюнер? Ваша поддержка вдохновляет развивать новые функции и алгоритмы!
-            </span>
-          </div>
+          <span style={{ fontSize: '12px', color: 'var(--ink-300)', lineHeight: 1.35 }}>
+            Понравился тюнер? Буду благодарен за любую поддержку на кофе и развитие проекта!
+          </span>
         </div>
       </div>
 
-      {/* Быстрый выбор суммы */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-300)' }}>Сумма:</span>
-        {[100, 250, 500, 1000].map((sum) => (
-          <button
-            key={sum}
-            onClick={() => setSelectedSum(sum)}
+      {/* Основной контент: кликабельный QR-код и кнопка перехода */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          background: 'var(--ink-900)',
+          border: '1px solid var(--ink-700)',
+          borderRadius: 'var(--r-md)',
+          padding: '12px 14px',
+          flexWrap: 'wrap'
+        }}
+      >
+        {/* Интерактивный QR-код с переходом по клику в новой вкладке */}
+        <a
+          href={donationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Нажмите, чтобы открыть страницу доната CloudTips"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textDecoration: 'none',
+            background: '#FFFFFF',
+            padding: '8px',
+            borderRadius: 'var(--r-sm)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            transition: 'transform 150ms ease, box-shadow 150ms ease',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.04)';
+            e.currentTarget.style.boxShadow = '0 6px 18px rgba(110, 86, 248, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+          }}
+        >
+          {!imgError ? (
+            <img
+              src="/qrCode.png"
+              alt="QR-код для доната CloudTips"
+              onError={() => setImgError(true)}
+              style={{
+                width: '100px',
+                height: '100px',
+                objectFit: 'contain',
+                display: 'block',
+                borderRadius: '2px'
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100px',
+                height: '100px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#F0EEFF',
+                color: 'var(--brand)'
+              }}
+            >
+              <QrCode size={40} />
+              <span style={{ fontSize: '9px', fontWeight: 800, marginTop: '4px', color: '#333' }}>CloudTips QR</span>
+            </div>
+          )}
+          <span style={{ fontSize: '9px', fontWeight: 700, color: '#444', marginTop: '4px', textAlign: 'center' }}>
+            Нажмите или наведите камеру 📷
+          </span>
+        </a>
+
+        {/* Правая часть: кнопка быстрого перехода и инфо */}
+        <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
+            Быстрый перевод через <b>CloudTips</b>:
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--ink-300)', lineHeight: 1.4 }}>
+            Оплата в 1 клик через <b>СБП</b>, T-Pay, SberPay или банковские карты.
+          </div>
+
+          <a
+            href={donationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary"
             style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--r-pill)',
-              background: selectedSum === sum ? 'var(--brand)' : 'var(--ink-800)',
-              color: selectedSum === sum ? '#fff' : 'var(--ink-200)',
-              border: `1px solid ${selectedSum === sum ? 'var(--brand)' : 'var(--ink-700)'}`,
+              padding: '10px 14px',
               fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 120ms ease'
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              textDecoration: 'none',
+              marginTop: '4px',
+              boxShadow: '0 4px 14px rgba(110, 86, 248, 0.35)'
             }}
           >
-            {sum} ₽
-          </button>
-        ))}
+            <Heart size={15} /> Отправить чаевые <ExternalLink size={13} />
+          </a>
+        </div>
       </div>
 
-      {/* Кнопки сервисов для отправки доната */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-        <a
-          href={donateLinks.cloudtips}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-primary"
-          style={{
-            padding: '10px 14px',
-            fontSize: '13px',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            textDecoration: 'none'
-          }}
-        >
-          <Heart size={15} /> Чаевые (СБП / Карты)
-        </a>
-
-        <a
-          href={donateLinks.boosty}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost"
-          style={{
-            padding: '10px 14px',
-            fontSize: '13px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            textDecoration: 'none',
-            border: '1px solid var(--ink-700)',
-            background: 'var(--ink-900)'
-          }}
-        >
-          Boosty <ExternalLink size={14} />
-        </a>
-
-        <a
-          href={donateLinks.donationalerts}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost"
-          style={{
-            padding: '10px 14px',
-            fontSize: '13px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            textDecoration: 'none',
-            border: '1px solid var(--ink-700)',
-            background: 'var(--ink-900)'
-          }}
-        >
-          DonationAlerts <ExternalLink size={14} />
-        </a>
-      </div>
-
-      {/* Поделиться ссылкой на проект */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--ink-800)' }}>
+      {/* Нижняя строка: поделиться ссылкой */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
         <span style={{ fontSize: '11px', color: 'var(--ink-400)' }}>
-          Или просто поделитесь ссылкой на приложение с друзьями-гитаристами!
+          Или поделитесь ссылкой на тюнер с друзьями:
         </span>
         <button
           className="btn btn-ghost btn-sm"
           onClick={handleCopyLink}
-          style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
         >
           {copied ? (
             <>

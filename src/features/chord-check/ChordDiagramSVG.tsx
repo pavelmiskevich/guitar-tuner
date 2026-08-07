@@ -86,11 +86,25 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
 
       <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
         <defs>
-          {/* Яркий серебристый градиент для ладов */}
-          <linearGradient id="chordFretWire" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#8A87B0" />
+          {/* Яркий хромированный/никелевый металлический ладовый порожек как в разделе «Гриф» */}
+          <linearGradient id="chordFretMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#4B4868" />
+            <stop offset="35%" stopColor="#CDC9EE" />
             <stop offset="50%" stopColor="#FFFFFF" />
-            <stop offset="100%" stopColor="#6C6894" />
+            <stop offset="70%" stopColor="#CDC9EE" />
+            <stop offset="100%" stopColor="#363354" />
+          </linearGradient>
+
+          {/* Металлические струны */}
+          <linearGradient id="chordWoundString" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#C2B79B" />
+            <stop offset="50%" stopColor="#FFF2D6" />
+            <stop offset="100%" stopColor="#7E7257" />
+          </linearGradient>
+          <linearGradient id="chordSteelString" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#AAA9C8" />
+            <stop offset="50%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#6C6990" />
           </linearGradient>
 
           <linearGradient id="diagramDot" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -99,13 +113,13 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           </linearGradient>
         </defs>
 
-        {/* Фон накладки грифа под аккордом */}
+        {/* Фон накладки грифа под аккордом (темный графит ночной сцены) */}
         <rect
           x={padX}
           y={padTop}
           width={gridWidth}
           height={gridHeight}
-          fill="#16132E"
+          fill="#16142E"
           stroke="var(--ink-700)"
           strokeWidth="1"
           rx="2"
@@ -126,7 +140,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           </text>
         )}
 
-        {/* Верхний порожек или верхний лад */}
+        {/* Верхний порожек или верхняя линия лада */}
         {isNut ? (
           <g>
             <rect
@@ -134,11 +148,26 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               y={padTop - 6}
               width={gridWidth + 4}
               height="8"
-              fill="#F5EFCF"
-              stroke="#A39A77"
+              fill="#F5F0DC"
+              stroke="#A89E7E"
               strokeWidth="1.5"
               rx="2"
             />
+            {/* Прорези под струны в порожке */}
+            {Array.from({ length: numStrings }).map((_, sIdx) => {
+              const x = padX + sIdx * stringSpacing;
+              return (
+                <line
+                  key={`nut-slot-${sIdx}`}
+                  x1={x}
+                  y1={padTop - 6}
+                  x2={x}
+                  y2={padTop + 2}
+                  stroke="#686045"
+                  strokeWidth="1.2"
+                />
+              );
+            })}
           </g>
         ) : (
           <g>
@@ -147,44 +176,64 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               y1={padTop}
               x2={padX + gridWidth}
               y2={padTop}
-              stroke="url(#chordFretWire)"
+              stroke="url(#chordFretMetal)"
               strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+            <line
+              x1={padX}
+              y1={padTop}
+              x2={padX + gridWidth}
+              y2={padTop}
+              stroke="#FFFFFF"
+              strokeWidth="1"
+              opacity="0.8"
             />
           </g>
         )}
 
-        {/* Горизонтальные ладовые линии (четкие, контрастные и объемные) */}
+        {/* Яркие металлические разделители ладов (аналогично экрану «Гриф») */}
         {Array.from({ length: numFrets + 1 }).map((_, fIdx) => {
           if (fIdx === 0 && isNut) return null;
           const y = padTop + fIdx * fretSpacing;
           return (
             <g key={`fret-${fIdx}`}>
-              {/* Тень снизу от лада */}
+              {/* Темная тень снизу от порожка */}
               <line
                 x1={padX}
-                y1={y + 1}
+                y1={y + 1.5}
                 x2={padX + gridWidth}
-                y2={y + 1}
-                stroke="rgba(0,0,0,0.6)"
+                y2={y + 1.5}
+                stroke="rgba(0,0,0,0.65)"
                 strokeWidth="2"
               />
-              {/* Металлическая линия ладового порожка */}
+              {/* Металлическое тело ладового порожка с ярким никелевым градиентом */}
               <line
                 x1={padX}
                 y1={y}
                 x2={padX + gridWidth}
                 y2={y}
-                stroke="url(#chordFretWire)"
-                strokeWidth="3"
+                stroke="url(#chordFretMetal)"
+                strokeWidth="3.5"
                 strokeLinecap="round"
               />
-              {/* Номер лада справа от сетки */}
+              {/* Яркий световой блик по центру */}
+              <line
+                x1={padX}
+                y1={y}
+                x2={padX + gridWidth}
+                y2={y}
+                stroke="#FFFFFF"
+                strokeWidth="1"
+                opacity="0.85"
+              />
+              {/* Номер лада справа */}
               {fIdx > 0 && (
                 <text
                   x={padX + gridWidth + 10}
                   y={y - fretSpacing / 2 + 4}
                   fill="var(--ink-400)"
-                  fontSize="10"
+                  fontSize="11"
                   fontFamily="var(--font-num)"
                   fontWeight="700"
                   textAnchor="middle"
@@ -196,20 +245,33 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           );
         })}
 
-        {/* Вертикальные струны (6-я слева, 1-я справа) */}
+        {/* Струны (6-я слева толстая в оплетке, 1-я справа стальная тонкая) */}
         {Array.from({ length: numStrings }).map((_, sIdx) => {
           const x = padX + sIdx * stringSpacing;
-          const strokeW = Math.max(1.4, 3.2 - sIdx * 0.35);
+          const isWound = sIdx < 3; // 6, 5, 4 струны в оплетке
+          const strokeW = Math.max(1.4, 3.8 - sIdx * 0.45);
+
           return (
-            <line
-              key={`str-${sIdx}`}
-              x1={x}
-              y1={padTop}
-              x2={x}
-              y2={padTop + gridHeight}
-              stroke={sIdx < 3 ? '#C4B89D' : '#DDDCEB'}
-              strokeWidth={strokeW}
-            />
+            <g key={`str-${sIdx}`}>
+              {/* Тень от струны */}
+              <line
+                x1={x + 1}
+                y1={padTop}
+                x2={x + 1}
+                y2={padTop + gridHeight}
+                stroke="rgba(0,0,0,0.5)"
+                strokeWidth={strokeW}
+              />
+              {/* Сама струна с металлическим градиентом */}
+              <line
+                x1={x}
+                y1={padTop}
+                x2={x}
+                y2={padTop + gridHeight}
+                stroke={isWound ? 'url(#chordWoundString)' : 'url(#chordSteelString)'}
+                strokeWidth={strokeW}
+              />
+            </g>
           );
         })}
 

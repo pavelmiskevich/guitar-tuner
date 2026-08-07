@@ -28,3 +28,8 @@ _worklog/
 .worklog/
 _notes/
 
+# Private donation media/assets (not pushed to GitHub)
+donat/
+donate/
+public/qrCode.png
+public/donat/
