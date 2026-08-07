@@ -355,3 +355,35 @@ button {
   white-space: nowrap;
   border: 0;
 }
+
+/* Интерактивная нота в тюнере */
+.tuner-note-interactive {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+  border-radius: var(--r-lg);
+  padding: 4px 16px;
+  transition: transform 150ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+
+.tuner-note-interactive:hover {
+  transform: scale(1.05);
+  background: rgba(110, 86, 248, 0.1);
+}
+
+.tuner-note-interactive:active {
+  transform: scale(0.96);
+}
+
+@keyframes pulseNoteGlow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(110, 86, 248, 0.6); }
+  50% { transform: scale(1.04); box-shadow: 0 0 25px 8px rgba(110, 86, 248, 0.35); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(110, 86, 248, 0); }
+}
+
+.tuner-note-playing {
+  animation: pulseNoteGlow 1.2s ease-in-out;
+  background: rgba(110, 86, 248, 0.18) !important;
+  border: 1px solid var(--brand) !important;
+}
+

@@ -207,6 +207,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     };
   }, [findBestString]);
 
+  const [isPlayingSample, setIsPlayingSample] = useState(false);
+  const sampleTimerRef = useRef<number | null>(null);
+
   const toggleListening = async () => {
     if (isListening) {
       sharedAudioEngine.stop();
@@ -229,10 +232,28 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const handlePlayReference = (str: StringSpec) => {
     const f = midiToFrequency(str.open.midi, a4);
     playGuitarString(f, 2.8);
+    setIsPlayingSample(true);
+    if (sampleTimerRef.current) clearTimeout(sampleTimerRef.current);
+    sampleTimerRef.current = window.setTimeout(() => setIsPlayingSample(false), 1200);
   };
 
-  const currentDisplayNote = activeString ? activeString.open : (tuning.strings[0]?.open || { name: 'E', octave: 2 });
+  const currentTargetStr = activeString
+    ? activeString
+    : (lockedStringIndex !== null ? tuning.strings[lockedStringIndex] : tuning.strings[0]);
+  const currentDisplayNote = currentTargetStr ? currentTargetStr.open : (tuning.strings[0]?.open || { name: 'E', octave: 2, midi: 40 });
   const displayNoteName = formatNoteName(currentDisplayNote.name, notation);
+
+  const handlePlayCurrentNote = () => {
+    if (currentTargetStr) {
+      handlePlayReference(currentTargetStr);
+    } else {
+      const f = midiToFrequency(currentDisplayNote.midi, a4);
+      playGuitarString(f, 2.8);
+      setIsPlayingSample(true);
+      if (sampleTimerRef.current) clearTimeout(sampleTimerRef.current);
+      sampleTimerRef.current = window.setTimeout(() => setIsPlayingSample(false), 1200);
+    }
+  };
 
   // Определение команды действия тюнера (FR-TN-18)
   let actionCommandText = 'Сыграйте струну';
@@ -406,8 +427,11 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               key={str.stringNumber}
               className="schip"
               data-state={state}
-              onClick={() => onSelectString(isSelected ? null : idx)}
-              title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора/сброса`}
+              onClick={() => {
+                onSelectString(isSelected ? null : idx);
+                handlePlayReference(str);
+              }}
+              title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора и воспроизведения`}
               style={{ minWidth: 0, width: '100%', position: 'relative' }}
             >
               <span>{strNoteName}{str.open.octave}</span>
@@ -517,16 +541,19 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           )}
         </div>
 
-        {/* Крупная нота */}
+        {/* Крупная интерактивная нота (нажатие воспроизводит эталон) */}
         <div
+          onClick={handlePlayCurrentNote}
+          className={`tuner-note-interactive ${isPlayingSample ? 'tuner-note-playing' : ''}`}
           style={{
             position: 'relative',
             display: 'flex',
             alignItems: 'baseline',
-            zIndex: 1,
-            opacity: isSoundActive ? 1 : 0.6,
+            zIndex: 2,
+            opacity: isSoundActive || isPlayingSample ? 1 : 0.85,
             transition: 'opacity 300ms ease'
           }}
+          title="Нажмите на ноту, чтобы услышать эталонное звучание струны"
         >
           <span
             style={{
@@ -534,27 +561,71 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               fontWeight: 800,
               letterSpacing: 'var(--ls-display)',
               lineHeight: 'var(--lh-tight)',
-              color: isListening && measuredFreq > 0
+              color: isPlayingSample
+                ? 'var(--brand)'
+                : isListening && measuredFreq > 0
                 ? (Math.abs(cents) <= inTuneThreshold ? 'var(--sig-in)' : Math.abs(cents) <= 15 ? 'var(--sig-near)' : 'var(--sig-off)')
-                : 'var(--ink-500)',
+                : 'var(--ink-100)',
               transition: 'color 150ms ease'
             }}
           >
-            {isListening && measuredFreq > 0 ? displayNoteName : '—'}
+            {displayNoteName}
           </span>
-          {isListening && measuredFreq > 0 && (
-            <span
-              style={{
-                fontSize: '28px',
-                fontWeight: 600,
-                color: 'var(--ink-300)',
-                marginLeft: '4px'
-              }}
-            >
-              {currentDisplayNote.octave}
-            </span>
-          )}
+          <span
+            style={{
+              fontSize: '28px',
+              fontWeight: 600,
+              color: isPlayingSample ? 'var(--brand)' : 'var(--ink-300)',
+              marginLeft: '4px'
+            }}
+          >
+            {currentDisplayNote.octave}
+          </span>
+
+          {/* Иконка динамика на ноте */}
+          <div
+            style={{
+              position: 'absolute',
+              right: '-14px',
+              top: '8px',
+              background: isPlayingSample ? 'var(--brand)' : 'var(--ink-800)',
+              color: isPlayingSample ? '#FFFFFF' : 'var(--ink-300)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 150ms ease'
+            }}
+          >
+            <Volume2 size={13} />
+          </div>
         </div>
+
+        {/* Кнопка-подсказка под нотой */}
+        <button
+          onClick={handlePlayCurrentNote}
+          className="btn btn-ghost btn-sm"
+          style={{
+            zIndex: 2,
+            marginTop: '6px',
+            fontSize: '11px',
+            padding: '3px 10px',
+            color: isPlayingSample ? 'var(--brand)' : 'var(--ink-300)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            borderRadius: 'var(--r-pill)',
+            border: isPlayingSample ? '1px solid var(--brand)' : '1px dashed var(--ink-700)',
+            background: isPlayingSample ? 'rgba(110, 86, 248, 0.15)' : 'transparent'
+          }}
+          title="Воспроизвести эталонный гитарный звук"
+        >
+          <Volume2 size={12} />
+          {isPlayingSample ? 'Звучит эталон струны...' : 'Нажмите на ноту для примера'}
+        </button>
 
         {/* Частоты: измеренная / целевая */}
         <div
