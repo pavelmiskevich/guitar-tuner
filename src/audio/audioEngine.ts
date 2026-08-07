@@ -3,15 +3,17 @@ import { PitchDetector } from './dsp';
 
 export type AudioEngineState = 'uninitialized' | 'requesting' | 'running' | 'paused' | 'error';
 
+export type EstimateCallback = (
+  estimate: PitchEstimate,
+  rawBuffer: Float32Array,
+  frequencyBuffer?: Float32Array,
+  sampleRate?: number
+) => void;
+
 export interface AudioEngineOptions {
   sampleRate?: number;
   bufferSize?: number;
-  onEstimate?: (
-    estimate: PitchEstimate,
-    rawBuffer: Float32Array,
-    frequencyBuffer?: Float32Array,
-    sampleRate?: number
-  ) => void;
+  onEstimate?: EstimateCallback;
   onError?: (err: Error) => void;
   onStateChange?: (state: AudioEngineState) => void;
 }
@@ -27,12 +29,8 @@ export class AudioEngine {
   private animationFrameId: number | null = null;
   private timeDataArray: Float32Array;
   private freqDataArray: Float32Array;
-  private onEstimate?: (
-    estimate: PitchEstimate,
-    rawBuffer: Float32Array,
-    frequencyBuffer?: Float32Array,
-    sampleRate?: number
-  ) => void;
+
+  private listeners: Set<EstimateCallback> = new Set();
   private onError?: (err: Error) => void;
   private onStateChange?: (state: AudioEngineState) => void;
 
@@ -41,7 +39,10 @@ export class AudioEngine {
     this.timeDataArray = new Float32Array(this.bufferSize);
     this.freqDataArray = new Float32Array(this.bufferSize);
     this.detector = new PitchDetector(48000, this.bufferSize);
-    this.onEstimate = options.onEstimate;
+
+    if (options.onEstimate) {
+      this.listeners.add(options.onEstimate);
+    }
     this.onError = options.onError;
     this.onStateChange = options.onStateChange;
 
@@ -51,8 +52,19 @@ export class AudioEngine {
     }
   }
 
+  public subscribe(cb: EstimateCallback): () => void {
+    this.listeners.add(cb);
+    return () => {
+      this.listeners.delete(cb);
+    };
+  }
+
   public getState(): AudioEngineState {
     return this.state;
+  }
+
+  public isRunning(): boolean {
+    return this.state === 'running' && this.audioContext !== null && this.mediaStream !== null;
   }
 
   public getSampleRate(): number {
@@ -65,15 +77,12 @@ export class AudioEngine {
   }
 
   private handleVisibilityChange() {
-    if (document.hidden) {
-      if (this.state === 'running' && this.audioContext) {
-        this.audioContext.suspend();
-        this.setState('paused');
+    if (!document.hidden && this.state === 'running' && this.audioContext) {
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
       }
-    } else {
-      if (this.state === 'paused' && this.audioContext) {
-        this.audioContext.resume();
-        this.setState('running');
+      if (this.animationFrameId === null) {
+        this.startLoop();
       }
     }
   }
@@ -82,13 +91,26 @@ export class AudioEngine {
    * Запуск захвата микрофона со строгим отключением AGC/NS/AEC
    */
   public async start(): Promise<void> {
-    if (this.state === 'running') return;
+    if (this.isRunning()) {
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      if (this.animationFrameId === null) {
+        this.startLoop();
+      }
+      return;
+    }
+
     this.setState('requesting');
 
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.audioContext = new AudioCtx({ latencyHint: 'interactive' });
-      await this.audioContext.resume();
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new AudioCtx({ latencyHint: 'interactive' });
+      }
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
 
       this.detector = new PitchDetector(this.audioContext.sampleRate, this.bufferSize);
 
@@ -110,7 +132,7 @@ export class AudioEngine {
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
       this.analyserNode = this.audioContext.createAnalyser();
       this.analyserNode.fftSize = this.bufferSize * 2;
-      this.analyserNode.smoothingTimeConstant = 0.1;
+      this.analyserNode.smoothingTimeConstant = 0.05;
 
       this.sourceNode.connect(this.analyserNode);
 
@@ -125,9 +147,20 @@ export class AudioEngine {
   }
 
   private startLoop() {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
     const tick = () => {
       if (this.state !== 'running' || !this.analyserNode) {
+        this.animationFrameId = null;
         return;
+      }
+
+      // Если аудио-контекст случайно перешёл в suspended — возобновляем
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
       }
 
       // @ts-expect-error Float32Array buffer compatibility
@@ -138,7 +171,13 @@ export class AudioEngine {
       const estimate = this.detector.detectPitch(this.timeDataArray);
       const sampleRate = this.audioContext?.sampleRate || 48000;
 
-      this.onEstimate?.(estimate, this.timeDataArray, this.freqDataArray, sampleRate);
+      for (const listener of this.listeners) {
+        try {
+          listener(estimate, this.timeDataArray, this.freqDataArray, sampleRate);
+        } catch (e) {
+          console.error('Error in audio estimate listener:', e);
+        }
+      }
 
       this.animationFrameId = requestAnimationFrame(tick);
     };
@@ -176,7 +215,7 @@ export class AudioEngine {
     }
 
     if (this.audioContext) {
-      this.audioContext.close();
+      this.audioContext.close().catch(() => {});
       this.audioContext = null;
     }
 
@@ -185,8 +224,12 @@ export class AudioEngine {
 
   public destroy(): void {
     this.stop();
+    this.listeners.clear();
     if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     }
   }
 }
+
+// Глобальный разделяемый инстанс AudioEngine для непрерывной работы микрофона между вкладками
+export const sharedAudioEngine = new AudioEngine();

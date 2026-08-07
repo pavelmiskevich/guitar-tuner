@@ -16,7 +16,7 @@ export class PitchDetector {
   private cutoffRate: number;
   private nsdfBuffer: Float32Array;
 
-  constructor(sampleRate = 48000, bufferSize = 4096, cutoffRate = 0.90) {
+  constructor(sampleRate = 48000, bufferSize = 4096, cutoffRate = 0.85) {
     this.sampleRate = sampleRate;
     this.cutoffRate = cutoffRate;
     this.nsdfBuffer = new Float32Array(bufferSize);
@@ -83,11 +83,11 @@ export class PitchDetector {
   /**
    * Поиск пиков NSDF выше порога с параболической интерполяцией
    */
-  public detectPitch(buffer: Float32Array, minFreq = 30, maxFreq = 1200): PitchEstimate {
+  public detectPitch(buffer: Float32Array, minFreq = 40, maxFreq = 1400): PitchEstimate {
     const { rmsDb, isClipping } = this.computeRmsAndClipping(buffer);
 
-    // Шумовой порог (-50 dBFS)
-    if (rmsDb < -50) {
+    // Чувствительный шумовой порог (-65 dBFS) для долгого удержания затухающей струны
+    if (rmsDb < -65) {
       return { frequency: 0, clarity: 0, rms: rmsDb, isSilent: true, isClipping };
     }
 
@@ -128,7 +128,8 @@ export class PitchDetector {
       }
     }
 
-    if (highestPeak < 0.4) {
+    // Мягкий порог пика (0.25) для акустических гармоник и 3-й струны G
+    if (highestPeak < 0.25) {
       return { frequency: 0, clarity: highestPeak, rms: rmsDb, isSilent: false, isClipping };
     }
 
@@ -142,7 +143,7 @@ export class PitchDetector {
       }
     }
 
-    // Параболическая интерполяция
+    // Параболическая интерполяция вокруг выбранного пика
     const alpha = this.nsdfBuffer[chosenTau - 1];
     const beta = this.nsdfBuffer[chosenTau];
     const gamma = this.nsdfBuffer[chosenTau + 1];
@@ -151,7 +152,7 @@ export class PitchDetector {
 
     const refinedTau = chosenTau + delta;
     const frequency = refinedTau > 0 ? this.sampleRate / refinedTau : 0;
-    const clarity = beta;
+    const clarity = Math.max(0, Math.min(1, beta));
 
     return {
       frequency,

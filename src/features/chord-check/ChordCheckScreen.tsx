@@ -4,7 +4,7 @@ import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToPitch } from '../../domain/notes';
 import type { Voicing } from '../../domain/chords';
 import { COMMON_VOICINGS } from '../../domain/chords';
-import { AudioEngine } from '../../audio/audioEngine';
+import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import type { StringTuningStatus } from '../../audio/chordAnalyzer';
 import {
@@ -32,7 +32,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 }) => {
   const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(COMMON_VOICINGS[0]); // Open strings
   const [analysisMode, setAnalysisMode] = useState<'arpeggio' | 'strum'>('arpeggio');
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(() => sharedAudioEngine.isRunning());
   const [isCapturingStrum, setIsCapturingStrum] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
   const [stringStatuses, setStringStatuses] = useState<StringTuningStatus[]>(() =>
@@ -40,7 +40,6 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   );
   const [lastMatchedIndex, setLastMatchedIndex] = useState<number | null>(null);
 
-  const audioEngineRef = useRef<AudioEngine | null>(null);
   const captureTimerRef = useRef<number | null>(null);
 
   // Сброс статусов при смене аккорда или строя
@@ -50,38 +49,35 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   }, [selectedVoicing, tuning, a4]);
 
   useEffect(() => {
-    const engine = new AudioEngine({
-      onEstimate: (estimate: PitchEstimate) => {
-        if (analysisMode !== 'arpeggio') return;
-        if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.85) return;
+    setIsListening(sharedAudioEngine.isRunning());
 
-        setStringStatuses(prev => {
-          const res = evaluateArpeggioNote(estimate.frequency, selectedVoicing, tuning, prev, inTuneThreshold, a4);
-          if (res.matchedIndex !== null) {
-            setLastMatchedIndex(res.matchedIndex);
-          }
-          return res.updatedStatuses;
-        });
-      }
+    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
+      if (analysisMode !== 'arpeggio') return;
+      if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.50) return;
+
+      setStringStatuses(prev => {
+        const res = evaluateArpeggioNote(estimate.frequency, selectedVoicing, tuning, prev, inTuneThreshold, a4);
+        if (res.matchedIndex !== null) {
+          setLastMatchedIndex(res.matchedIndex);
+        }
+        return res.updatedStatuses;
+      });
     });
 
-    audioEngineRef.current = engine;
-
     return () => {
-      engine.destroy();
+      unsubscribe();
       if (captureTimerRef.current) clearInterval(captureTimerRef.current);
     };
   }, [analysisMode, selectedVoicing, tuning, inTuneThreshold, a4]);
 
   const toggleListening = async () => {
-    if (!audioEngineRef.current) return;
     if (isListening) {
-      audioEngineRef.current.stop();
+      sharedAudioEngine.stop();
       setIsListening(false);
       setIsCapturingStrum(false);
     } else {
       try {
-        await audioEngineRef.current.start();
+        await sharedAudioEngine.start();
         setIsListening(true);
       } catch (e) {
         console.error(e);
@@ -93,10 +89,9 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
    * Запуск 1.2с спектрального захвата для полифонического анализа (Режим B)
    */
   const handleStartStrumCapture = async () => {
-    if (!audioEngineRef.current) return;
-    if (!isListening) {
+    if (!sharedAudioEngine.isRunning()) {
       try {
-        await audioEngineRef.current.start();
+        await sharedAudioEngine.start();
         setIsListening(true);
       } catch (e) {
         console.error(e);
@@ -122,7 +117,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         setIsCapturingStrum(false);
 
         // Получаем накопленный спектр из AudioEngine и анализируем
-        const freqInfo = audioEngineRef.current?.getFrequencyData();
+        const freqInfo = sharedAudioEngine.getFrequencyData();
         if (freqInfo) {
           const analyzed = analyzeChordStrumSpectrum(
             freqInfo.data,
