@@ -181,6 +181,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className={`btn btn-sm ${a4 === freq ? 'btn-primary' : 'btn-ghost'}`}
                 style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }}
                 onClick={() => onA4Change(freq)}
+                data-testid={`settings-a4-${freq}`}
               >
                 {freq} Гц
               </button>
@@ -385,7 +386,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Кнопка закрыть */}
-        <button className="btn btn-primary" onClick={onClose} style={{ marginTop: '8px' }}>
+        <button className="btn btn-primary" onClick={onClose} data-testid="settings-close" style={{ marginTop: '8px' }}>
           Сохранить и закрыть
         </button>
       </div>

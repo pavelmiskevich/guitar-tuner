@@ -292,6 +292,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               const found = TUNING_PRESETS.find(t => t.id === e.target.value);
               if (found) onTuningChange(found);
             }}
+            data-testid="tuning-select"
             style={{
               background: 'var(--ink-800)',
               color: 'var(--ink-050)',
@@ -429,6 +430,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               key={str.stringNumber}
               className="schip"
               data-state={state}
+              data-testid={`string-chip-${str.stringNumber}`}
               onClick={() => {
                 onSelectString(isSelected ? null : idx);
                 handlePlayReference(str);
@@ -484,6 +486,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               type="checkbox"
               checked={autoAdvance}
               onChange={(e) => setAutoAdvance(e.target.checked)}
+              data-testid="master-mode"
               style={{ accentColor: 'var(--brand)' }}
             />
             Мастер (автошаг)
@@ -517,6 +520,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
         {/* Команда действия (FR-TN-18: Подтянуть / Ослабить / В строе) */}
         <div
+          data-testid="tuner-action"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -558,6 +562,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           title="Нажмите на ноту, чтобы услышать эталонное звучание струны"
         >
           <span
+            data-testid="tuner-note"
             style={{
               fontSize: 'var(--fs-display)',
               fontWeight: 800,
@@ -642,8 +647,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             opacity: isSoundActive ? 1 : 0.65
           }}
         >
-          <span>Измерено: <strong style={{ color: 'var(--ink-050)' }}>{measuredFreq > 0 ? `${measuredFreq.toFixed(1)} Гц` : '—'}</strong></span>
-          <span>Цель: <strong style={{ color: 'var(--ink-050)' }}>{targetFreq > 0 ? `${targetFreq.toFixed(1)} Гц` : '—'}</strong></span>
+          <span>Измерено: <strong data-testid="tuner-measured" style={{ color: 'var(--ink-050)' }}>{measuredFreq > 0 ? `${measuredFreq.toFixed(1)} Гц` : '—'}</strong></span>
+          <span>Цель: <strong data-testid="tuner-target" style={{ color: 'var(--ink-050)' }}>{targetFreq > 0 ? `${targetFreq.toFixed(1)} Гц` : '—'}</strong></span>
         </div>
 
         {/* Нелинейная шкала центов */}
@@ -654,7 +659,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
       {/* Подсказка FR-TN-20: Подходите к ноте снизу при перетянутой струне */}
       {isListening && isSoundActive && cents > 15 && (
-        <div className="banner" style={{ background: 'var(--ink-900)', border: '1px solid var(--sig-near)', color: 'var(--ink-100)', fontSize: '13px' }}>
+        <div data-testid="master-tip" className="banner" style={{ background: 'var(--ink-900)', border: '1px solid var(--sig-near)', color: 'var(--ink-100)', fontSize: '13px' }}>
           <Info size={16} color="var(--sig-near)" />
           <div>
             <b>Совет мастера:</b> Ослабьте колок чуть ниже цели и плавно подтяните вверх, чтобы устранить люфт механики колка.
@@ -667,6 +672,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => setShowSpectrum(!showSpectrum)}
+          data-testid="spectrum-toggle"
           style={{ alignSelf: 'flex-start', fontSize: '12px' }}
         >
           <SlidersHorizontal size={13} /> {showSpectrum ? 'Скрыть спектр гармоник' : 'Показать спектр гармоник'}
