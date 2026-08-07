@@ -243,8 +243,10 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 'var(--s8) var(--s6)',
-          gap: 'var(--s6)'
+          padding: 'var(--s6) var(--s4)',
+          gap: 'var(--s6)',
+          width: '100%',
+          boxSizing: 'border-box'
         }}
       >
         {/* Индикатор долей */}
@@ -321,16 +323,36 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink-300)' }}>BPM</span>
         </div>
 
-        {/* Управление темпом: -1, -5, +1, +5 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => changeBpm(-5)} style={{ fontWeight: 700 }}>
+        {/* Управление темпом: -5, -1, slider, +1, +5 (адаптивная сетка, не вылезает на мобильных) */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: '440px',
+            justifyContent: 'center',
+            boxSizing: 'border-box'
+          }}
+        >
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => changeBpm(-5)}
+            style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
+            title="Уменьшить темп на 5 BPM"
+          >
             -5
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => changeBpm(-1)}>
-            <Minus size={16} />
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => changeBpm(-1)}
+            style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
+            title="Уменьшить темп на 1 BPM"
+          >
+            <Minus size={15} />
           </button>
 
-          {/* Ползунок темпа */}
+          {/* Ползунок темпа (адаптивный) */}
           <input
             type="range"
             min={40}
@@ -338,16 +360,28 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
             style={{
-              width: '180px',
+              flex: 1,
+              minWidth: '60px',
+              maxWidth: '220px',
               accentColor: 'var(--brand)',
               cursor: 'pointer'
             }}
           />
 
-          <button className="btn btn-ghost btn-sm" onClick={() => changeBpm(1)}>
-            <Plus size={16} />
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => changeBpm(1)}
+            style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
+            title="Увеличить темп на 1 BPM"
+          >
+            <Plus size={15} />
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => changeBpm(5)} style={{ fontWeight: 700 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => changeBpm(5)}
+            style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
+            title="Увеличить темп на 5 BPM"
+          >
             +5
           </button>
         </div>
@@ -361,7 +395,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
                 key={beats}
                 className={`btn btn-sm ${beatsPerBar === beats ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setBeatsPerBar(beats)}
-                style={{ fontWeight: 700 }}
+                style={{ fontWeight: 700, padding: '6px 12px' }}
               >
                 {beats}/4
               </button>
@@ -370,19 +404,19 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         )}
 
         {/* Кнопка запуска / остановки */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center', width: '100%', flexWrap: 'wrap' }}>
           <button
             className={`btn ${isPlaying ? 'btn-danger' : 'btn-primary'}`}
             onClick={() => setIsPlaying(!isPlaying)}
-            style={{ minWidth: '180px', padding: '14px 28px', fontSize: '18px' }}
+            style={{ flex: 1, minWidth: '140px', maxWidth: '200px', padding: '14px 20px', fontSize: '17px', justifyContent: 'center' }}
           >
             {isPlaying ? (
               <>
-                <Square size={20} /> Стоп
+                <Square size={18} /> Стоп
               </>
             ) : (
               <>
-                <Play size={20} /> Старт
+                <Play size={18} /> Старт
               </>
             )}
           </button>
@@ -391,10 +425,10 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           <button
             className="btn btn-ghost"
             onClick={handleTap}
-            style={{ padding: '14px 20px', fontSize: '15px', border: '1px solid var(--ink-700)' }}
+            style={{ flex: 1, minWidth: '130px', maxWidth: '180px', padding: '14px 16px', fontSize: '14px', border: '1px solid var(--ink-700)', justifyContent: 'center' }}
             title="Нажимайте в такт музыке для определения BPM"
           >
-            <HeartHandshake size={18} /> Tap Tempo
+            <HeartHandshake size={16} /> Tap Tempo
           </button>
         </div>
       </div>
