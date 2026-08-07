@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 направлений брендбука · Гитарный тюнер</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;600;800&family=Unbounded:wght@400;600;800&family=Commissioner:wght@300;400;600;800&family=Cormorant+Garamond:wght@300;400;600&family=Oswald:wght@300;400;600;700&family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;600&family=Manrope:wght@300;400;600;800&family=Alice&family=PT+Sans:wght@400;700&family=PT+Mono&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --shell-bg:#131417;
+    --shell-panel:#1C1D21;
+    --shell-line:#2C2E34;
+    --shell-fg:#E8E8EA;
+    --shell-mute:#8B8D96;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--shell-bg);
+    color:var(--shell-fg);
+    font-family:'Inter Tight',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:32px 16px 80px}
+  header.top{border-bottom:1px solid var(--shell-line);padding-bottom:24px;margin-bottom:28px}
+  header.top h1{font-size:26px;font-weight:600;letter-spacing:-0.02em;margin:0 0 8px}
+  header.top p{margin:0;color:var(--shell-mute);font-size:14px;max-width:70ch}
+  header.top .crit{margin-top:14px;font-size:12.5px;color:var(--shell-mute)}
+  header.top .crit b{color:var(--shell-fg);font-weight:500}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+
+  .card{background:var(--shell-panel);border:1px solid var(--shell-line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .card-head{padding:16px 16px 12px;display:flex;gap:12px;align-items:baseline}
+  .num{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--shell-mute);padding-top:3px}
+  .card-head h2{font-size:18px;margin:0;font-weight:600;letter-spacing:-0.01em}
+  .card-head .en{display:block;font-size:11.5px;color:var(--shell-mute);font-weight:400;letter-spacing:0.06em;text-transform:uppercase;margin-top:2px}
+  .thesis{padding:0 16px 14px;font-size:13.5px;color:#B9BBC2}
+
+  /* ---------- превью ---------- */
+  .preview{
+    position:relative;overflow:hidden;
+    height:230px;padding:18px 20px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    background:var(--bg);color:var(--fg);
+  }
+  .pv-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--mute);position:relative;z-index:3}
+  .pv-mid{position:relative;z-index:3;display:flex;align-items:baseline;gap:14px}
+  .pv-note{font-family:var(--display);font-size:64px;line-height:0.9;font-weight:var(--dispw,700);letter-spacing:var(--displs,-0.03em);color:var(--fg)}
+  .pv-note sub{font-size:0.4em;font-weight:400;vertical-align:baseline;color:var(--mute)}
+  .pv-cents{font-family:var(--numeral);font-size:22px;font-weight:600;color:var(--warn);font-variant-numeric:tabular-nums}
+  .pv-bottom{position:relative;z-index:3}
+  .pv-scale{position:relative;height:26px;margin-bottom:12px}
+  .pv-track{position:absolute;inset:auto 0 11px 0;height:2px;background:var(--track)}
+  .pv-zone{position:absolute;left:calc(50% - 22px);width:44px;bottom:4px;height:16px;background:var(--good);opacity:.16}
+  .pv-tick{position:absolute;bottom:6px;width:1px;height:8px;background:var(--track)}
+  .pv-needle{position:absolute;bottom:0;left:31%;width:3px;height:26px;background:var(--warn)}
+  .pv-action{display:flex;justify-content:space-between;align-items:flex-end;font-family:var(--display);font-size:24px;font-weight:var(--actw,600);letter-spacing:var(--displs,-0.01em)}
+  .pv-action small{font-family:var(--body);font-size:11px;font-weight:400;letter-spacing:0.06em;text-transform:uppercase;color:var(--mute)}
+
+  /* ---------- метаданные ---------- */
+  .swatches{display:flex;height:34px}
+  .sw{flex:1;position:relative}
+  .sw span{position:absolute;bottom:3px;left:4px;font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.02em;opacity:.75}
+  .meta{padding:14px 16px 16px;font-size:12.5px;color:#B9BBC2;display:grid;gap:7px;border-top:1px solid var(--shell-line)}
+  .meta div{display:grid;grid-template-columns:78px 1fr;gap:10px}
+  .meta dt{color:var(--shell-mute)}
+  .meta b{color:var(--shell-fg);font-weight:500}
+
+  footer.bottom{margin-top:36px;border-top:1px solid var(--shell-line);padding-top:24px;font-size:13.5px;color:#B9BBC2}
+  footer.bottom h3{font-size:15px;color:var(--shell-fg);margin:0 0 10px;font-weight:600}
+  footer.bottom ul{margin:0 0 18px;padding-left:18px}
+  footer.bottom li{margin-bottom:6px}
+
+  /* ============ 1. СТРОБОСКОП ============ */
+  .t1{--bg:#0E0F12;--fg:#F2EDE3;--mute:#6E6A62;--track:#33302B;--good:#7FD48A;--warn:#E8A33D;
+      --display:'Unbounded',sans-serif;--body:'Inter Tight',sans-serif;--numeral:'JetBrains Mono',monospace;--dispw:600;--displs:-0.01em}
+  .t1::before{content:"";position:absolute;inset:auto 0 0 0;height:230px;z-index:1;opacity:.13;
+    background:repeating-linear-gradient(100deg,#E8A33D 0 14px,transparent 14px 34px)}
+  .t1 .pv-needle{background:#E8A33D;box-shadow:0 0 14px #E8A33D}
+
+  /* ============ 2. ЧЕРТЁЖ ============ */
+  .t2{--bg:#123048;--fg:#EAF3F8;--mute:#7BA3BC;--track:#3A6382;--good:#8FE0C0;--warn:#FFD166;
+      --display:'Commissioner',sans-serif;--body:'Commissioner',sans-serif;--numeral:'JetBrains Mono',monospace;--dispw:300;--displs:0.04em;--actw:400}
+  .t2::before{content:"";position:absolute;inset:0;z-index:1;opacity:.28;
+    background:linear-gradient(#4E82A6 1px,transparent 1px) 0 0/100% 22px,
+               linear-gradient(90deg,#4E82A6 1px,transparent 1px) 0 0/22px 100%}
+  .t2 .pv-action,.t2 .pv-note{text-transform:uppercase}
+  .t2 .pv-needle{background:#FFD166;width:1.5px;height:34px;bottom:-4px}
+
+  /* ============ 3. ШВЕЙЦАРСКАЯ СЕТКА ============ */
+  .t3{--bg:#FFFFFF;--fg:#0A0A0A;--mute:#8A8A8A;--track:#D6D6D6;--good:#0B7A3B;--warn:#E11900;
+      --display:'Inter Tight',sans-serif;--body:'Inter Tight',sans-serif;--numeral:'Inter Tight',sans-serif;--dispw:700;--displs:-0.045em}
+  .t3 .pv-note{font-size:76px}
+  .t3::after{content:"";position:absolute;left:0;top:0;width:8px;height:100%;background:#E11900;z-index:2}
+  .t3 .preview,.t3.preview{padding-left:30px}
+
+  /* ============ 4. ГРАВЮРА НОТ ============ */
+  .t4{--bg:#F6F2E9;--fg:#1A1814;--mute:#8C8171;--track:#C9BFAC;--good:#3F6B4A;--warn:#9C3B2E;
+      --display:'Cormorant Garamond',serif;--body:'Inter Tight',sans-serif;--numeral:'Cormorant Garamond',serif;--dispw:600;--displs:0;--actw:600}
+  .t4 .pv-note{font-size:80px}
+  .t4 .pv-scale::before{content:"";position:absolute;inset:0 0 4px 0;z-index:1;
+    background:repeating-linear-gradient(#1A1814 0 1px,transparent 1px 6px);opacity:.35}
+  .t4 .pv-needle{width:14px;height:10px;border-radius:50%;background:#9C3B2E;transform:rotate(-20deg);bottom:6px}
+
+  /* ============ 5. СТУДИЙНЫЙ РЭК ============ */
+  .t5{--bg:#26282B;--fg:#EFE9DC;--mute:#8E9299;--track:#4A4E54;--good:#5FD08A;--warn:#E5533D;
+      --display:'Oswald',sans-serif;--body:'IBM Plex Sans',sans-serif;--numeral:'IBM Plex Mono',monospace;--dispw:600;--displs:0.02em}
+  .t5 .pv-top,.t5 .pv-action{text-transform:uppercase}
+  .t5 .pv-mid{background:#EFE9DC;color:#26282B;padding:6px 14px;align-self:flex-start;border-radius:2px}
+  .t5 .pv-note{color:#26282B}.t5 .pv-note sub{color:#7A756A}
+  .t5 .pv-needle{background:#E5533D;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+
+  /* ============ 6. НОЧНАЯ РЕПЕТИЦИЯ ============ */
+  .t6{--bg:#12102A;--fg:#EDEBFF;--mute:#7C77B8;--track:#2C2860;--good:#3BE8B0;--warn:#FF4D8D;
+      --display:'Manrope',sans-serif;--body:'Manrope',sans-serif;--numeral:'JetBrains Mono',monospace;--dispw:800;--displs:-0.03em}
+  .t6::before{content:"";position:absolute;width:280px;height:280px;right:-90px;top:-120px;z-index:1;
+    background:radial-gradient(circle,#FF4D8D55,transparent 65%)}
+  .t6::after{content:"";position:absolute;width:240px;height:240px;left:-80px;bottom:-130px;z-index:1;
+    background:radial-gradient(circle,#3BE8B055,transparent 65%)}
+  .t6 .pv-needle{background:#FF4D8D;box-shadow:0 0 18px #FF4D8D}
+
+  /* ============ 7. ЛАМПОВЫЙ ВИНТАЖ ============ */
+  .t7{--bg:#1B1614;--fg:#F0E2C4;--mute:#9A8467;--track:#4A3B2C;--good:#93B36B;--warn:#C9552F;
+      --display:'Alice',serif;--body:'PT Sans',sans-serif;--numeral:'PT Sans',sans-serif;--dispw:400;--displs:0.01em;--actw:400}
+  .t7 .preview,.t7.preview{border:0}
+  .t7::before{content:"";position:absolute;inset:10px;border:1px solid #B08D57;z-index:2;pointer-events:none}
+  .t7 .pv-note{font-size:70px}
+  .t7 .pv-needle{background:#C9552F}
+  .t7 .pv-zone{background:#93B36B}
+
+  /* ============ 8. ТАБУЛАТУРА ============ */
+  .t8{--bg:#FBFAF7;--fg:#1B1D21;--mute:#8D9099;--track:#C7CAD1;--good:#1F7A5A;--warn:#2F5DD6;
+      --display:'JetBrains Mono',monospace;--body:'JetBrains Mono',monospace;--numeral:'JetBrains Mono',monospace;--dispw:800;--displs:-0.02em}
+  .t8 .pv-note{font-size:58px}
+  .t8 .pv-scale::before{content:"e|——————3——————|";position:absolute;left:0;bottom:16px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:#B4B8C0;letter-spacing:-0.05em}
+  .t8 .pv-needle{background:#2F5DD6;width:2px}
+
+  /* ============ 9. КСЕРОКС-ЗИН ============ */
+  .t9{--bg:#EFEFEA;--fg:#000000;--mute:#6B6B66;--track:#000000;--good:#00A05A;--warn:#000000;
+      --display:'Russo One',sans-serif;--body:'PT Mono',monospace;--numeral:'PT Mono',monospace;--dispw:400;--displs:0.01em;--actw:400}
+  .t9 .pv-mid{background:#000;color:#EFEFEA;padding:4px 12px;transform:rotate(-1.2deg);align-self:flex-start}
+  .t9 .pv-note{color:#DFFF3A;font-size:56px;text-transform:uppercase}
+  .t9 .pv-note sub{color:#EFEFEA}
+  .t9 .pv-cents{color:#EFEFEA}
+  .t9 .pv-action{text-transform:uppercase}
+  .t9 .pv-needle{background:#000;width:4px}
+  .t9 .pv-zone{background:#DFFF3A;opacity:.9}
+  .t9::before{content:"";position:absolute;inset:0;z-index:1;opacity:.10;
+    background:radial-gradient(#000 1px,transparent 1.4px) 0 0/4px 4px}
+
+  /* ============ 10. СУМИ ============ */
+  .t10{--bg:#F3F2ED;--fg:#16161A;--mute:#9A968E;--track:#D8D5CC;--good:#3E6B57;--warn:#D7442E;
+       --display:'Cormorant Garamond',serif;--body:'Manrope',sans-serif;--numeral:'Manrope',sans-serif;--dispw:300;--displs:0;--actw:400}
+  .t10 .pv-note{font-size:88px;line-height:0.8}
+  .t10::before{content:"";position:absolute;right:26px;top:24px;width:2px;height:180px;background:#D7442E;z-index:2}
+  .t10 .pv-needle{background:#D7442E;width:2px;height:32px;bottom:-3px}
+  .t10 .pv-zone{background:#3E6B57}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>10 направлений брендбука</h1>
+  <p>Каждая карточка — превью главного элемента продукта: экрана тюнера в момент, когда 6-я струна на 12 центов ниже цели. Именно этот экран пользователь видит чаще всего, поэтому направление проверяется на нём, а не на абстрактных плашках.</p>
+  <p class="crit">Критерии отбора шрифтов: <b>все пары поддерживают кириллицу</b>, доступны в Google Fonts (лицензия OFL, self-hosting без ограничений), имеют табличные цифры или их эмуляцию. Палитры проверены на контраст: пара «фон / основной текст» ≥ 7:1, семантические цвета ≥ 4.5:1.</p>
+</header>
+
+<div class="grid">
+
+  <!-- 1 -->
+  <article class="card">
+    <div class="card-head"><span class="num">01</span><div><h2>Стробоскоп<span class="en">Strobe</span></h2></div></div>
+    <p class="thesis">Отсылка к стробоскопическим тюнерам — самым точным приборам в мире гитары. Тёмный корпус, янтарное свечение, полосы, которые замирают, когда струна в строе.</p>
+    <div class="preview t1">
+      <div class="pv-top"><span>6-я струна · авто</span><span>82.11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>A4 · 440.0</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#0E0F12;color:#fff"><span>#0E0F12</span></div>
+      <div class="sw" style="background:#F2EDE3;color:#000"><span>#F2EDE3</span></div>
+      <div class="sw" style="background:#E8A33D;color:#000"><span>#E8A33D</span></div>
+      <div class="sw" style="background:#7FD48A;color:#000"><span>#7FD48A</span></div>
+      <div class="sw" style="background:#33302B;color:#fff"><span>#33302B</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Unbounded 600 · Inter Tight · JetBrains Mono</b></div>
+      <div><dt>Подпись</dt><b>Полосатая лента за шкалой, скорость движения = величина расстройки, остановка = строй</b></div>
+      <div><dt>Кому</dt><b>Опытным и «точным» пользователям; отлично в тёмной комнате и на сцене</b></div>
+      <div><dt>Риск</dt><b>Анимация полос нагружает GPU и требует аккуратного `prefers-reduced-motion`</b></div>
+    </div>
+  </article>
+
+  <!-- 2 -->
+  <article class="card">
+    <div class="card-head"><span class="num">02</span><div><h2>Чертёж мастерской<span class="en">Blueprint</span></h2></div></div>
+    <p class="thesis">Гриф как инженерный объект: синька, миллиметровая сетка, тонкие линии, размеры и допуски. Приложение выглядит как измерительный чертёж, а не как игрушка.</p>
+    <div class="preview t2">
+      <div class="pv-top"><span>Струна 6 / E2</span><span>откл. −12,0 ¢</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">82,11 Гц</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>допуск ±3 ¢</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#123048;color:#fff"><span>#123048</span></div>
+      <div class="sw" style="background:#EAF3F8;color:#000"><span>#EAF3F8</span></div>
+      <div class="sw" style="background:#FFD166;color:#000"><span>#FFD166</span></div>
+      <div class="sw" style="background:#8FE0C0;color:#000"><span>#8FE0C0</span></div>
+      <div class="sw" style="background:#3A6382;color:#fff"><span>#3A6382</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Commissioner 300/600 разрядка · JetBrains Mono</b></div>
+      <div><dt>Подпись</dt><b>Гриф-чертёж: выносные линии, номера ладов как размерные подписи, мензура подписана</b></div>
+      <div><dt>Кому</dt><b>Преподавателям и вдумчивым любителям; хорошо смотрится на большом экране</b></div>
+      <div><dt>Риск</dt><b>Сетка визуально шумит на маленьком экране — нужна на 60% слабее, чем в превью</b></div>
+    </div>
+  </article>
+
+  <!-- 3 -->
+  <article class="card">
+    <div class="card-head"><span class="num">03</span><div><h2>Швейцарская сетка<span class="en">Signal</span></h2></div></div>
+    <p class="thesis">Максимальный минимализм: белое поле, чёрная типографика, один красный сигнал. Ничего, кроме информации. Самый быстрый в производстве и самый «незаметный» вариант.</p>
+    <div class="preview t3">
+      <div class="pv-top"><span>Струна 6</span><span>82.11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">−12</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>±3 ¢</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#FFFFFF;color:#000"><span>#FFFFFF</span></div>
+      <div class="sw" style="background:#0A0A0A;color:#fff"><span>#0A0A0A</span></div>
+      <div class="sw" style="background:#E11900;color:#fff"><span>#E11900</span></div>
+      <div class="sw" style="background:#0B7A3B;color:#fff"><span>#0B7A3B</span></div>
+      <div class="sw" style="background:#D6D6D6;color:#000"><span>#D6D6D6</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Inter Tight 700/400, одна гарнитура на всё</b></div>
+      <div><dt>Подпись</dt><b>Красная вертикальная линейка слева = «нулевая ось»; вся вёрстка выровнена по ней</b></div>
+      <div><dt>Кому</dt><b>Всем; самый безопасный выбор, лучшая читаемость на солнце</b></div>
+      <div><dt>Риск</dt><b>Нет характера — легко спутать с любым другим инструментом</b></div>
+    </div>
+  </article>
+
+  <!-- 4 -->
+  <article class="card">
+    <div class="card-head"><span class="num">04</span><div><h2>Нотная гравюра<span class="en">Engraved</span></h2></div></div>
+    <p class="thesis">Мир печатных нот: кремовая бумага, антиква, нотный стан вместо шкалы центов, головка ноты вместо стрелки. Тёплый, «музыкальный», а не «приборный» характер.</p>
+    <div class="preview t4">
+      <div class="pv-top"><span>Шестая струна</span><span>82,11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">Mi<sub>2</sub></span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>ля 440</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#F6F2E9;color:#000"><span>#F6F2E9</span></div>
+      <div class="sw" style="background:#1A1814;color:#fff"><span>#1A1814</span></div>
+      <div class="sw" style="background:#9C3B2E;color:#fff"><span>#9C3B2E</span></div>
+      <div class="sw" style="background:#3F6B4A;color:#fff"><span>#3F6B4A</span></div>
+      <div class="sw" style="background:#C9BFAC;color:#000"><span>#C9BFAC</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Cormorant Garamond 600 · Inter Tight</b></div>
+      <div><dt>Подпись</dt><b>Шкала центов = нотный стан; индикатор — головка ноты, скользящая между линейками</b></div>
+      <div><dt>Кому</dt><b>Классической гитаре, преподавателям, академической аудитории</b></div>
+      <div><dt>Риск</dt><b>Тонкая антиква плохо читается на солнце и на дешёвых экранах; нужна тёмная тема-двойник</b></div>
+    </div>
+  </article>
+
+  <!-- 5 -->
+  <article class="card">
+    <div class="card-head"><span class="num">05</span><div><h2>Студийный рэк<span class="en">Rack Unit</span></h2></div></div>
+    <p class="thesis">Язык студийного железа: графитовая панель, кремовое окно индикатора, узкий конденсированный шрифт подписей, красная стрелка VU. Без текстур — только пропорции и раскладка приборной панели.</p>
+    <div class="preview t5">
+      <div class="pv-top"><span>String 6 · E2</span><span>−12 ¢</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>82.11 Hz</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#26282B;color:#fff"><span>#26282B</span></div>
+      <div class="sw" style="background:#EFE9DC;color:#000"><span>#EFE9DC</span></div>
+      <div class="sw" style="background:#E5533D;color:#fff"><span>#E5533D</span></div>
+      <div class="sw" style="background:#5FD08A;color:#000"><span>#5FD08A</span></div>
+      <div class="sw" style="background:#4A4E54;color:#fff"><span>#4A4E54</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Oswald 600 (подписи) · IBM Plex Sans · IBM Plex Mono</b></div>
+      <div><dt>Подпись</dt><b>Светлое «окно прибора» — единственная светлая плашка на тёмном; в ней живёт нота</b></div>
+      <div><dt>Кому</dt><b>Электрогитаристам, репетиционная база и студия</b></div>
+      <div><dt>Риск</dt><b>Легко скатиться в скевоморфизм — правило 8.1 запрещает текстуры, держать плоским</b></div>
+    </div>
+  </article>
+
+  <!-- 6 -->
+  <article class="card">
+    <div class="card-head"><span class="num">06</span><div><h2>Ночная репетиция<span class="en">Neon</span></h2></div></div>
+    <p class="thesis">Индиго-темнота с двумя светящимися полюсами: розовый — «мимо», бирюзовый — «в строю». Настройка превращается в движение от одного свечения к другому.</p>
+    <div class="preview t6">
+      <div class="pv-top"><span>6-я струна</span><span>82.11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>авто</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#12102A;color:#fff"><span>#12102A</span></div>
+      <div class="sw" style="background:#EDEBFF;color:#000"><span>#EDEBFF</span></div>
+      <div class="sw" style="background:#FF4D8D;color:#000"><span>#FF4D8D</span></div>
+      <div class="sw" style="background:#3BE8B0;color:#000"><span>#3BE8B0</span></div>
+      <div class="sw" style="background:#2C2860;color:#fff"><span>#2C2860</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Manrope 800/400 · JetBrains Mono</b></div>
+      <div><dt>Подпись</dt><b>Цвет свечения фона плавно переходит от розового к бирюзовому по мере приближения к нулю</b></div>
+      <div><dt>Кому</dt><b>Молодой аудитории, новичкам; сильнее всего «продаёт» приложение в сторе</b></div>
+      <div><dt>Риск</dt><b>Свечение съедает контраст и батарею; самый «модный» и потому быстрее всех устареет</b></div>
+    </div>
+  </article>
+
+  <!-- 7 -->
+  <article class="card">
+    <div class="card-head"><span class="num">07</span><div><h2>Ламповый винтаж<span class="en">Tolex &amp; Brass</span></h2></div></div>
+    <p class="thesis">Комбоусилитель 70-х: тёмный корпус, латунный кант, кремовые подписи, оксблад-акцент. Тёплый и «дорогой» характер без единой имитации материала.</p>
+    <div class="preview t7">
+      <div class="pv-top"><span>VI струна</span><span>82.11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>ля 440 Гц</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#1B1614;color:#fff"><span>#1B1614</span></div>
+      <div class="sw" style="background:#F0E2C4;color:#000"><span>#F0E2C4</span></div>
+      <div class="sw" style="background:#B08D57;color:#000"><span>#B08D57</span></div>
+      <div class="sw" style="background:#C9552F;color:#fff"><span>#C9552F</span></div>
+      <div class="sw" style="background:#93B36B;color:#000"><span>#93B36B</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Alice (антиква) · PT Sans</b></div>
+      <div><dt>Подпись</dt><b>Латунная рамка-кант вокруг активной панели — единственная декоративная линия во всём макете</b></div>
+      <div><dt>Кому</dt><b>Взрослой аудитории, блюз/рок, владельцам «настоящих» инструментов</b></div>
+      <div><dt>Риск</dt><b>Латунь и оксблад дают низкий контраст — семантику строя придётся вести отдельными цветами</b></div>
+    </div>
+  </article>
+
+  <!-- 8 -->
+  <article class="card">
+    <div class="card-head"><span class="num">08</span><div><h2>Табулатура<span class="en">Mono Tab</span></h2></div></div>
+    <p class="thesis">Родной язык гитариста из интернета — текстовая табулатура. Всё моноширинное, гриф собирается из символов и линий, интерфейс похож на аккуратный текстовый файл.</p>
+    <div class="preview t8">
+      <div class="pv-top"><span>string 6</span><span>82.11 Hz</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">-12¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>tol ±3</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#FBFAF7;color:#000"><span>#FBFAF7</span></div>
+      <div class="sw" style="background:#1B1D21;color:#fff"><span>#1B1D21</span></div>
+      <div class="sw" style="background:#2F5DD6;color:#fff"><span>#2F5DD6</span></div>
+      <div class="sw" style="background:#1F7A5A;color:#fff"><span>#1F7A5A</span></div>
+      <div class="sw" style="background:#C7CAD1;color:#000"><span>#C7CAD1</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>JetBrains Mono 800/400 — одна гарнитура на весь интерфейс</b></div>
+      <div><dt>Подпись</dt><b>Строка табулатуры под шкалой показывает текущую аппликатуру: e|—3—|</b></div>
+      <div><dt>Кому</dt><b>Самоучкам из интернета, разработчикам-гитаристам; сильная узнаваемость</b></div>
+      <div><dt>Риск</dt><b>Моноширинный шрифт в длинных подсказках читается медленнее пропорционального</b></div>
+    </div>
+  </article>
+
+  <!-- 9 -->
+  <article class="card">
+    <div class="card-head"><span class="num">09</span><div><h2>Ксерокс-зин<span class="en">Xerox</span></h2></div></div>
+    <p class="thesis">Самиздатовский флаер: жёсткий чёрно-белый контраст, растр ксерокса, кислотный жёлтый маркер как единственный цвет, лёгкий наклон плашек.</p>
+    <div class="preview t9">
+      <div class="pv-top"><span>струна 6</span><span>82.11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E2</span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>440</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#EFEFEA;color:#000"><span>#EFEFEA</span></div>
+      <div class="sw" style="background:#000000;color:#fff"><span>#000000</span></div>
+      <div class="sw" style="background:#DFFF3A;color:#000"><span>#DFFF3A</span></div>
+      <div class="sw" style="background:#00A05A;color:#fff"><span>#00A05A</span></div>
+      <div class="sw" style="background:#6B6B66;color:#fff"><span>#6B6B66</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Russo One · PT Mono</b></div>
+      <div><dt>Подпись</dt><b>Чёрная плашка с наклоном −1,2°, на ней — нота маркерным жёлтым</b></div>
+      <div><dt>Кому</dt><b>Панк/рок-аудитории, подросткам; максимально запоминается</b></div>
+      <div><dt>Риск</dt><b>Наклон и растр конфликтуют с требованием «нулевой декоративности» (NFR-D-02) — самый спорный вариант</b></div>
+    </div>
+  </article>
+
+  <!-- 10 -->
+  <article class="card">
+    <div class="card-head"><span class="num">10</span><div><h2>Сумi<span class="en">Sumi · вертикаль</span></h2></div></div>
+    <p class="thesis">Тишина и одна красная линия. Композиция строится вертикально — как вертикальный гриф на телефоне; много воздуха, лёгкая антиква, киноварь только на действии.</p>
+    <div class="preview t10">
+      <div class="pv-top"><span>6 · ми</span><span>82,11 Гц</span></div>
+      <div class="pv-mid"><span class="pv-note">E<sub>2</sub></span><span class="pv-cents">−12 ¢</span></div>
+      <div class="pv-bottom">
+        <div class="pv-scale"><div class="pv-track"></div><div class="pv-zone"></div><div class="pv-needle"></div></div>
+        <div class="pv-action">Подтянуть<small>ля 440</small></div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#F3F2ED;color:#000"><span>#F3F2ED</span></div>
+      <div class="sw" style="background:#16161A;color:#fff"><span>#16161A</span></div>
+      <div class="sw" style="background:#D7442E;color:#fff"><span>#D7442E</span></div>
+      <div class="sw" style="background:#3E6B57;color:#fff"><span>#3E6B57</span></div>
+      <div class="sw" style="background:#D8D5CC;color:#000"><span>#D8D5CC</span></div>
+    </div>
+    <div class="meta">
+      <div><dt>Шрифты</dt><b>Cormorant Garamond 300 · Manrope</b></div>
+      <div><dt>Подпись</dt><b>Вертикальная киноварная линия — ось строя; всё остальное выстроено вокруг пустоты</b></div>
+      <div><dt>Кому</dt><b>Тем, кто ценит спокойные интерфейсы; идеально ложится на вертикальный гриф</b></div>
+      <div><dt>Риск</dt><b>Много воздуха = меньше информации на экран; на 320 px придётся ужимать поля</b></div>
+    </div>
+  </article>
+
+</div>
+
+<footer class="bottom">
+  <h3>Как выбирать</h3>
+  <ul>
+    <li><b>Если приоритет — скорость и читаемость:</b> 03 «Швейцарская сетка» или 08 «Табулатура». Обе делаются быстрее остальных и не создают проблем с контрастом.</li>
+    <li><b>Если нужен характер и узнаваемость:</b> 01 «Стробоскоп» или 05 «Студийный рэк» — оба говорят на языке настоящих приборов и подходят к теме буквально.</li>
+    <li><b>Если целитесь в новичков и виральность:</b> 06 «Ночная репетиция» или 09 «Ксерокс-зин».</li>
+    <li><b>Если аудитория — классика и преподаватели:</b> 04 «Нотная гравюра» или 02 «Чертёж мастерской».</li>
+  </ul>
+  <h3>Что дальше</h3>
+  <p>После выбора направление разворачивается в полноценный брендбук: шкала типографики (5 размеров), сетка отступов на базе 4 px, полный набор токенов в CSS-переменных для светлой и тёмной темы, состояния компонентов, иконки, стиль грифа и правила использования семантических цветов. Токены попадают в раздел 8 ТЗ как приложение и сразу используются в вёрстке.</p>
+  <p>Можно выбрать один вариант либо гибрид — например, палитру 01 с типографикой 03.</p>
+</footer>
+
+</div>
+</body>
+</html>
