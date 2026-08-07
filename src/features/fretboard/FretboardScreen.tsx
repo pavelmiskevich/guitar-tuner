@@ -16,6 +16,7 @@ import {
   Share2,
   Check
 } from 'lucide-react';
+import { getPublicSiteUrl } from '../../domain/siteUrl';
 
 interface FretboardScreenProps {
   tuning: Tuning;
@@ -70,7 +71,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
     if (viewMode === 'scales') params.set('scale', selectedScaleId);
     if (capo !== null) params.set('capo', String(capo));
 
-    const newUrl = `${window.location.origin}${window.location.pathname}#${params.toString()}`;
+    const baseUrl = getPublicSiteUrl();
+    const newUrl = `${baseUrl.replace(/\/$/, '')}${window.location.pathname}#${params.toString()}`;
     navigator.clipboard.writeText(newUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy, QrCode } from 'lucide-react';
+import { getPublicSiteUrl } from '../../domain/siteUrl';
 
 interface DonateCardProps {
   // Props
@@ -12,8 +13,9 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
   const donationUrl = 'https://pay.cloudtips.ru/p/05d48070';
 
   const handleCopyLink = () => {
-    // Динамическое копирование текущего URL сайта (без хардкода домена)
-    const currentUrl = `${window.location.origin}${window.location.pathname}`;
+    // Получение публичного адреса сайта (через env в разработке или dynamic origin на бою)
+    const baseSiteUrl = getPublicSiteUrl();
+    const currentUrl = baseSiteUrl.endsWith('/') ? baseSiteUrl : `${baseSiteUrl}/`;
     navigator.clipboard.writeText(currentUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
