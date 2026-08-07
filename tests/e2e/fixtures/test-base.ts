@@ -12,7 +12,7 @@ export const STORAGE_KEYS = [
 ];
 
 export const test = base.extend({
-  page: async ({ page }, use) => {
+  page: async ({ page }, runTest) => {
     await page.addInitScript((keys: string[]) => {
       try {
         keys.forEach((k) => localStorage.removeItem(k));
@@ -31,7 +31,7 @@ export const test = base.extend({
       problems.push(`pageerror: ${err.message}`);
     });
 
-    await use(page);
+    await runTest(page);
 
     expect(problems, `Страница сообщила об ошибках:\n${problems.join('\n')}`).toEqual([]);
   },
