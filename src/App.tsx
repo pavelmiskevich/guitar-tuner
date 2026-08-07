@@ -86,61 +86,63 @@ export const App: React.FC = () => {
     >
       {/* Верхняя панель (Header) */}
       <header className="app-header">
-        <div className="header-brand">
-          <span className="brand-icon">🎸</span>
-          <div className="brand-text">
-            <h1 className="brand-title">
-              Ночная репетиция
-            </h1>
-            <span className="brand-subtitle">
-              {activeTab === 'tuner' ? 'Тюнер' : activeTab === 'fretboard' ? 'Гриф' : activeTab === 'chord-check' ? 'Аккорды' : activeTab === 'metronome' ? 'Ритм' : 'Тренажер'} · {currentTuning.name} · A4={a4}Hz
-            </span>
+        <div className="header-inner">
+          <div className="header-brand">
+            <span className="brand-icon">🎸</span>
+            <div className="brand-text">
+              <h1 className="brand-title">
+                Ночная репетиция
+              </h1>
+              <span className="brand-subtitle">
+                {activeTab === 'tuner' ? 'Тюнер' : activeTab === 'fretboard' ? 'Гриф' : activeTab === 'chord-check' ? 'Аккорды' : activeTab === 'metronome' ? 'Ритм' : 'Тренажер'} · {currentTuning.name} · A4={a4}Hz
+              </span>
+            </div>
           </div>
+
+          {/* Навигация на десктопе (скрыта на мобильных) */}
+          <nav className="desktop-nav">
+            <button
+              className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setActiveTab('tuner')}
+            >
+              <Activity size={15} /> Тюнер
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setActiveTab('fretboard')}
+            >
+              <Layers size={15} /> Гриф
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setActiveTab('chord-check')}
+            >
+              <Music size={15} /> Аккорд
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setActiveTab('metronome')}
+            >
+              <Timer size={15} /> Ритм
+            </button>
+            <button
+              className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setActiveTab('ear-training')}
+            >
+              <Sparkles size={15} /> Тренажер
+            </button>
+          </nav>
+
+          {/* Кнопка настроек */}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setIsSettingsOpen(true)}
+            style={{ padding: '8px 12px', flexShrink: 0 }}
+            title="Настройки"
+          >
+            <Settings size={18} />
+          </button>
         </div>
-
-        {/* Навигация на десктопе (скрыта на мобильных) */}
-        <nav className="desktop-nav">
-          <button
-            className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('tuner')}
-          >
-            <Activity size={15} /> Тюнер
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('fretboard')}
-          >
-            <Layers size={15} /> Гриф
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('chord-check')}
-          >
-            <Music size={15} /> Аккорд
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('metronome')}
-          >
-            <Timer size={15} /> Ритм
-          </button>
-          <button
-            className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('ear-training')}
-          >
-            <Sparkles size={15} /> Тренажер
-          </button>
-        </nav>
-
-        {/* Кнопка настроек */}
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setIsSettingsOpen(true)}
-          style={{ padding: '8px 12px', flexShrink: 0 }}
-          title="Настройки"
-        >
-          <Settings size={18} />
-        </button>
       </header>
 
       {/* Основной контент */}

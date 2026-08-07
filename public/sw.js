@@ -1,4 +1,4 @@
-const CACHE_NAME = 'night-rehearsal-v1';
+const CACHE_NAME = 'night-rehearsal-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,12 +6,13 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Немедленная активация новой версии
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -29,26 +30,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Стратегия Network-First: всегда запрашиваем свежий контент из сети,
+// а кэш используем только при отсутствии интернета (офлайн)
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          return caches.match('./index.html');
         });
-        return response;
-      }).catch(() => {
-        return caches.match('./index.html');
-      });
-    })
+      })
   );
 });

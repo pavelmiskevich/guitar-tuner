@@ -227,13 +227,21 @@ button {
   height: 60px;
   border-bottom: 1px solid var(--ink-700);
   background: var(--ink-900);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+}
+
+.header-inner {
+  max-width: 1200px;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--s4);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 
 .header-brand {
