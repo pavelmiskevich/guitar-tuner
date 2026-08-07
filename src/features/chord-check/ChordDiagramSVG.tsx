@@ -31,12 +31,12 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
   const baseFret = maxFret > 5 ? minFret : 1;
   const isNut = baseFret === 1;
 
-  const width = 220;
-  const height = 250;
-  const padX = 40;
-  const padTop = 60;
+  const width = 230;
+  const height = 270;
+  const padX = 42;
+  const padTop = 56;
   const gridWidth = 140;
-  const gridHeight = 150;
+  const gridHeight = 160;
   const stringSpacing = gridWidth / (numStrings - 1);
   const fretSpacing = gridHeight / numFrets;
 
@@ -64,14 +64,16 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
         background: 'var(--ink-900)',
         border: '1px solid var(--ink-700)',
         borderRadius: 'var(--r-md)',
-        padding: '12px 16px',
+        padding: '14px 16px',
         position: 'relative'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '4px' }}>
-        <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--ink-050)' }}>
-          {voicing.name}
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '6px' }}>
+        <div>
+          <span style={{ fontWeight: 800, fontSize: '17px', color: 'var(--ink-050)' }}>
+            {voicing.name}
+          </span>
+        </div>
         <button
           className="btn btn-ghost btn-sm"
           onClick={handlePlayChord}
@@ -82,13 +84,32 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
         </button>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '200px', height: 'auto', display: 'block' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
         <defs>
+          {/* Яркий серебристый градиент для ладов */}
+          <linearGradient id="chordFretWire" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#8A87B0" />
+            <stop offset="50%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#6C6894" />
+          </linearGradient>
+
           <linearGradient id="diagramDot" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#8A76FF" />
             <stop offset="100%" stopColor="#5A3EFA" />
           </linearGradient>
         </defs>
+
+        {/* Фон накладки грифа под аккордом */}
+        <rect
+          x={padX}
+          y={padTop}
+          width={gridWidth}
+          height={gridHeight}
+          fill="#16132E"
+          stroke="var(--ink-700)"
+          strokeWidth="1"
+          rx="2"
+        />
 
         {/* Смещение базы лада (если аккорд берется выше 5-го лада) */}
         {!isNut && (
@@ -98,55 +119,87 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
             textAnchor="end"
             fill="var(--brand)"
             fontSize="12"
-            fontWeight="800"
+            fontWeight="900"
             fontFamily="var(--font-num)"
           >
             {baseFret}fr
           </text>
         )}
 
-        {/* Верхний порожек или линия лада */}
+        {/* Верхний порожек или верхний лад */}
         {isNut ? (
-          <rect
-            x={padX - 2}
-            y={padTop - 4}
-            width={gridWidth + 4}
-            height="6"
-            fill="#EDE8D0"
-            rx="2"
-          />
+          <g>
+            <rect
+              x={padX - 2}
+              y={padTop - 6}
+              width={gridWidth + 4}
+              height="8"
+              fill="#F5EFCF"
+              stroke="#A39A77"
+              strokeWidth="1.5"
+              rx="2"
+            />
+          </g>
         ) : (
-          <line
-            x1={padX}
-            y1={padTop}
-            x2={padX + gridWidth}
-            y2={padTop}
-            stroke="var(--ink-500)"
-            strokeWidth="2"
-          />
+          <g>
+            <line
+              x1={padX}
+              y1={padTop}
+              x2={padX + gridWidth}
+              y2={padTop}
+              stroke="url(#chordFretWire)"
+              strokeWidth="3.5"
+            />
+          </g>
         )}
 
-        {/* Горизонтальные ладовые линии */}
+        {/* Горизонтальные ладовые линии (четкие, контрастные и объемные) */}
         {Array.from({ length: numFrets + 1 }).map((_, fIdx) => {
           if (fIdx === 0 && isNut) return null;
           const y = padTop + fIdx * fretSpacing;
           return (
-            <line
-              key={`fret-${fIdx}`}
-              x1={padX}
-              y1={y}
-              x2={padX + gridWidth}
-              y2={y}
-              stroke="var(--ink-600)"
-              strokeWidth="1.5"
-            />
+            <g key={`fret-${fIdx}`}>
+              {/* Тень снизу от лада */}
+              <line
+                x1={padX}
+                y1={y + 1}
+                x2={padX + gridWidth}
+                y2={y + 1}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth="2"
+              />
+              {/* Металлическая линия ладового порожка */}
+              <line
+                x1={padX}
+                y1={y}
+                x2={padX + gridWidth}
+                y2={y}
+                stroke="url(#chordFretWire)"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              {/* Номер лада справа от сетки */}
+              {fIdx > 0 && (
+                <text
+                  x={padX + gridWidth + 10}
+                  y={y - fretSpacing / 2 + 4}
+                  fill="var(--ink-400)"
+                  fontSize="10"
+                  fontFamily="var(--font-num)"
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {baseFret + fIdx - 1}
+                </text>
+              )}
+            </g>
           );
         })}
 
         {/* Вертикальные струны (6-я слева, 1-я справа) */}
         {Array.from({ length: numStrings }).map((_, sIdx) => {
           const x = padX + sIdx * stringSpacing;
-          const strokeW = Math.max(1.2, 2.6 - sIdx * 0.3);
+          const strokeW = Math.max(1.4, 3.2 - sIdx * 0.35);
           return (
             <line
               key={`str-${sIdx}`}
@@ -154,7 +207,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               y1={padTop}
               x2={x}
               y2={padTop + gridHeight}
-              stroke="var(--ink-400)"
+              stroke={sIdx < 3 ? '#C4B89D' : '#DDDCEB'}
               strokeWidth={strokeW}
             />
           );
@@ -173,8 +226,8 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
                 y={y}
                 textAnchor="middle"
                 fill="var(--sig-off)"
-                fontSize="13"
-                fontWeight="800"
+                fontSize="14"
+                fontWeight="900"
                 fontFamily="var(--font-ui)"
               >
                 ✕
@@ -188,10 +241,10 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
                 key={`top-${sIdx}`}
                 cx={x}
                 cy={y - 4}
-                r="4.5"
+                r="5"
                 fill="none"
                 stroke="var(--sig-in)"
-                strokeWidth="1.8"
+                strokeWidth="2.2"
               />
             );
           }
@@ -217,17 +270,17 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               <circle
                 cx={x}
                 cy={y}
-                r="11"
+                r="12"
                 fill="url(#diagramDot)"
                 stroke="#FFFFFF"
-                strokeWidth="1.5"
+                strokeWidth="2"
               />
               <text
                 x={x}
-                y={y + 3.5}
+                y={y + 4}
                 textAnchor="middle"
                 fill="#FFFFFF"
-                fontSize="9"
+                fontSize="9.5"
                 fontFamily="var(--font-ui)"
                 fontWeight="800"
               >
@@ -245,12 +298,12 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
             <text
               key={`bottom-${sIdx}`}
               x={x}
-              y={padTop + gridHeight + 16}
+              y={padTop + gridHeight + 18}
               textAnchor="middle"
-              fill="var(--ink-500)"
-              fontSize="10"
+              fill="var(--ink-400)"
+              fontSize="11"
               fontFamily="var(--font-num)"
-              fontWeight="600"
+              fontWeight="700"
             >
               {strNum}
             </text>

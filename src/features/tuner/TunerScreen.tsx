@@ -8,6 +8,7 @@ import type { PitchEstimate } from '../../audio/dsp';
 import { playGuitarString } from '../../audio/synth';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
+import { DonateCard } from '../donate/DonateCard';
 import {
   Volume2,
   Mic,
@@ -542,6 +543,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           </div>
         )}
       </div>
+
+      {/* Заметный блок «Поддержать автора & развитие проекта» */}
+      <DonateCard />
     </div>
   );
 };
