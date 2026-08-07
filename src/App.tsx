@@ -133,15 +133,17 @@ export const App: React.FC = () => {
             </button>
           </nav>
 
-          {/* Кнопка настроек */}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setIsSettingsOpen(true)}
-            style={{ padding: '8px 12px', flexShrink: 0 }}
-            title="Настройки"
-          >
-            <Settings size={18} />
-          </button>
+          {/* Правая колонка: Кнопка настроек */}
+          <div className="header-right">
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setIsSettingsOpen(true)}
+              style={{ padding: '8px 12px' }}
+              title="Настройки"
+            >
+              <Settings size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
