@@ -6,10 +6,11 @@ import { TunerScreen } from './features/tuner/TunerScreen';
 import { FretboardScreen } from './features/fretboard/FretboardScreen';
 import { ChordCheckScreen } from './features/chord-check/ChordCheckScreen';
 import { MetronomeScreen } from './features/metronome/MetronomeScreen';
+import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
-import { Activity, Layers, Music, Timer, Settings } from 'lucide-react';
+import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
 
-type TabId = 'tuner' | 'fretboard' | 'chord-check' | 'metronome';
+type TabId = 'tuner' | 'fretboard' | 'chord-check' | 'metronome' | 'ear-training';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('tuner');
@@ -111,30 +112,36 @@ export const App: React.FC = () => {
         </div>
 
         {/* Навигация на десктопе */}
-        <nav style={{ display: 'flex', gap: '8px' }} className="desktop-nav">
+        <nav style={{ display: 'flex', gap: '6px' }} className="desktop-nav">
           <button
             className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('tuner')}
           >
-            <Activity size={16} /> Тюнер
+            <Activity size={15} /> Тюнер
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('fretboard')}
           >
-            <Layers size={16} /> Гриф
+            <Layers size={15} /> Гриф
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('chord-check')}
           >
-            <Music size={16} /> Аккорд
+            <Music size={15} /> Аккорд
           </button>
           <button
             className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('metronome')}
           >
-            <Timer size={16} /> Метроном
+            <Timer size={15} /> Ритм
+          </button>
+          <button
+            className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setActiveTab('ear-training')}
+          >
+            <Sparkles size={15} /> Тренажер
           </button>
         </nav>
 
@@ -195,6 +202,14 @@ export const App: React.FC = () => {
         {activeTab === 'metronome' && (
           <MetronomeScreen />
         )}
+
+        {activeTab === 'ear-training' && (
+          <EarTrainingScreen
+            tuning={currentTuning}
+            notation={notation}
+            a4={a4}
+          />
+        )}
       </main>
 
       {/* Нижний таб-бар для мобильных устройств */}
@@ -223,13 +238,13 @@ export const App: React.FC = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '3px',
+            gap: '2px',
             color: activeTab === 'tuner' ? 'var(--brand)' : 'var(--ink-300)',
             fontSize: '11px',
             fontWeight: activeTab === 'tuner' ? 700 : 500
           }}
         >
-          <Activity size={20} />
+          <Activity size={18} />
           <span>Тюнер</span>
         </button>
 
@@ -242,13 +257,13 @@ export const App: React.FC = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '3px',
+            gap: '2px',
             color: activeTab === 'fretboard' ? 'var(--brand)' : 'var(--ink-300)',
             fontSize: '11px',
             fontWeight: activeTab === 'fretboard' ? 700 : 500
           }}
         >
-          <Layers size={20} />
+          <Layers size={18} />
           <span>Гриф</span>
         </button>
 
@@ -261,13 +276,13 @@ export const App: React.FC = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '3px',
+            gap: '2px',
             color: activeTab === 'chord-check' ? 'var(--brand)' : 'var(--ink-300)',
             fontSize: '11px',
             fontWeight: activeTab === 'chord-check' ? 700 : 500
           }}
         >
-          <Music size={20} />
+          <Music size={18} />
           <span>Аккорд</span>
         </button>
 
@@ -280,14 +295,33 @@ export const App: React.FC = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '3px',
+            gap: '2px',
             color: activeTab === 'metronome' ? 'var(--brand)' : 'var(--ink-300)',
             fontSize: '11px',
             fontWeight: activeTab === 'metronome' ? 700 : 500
           }}
         >
-          <Timer size={20} />
-          <span>Метроном</span>
+          <Timer size={18} />
+          <span>Ритм</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ear-training')}
+          style={{
+            flex: 1,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2px',
+            color: activeTab === 'ear-training' ? 'var(--brand)' : 'var(--ink-300)',
+            fontSize: '11px',
+            fontWeight: activeTab === 'ear-training' ? 700 : 500
+          }}
+        >
+          <Sparkles size={18} />
+          <span>Слух</span>
         </button>
       </nav>
 

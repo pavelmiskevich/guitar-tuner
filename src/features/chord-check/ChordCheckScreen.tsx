@@ -12,6 +12,7 @@ import {
   evaluateArpeggioNote,
   analyzeChordStrumSpectrum
 } from '../../audio/chordAnalyzer';
+import { ChordDiagramSVG } from './ChordDiagramSVG';
 import { Mic, MicOff, ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
 
 interface ChordCheckScreenProps {
@@ -149,7 +150,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   const isChordComplete = soundingStrings.length > 0 && tunedStringsCount === soundingStrings.length;
 
   return (
-    <div style={{ width: '100%', maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div style={{ width: '100%', maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
       {/* Заголовок */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -327,116 +328,127 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
       )}
 
-      {/* Индикаторы струн аккорда */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {tuning.strings.map((str, idx) => {
-          const status = stringStatuses[idx];
-          const fret = selectedVoicing.frets[idx];
-          const isMuted = fret === 'x';
-          const isSounding = lastMatchedIndex === idx;
+      {/* Сетка: Картинка-схема аккорда + Список струн */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--s4)', alignItems: 'start' }}>
+        {/* Картинка-схема аппликатуры */}
+        <ChordDiagramSVG
+          voicing={selectedVoicing}
+          tuning={tuning}
+          notation={notation}
+          a4={a4}
+        />
 
-          let badgeColor = 'var(--ink-500)';
-          let badgeText = 'Ожидание';
+        {/* Индикаторы струн аккорда */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {tuning.strings.map((str, idx) => {
+            const status = stringStatuses[idx];
+            const fret = selectedVoicing.frets[idx];
+            const isMuted = fret === 'x';
+            const isSounding = lastMatchedIndex === idx;
 
-          if (isMuted) {
-            badgeColor = 'var(--ink-700)';
-            badgeText = 'Глушится (X)';
-          } else if (status?.status === 'in-tune') {
-            badgeColor = 'var(--sig-in)';
-            badgeText = `В строе (${status.cents > 0 ? '+' : ''}${status.cents.toFixed(1)}¢)`;
-          } else if (status?.status === 'low') {
-            badgeColor = 'var(--sig-off)';
-            badgeText = `Низко (${status.cents.toFixed(1)}¢)`;
-          } else if (status?.status === 'high') {
-            badgeColor = 'var(--sig-off)';
-            badgeText = `Высоко (+${status.cents.toFixed(1)}¢)`;
-          } else if (status?.status === 'not-played') {
-            badgeColor = 'var(--ink-500)';
-            badgeText = 'Не прозвучала';
-          }
+            let badgeColor = 'var(--ink-500)';
+            let badgeText = 'Ожидание';
 
-          const targetPitch = status && status.targetMidi > 0 ? midiToPitch(status.targetMidi) : str.open;
-          const displayTargetName = formatNoteName(targetPitch.name, notation);
+            if (isMuted) {
+              badgeColor = 'var(--ink-700)';
+              badgeText = 'Глушится (X)';
+            } else if (status?.status === 'in-tune') {
+              badgeColor = 'var(--sig-in)';
+              badgeText = `В строе (${status.cents > 0 ? '+' : ''}${status.cents.toFixed(1)}¢)`;
+            } else if (status?.status === 'low') {
+              badgeColor = 'var(--sig-off)';
+              badgeText = `Низко (${status.cents.toFixed(1)}¢)`;
+            } else if (status?.status === 'high') {
+              badgeColor = 'var(--sig-off)';
+              badgeText = `Высоко (+${status.cents.toFixed(1)}¢)`;
+            } else if (status?.status === 'not-played') {
+              badgeColor = 'var(--ink-500)';
+              badgeText = 'Не прозвучала';
+            }
 
-          return (
-            <div
-              key={str.stringNumber}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                background: isSounding ? 'color-mix(in srgb, var(--brand) 12%, var(--ink-900))' : 'var(--ink-900)',
-                border: `1px solid ${isSounding ? 'var(--brand)' : 'var(--ink-700)'}`,
-                borderRadius: 'var(--r-md)',
-                transition: 'all 150ms ease'
-              }}
-            >
-              {/* Номер струны и лад */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span
-                  className="mono"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: 'var(--ink-800)',
-                    border: '1px solid var(--ink-700)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '14px'
-                  }}
-                >
-                  {str.stringNumber}
-                </span>
+            const targetPitch = status && status.targetMidi > 0 ? midiToPitch(status.targetMidi) : str.open;
+            const displayTargetName = formatNoteName(targetPitch.name, notation);
 
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '15px' }}>
-                    {displayTargetName}{targetPitch.octave}
-                    <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--ink-300)', marginLeft: '6px' }}>
-                      ({isMuted ? 'глушить' : fret === 0 ? 'открытая' : `лад ${fret}`})
-                    </span>
-                  </div>
-                  {!isMuted && status?.targetFreq ? (
-                    <div className="mono" style={{ fontSize: '11px', color: 'var(--ink-300)' }}>
-                      Цель: {status.targetFreq.toFixed(1)} Гц {status.measuredFreq > 0 ? `| Изм: ${status.measuredFreq.toFixed(1)} Гц` : ''}
+            return (
+              <div
+                key={str.stringNumber}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: isSounding ? 'color-mix(in srgb, var(--brand) 12%, var(--ink-900))' : 'var(--ink-900)',
+                  border: `1px solid ${isSounding ? 'var(--brand)' : 'var(--ink-700)'}`,
+                  borderRadius: 'var(--r-md)',
+                  transition: 'all 150ms ease'
+                }}
+              >
+                {/* Номер струны и лад */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span
+                    className="mono"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'var(--ink-800)',
+                      border: '1px solid var(--ink-700)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: '13px'
+                    }}
+                  >
+                    {str.stringNumber}
+                  </span>
+
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                      {displayTargetName}{targetPitch.octave}
+                      <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--ink-300)', marginLeft: '6px' }}>
+                        ({isMuted ? 'глушить' : fret === 0 ? 'открытая' : `лад ${fret}`})
+                      </span>
                     </div>
-                  ) : null}
+                    {!isMuted && status?.targetFreq ? (
+                      <div className="mono" style={{ fontSize: '10px', color: 'var(--ink-300)' }}>
+                        Цель: {status.targetFreq.toFixed(1)} Гц {status.measuredFreq > 0 ? `| Изм: ${status.measuredFreq.toFixed(1)} Гц` : ''}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Статус и кнопка перейти к настройке */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: badgeColor,
+                      padding: '3px 8px',
+                      background: 'var(--ink-800)',
+                      borderRadius: 'var(--r-pill)',
+                      border: `1px solid ${badgeColor}`
+                    }}
+                  >
+                    {badgeText}
+                  </span>
+
+                  {!isMuted && status && status.status !== 'in-tune' && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onGoTuneString(idx)}
+                      title={`Перейти в тюнер для ${str.stringNumber}-й струны`}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      Настроить <ArrowRight size={11} />
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Статус и кнопка перейти к настройке */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: badgeColor,
-                    padding: '4px 10px',
-                    background: 'var(--ink-800)',
-                    borderRadius: 'var(--r-pill)',
-                    border: `1px solid ${badgeColor}`
-                  }}
-                >
-                  {badgeText}
-                </span>
-
-                {!isMuted && status && status.status !== 'in-tune' && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => onGoTuneString(idx)}
-                    title={`Перейти в тюнер для ${str.stringNumber}-й струны`}
-                    style={{ padding: '6px 10px', fontSize: '12px' }}
-                  >
-                    Настроить <ArrowRight size={12} />
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -45,17 +45,17 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
   const numFrets = toFret - fromFret;
   const numStrings = tuning.strings.length;
 
-  const width = 840;
-  const height = numStrings * 36 + 28;
-  const nutWidth = fromFret === 0 ? 12 : 0;
-  const playableWidth = width - nutWidth - 20;
+  const width = 860;
+  const height = numStrings * 38 + 32;
+  const nutWidth = fromFret === 0 ? 14 : 0;
+  const playableWidth = width - nutWidth - 24;
 
   // Рассчитываем физически корректные координаты ладов
   const relativeFretPositions = getFretRelativePositions(fromFret, toFret);
 
   const getStringY = (strIndex: number) => {
     // 0 = 6-я струна (сверху в горизонтальном виде)
-    const padding = 24;
+    const padding = 26;
     const spacing = (height - padding * 2) / (numStrings - 1);
     return padding + strIndex * spacing;
   };
@@ -91,28 +91,38 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
         viewBox={`0 0 ${width} ${height}`}
         style={{
           width: '100%',
-          minWidth: orientation === 'horizontal' ? '680px' : '320px',
+          minWidth: orientation === 'horizontal' ? '700px' : '320px',
           height: 'auto',
-          background: 'linear-gradient(180deg, #181534 0%, #100E26 100%)',
+          background: 'linear-gradient(180deg, #1C1938 0%, #120F28 100%)',
           borderRadius: 'var(--r-md)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           border: '1px solid var(--ink-700)',
           display: 'block'
         }}
       >
         <defs>
-          <linearGradient id="fretWire" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7C77B8" />
-            <stop offset="50%" stopColor="#EDEBFF" />
-            <stop offset="100%" stopColor="#4E4894" />
+          {/* Яркий хромированный/никелевый металлический ладовый порожек */}
+          <linearGradient id="fretWireMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#4B4868" />
+            <stop offset="35%" stopColor="#CDC9EE" />
+            <stop offset="50%" stopColor="#FFFFFF" />
+            <stop offset="70%" stopColor="#CDC9EE" />
+            <stop offset="100%" stopColor="#363354" />
           </linearGradient>
+
+          {/* Тень за ладовым порожком для объемности */}
+          <linearGradient id="fretWireShadow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0.6)" />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+
           <linearGradient id="woundString" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#B3A890" />
-            <stop offset="50%" stopColor="#F5EBD0" />
-            <stop offset="100%" stopColor="#786E56" />
+            <stop offset="0%" stopColor="#C2B79B" />
+            <stop offset="50%" stopColor="#FFF2D6" />
+            <stop offset="100%" stopColor="#7E7257" />
           </linearGradient>
           <linearGradient id="steelString" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#9E9EBA" />
+            <stop offset="0%" stopColor="#AAA9C8" />
             <stop offset="50%" stopColor="#FFFFFF" />
             <stop offset="100%" stopColor="#6C6990" />
           </linearGradient>
@@ -125,9 +135,9 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
 
           if (marker.type === 'double') {
             return (
-              <g key={`marker-${marker.fret}`} opacity="0.35">
-                <circle cx={midX} cy={midY - 26} r="4.5" fill="#EDEBFF" />
-                <circle cx={midX} cy={midY + 26} r="4.5" fill="#EDEBFF" />
+              <g key={`marker-${marker.fret}`} opacity="0.45">
+                <circle cx={midX} cy={midY - 28} r="5" fill="#FAF8FF" />
+                <circle cx={midX} cy={midY + 28} r="5" fill="#FAF8FF" />
               </g>
             );
           }
@@ -137,9 +147,9 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
               key={`marker-${marker.fret}`}
               cx={midX}
               cy={midY}
-              r="4.5"
-              fill="#EDEBFF"
-              opacity="0.3"
+              r="5"
+              fill="#FAF8FF"
+              opacity="0.4"
             />
           );
         })}
@@ -155,67 +165,105 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
               x={midX}
               y={height - 4}
               textAnchor="middle"
-              fill="var(--ink-500)"
-              fontSize="10"
+              fill="var(--ink-400)"
+              fontSize="11"
               fontFamily="var(--font-num)"
-              fontWeight="600"
+              fontWeight="700"
             >
               {f}
             </text>
           );
         })}
 
-        {/* Ладовые порожки (металлические лады) */}
+        {/* Металлические ладовые порожки (более четкие и объемные) */}
         {Array.from({ length: numFrets + 1 }).map((_, i) => {
           const f = fromFret + i;
           const posX = getFretX(f);
           if (f === 0 && fromFret === 0) return null;
 
           return (
-            <line
-              key={`fret-line-${f}`}
-              x1={posX}
-              y1={12}
-              x2={posX}
-              y2={height - 14}
-              stroke="url(#fretWire)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
+            <g key={`fret-group-${f}`}>
+              {/* Темная тень слева от лада */}
+              <line
+                x1={posX - 2}
+                y1={10}
+                x2={posX - 2}
+                y2={height - 16}
+                stroke="rgba(0,0,0,0.55)"
+                strokeWidth="2"
+              />
+              {/* Металлическое тело лада */}
+              <line
+                x1={posX}
+                y1={10}
+                x2={posX}
+                y2={height - 16}
+                stroke="url(#fretWireMetal)"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
+              {/* Яркий световой блик по центру */}
+              <line
+                x1={posX}
+                y1={12}
+                x2={posX}
+                y2={height - 18}
+                stroke="#FFFFFF"
+                strokeWidth="1"
+                opacity="0.8"
+              />
+            </g>
           );
         })}
 
-        {/* Верхний порожек (Nut) */}
+        {/* Верхний порожек (Nut) из кости/графита */}
         {fromFret === 0 && (
-          <rect
-            x={leftHanded ? width - nutWidth : 0}
-            y={10}
-            width={nutWidth}
-            height={height - 20}
-            fill="#E2DEC6"
-            stroke="#8A8268"
-            rx="2"
-          />
+          <g>
+            <rect
+              x={leftHanded ? width - nutWidth : 0}
+              y={8}
+              width={nutWidth}
+              height={height - 18}
+              fill="#F5F0DC"
+              stroke="#A89E7E"
+              strokeWidth="1.5"
+              rx="3"
+            />
+            {/* Текстура прорезей верхнего порожка */}
+            {tuning.strings.map((_, strIdx) => (
+              <line
+                key={`nut-slot-${strIdx}`}
+                x1={leftHanded ? width - nutWidth : 0}
+                y1={getStringY(strIdx)}
+                x2={leftHanded ? width : nutWidth}
+                y2={getStringY(strIdx)}
+                stroke="#686045"
+                strokeWidth="1.2"
+              />
+            ))}
+          </g>
         )}
 
         {/* Каподастр (если установлен) */}
         {capo !== null && capo >= fromFret && capo <= toFret && (
           <g>
             <rect
-              x={getFretX(capo) - 5}
-              y={8}
-              width="10"
-              height={height - 16}
+              x={getFretX(capo) - 6}
+              y={6}
+              width="12"
+              height={height - 14}
               fill="var(--brand)"
+              stroke="#FFFFFF"
+              strokeWidth="1.5"
               rx="4"
-              opacity="0.85"
+              opacity="0.95"
             />
             <text
               x={getFretX(capo)}
-              y={6}
+              y={4}
               fill="var(--ink-050)"
               fontSize="9"
-              fontWeight="800"
+              fontWeight="900"
               textAnchor="middle"
             >
               CAPO {capo}
@@ -223,14 +271,24 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
           </g>
         )}
 
-        {/* Струны */}
+        {/* Струны с текстурой и толщиной */}
         {tuning.strings.map((str, strIdx) => {
           const y = getStringY(strIdx);
           const isWound = strIdx < 3; // 6, 5, 4 струны в оплётке
-          const stringThickness = Math.max(1.2, 4.0 - strIdx * 0.55);
+          const stringThickness = Math.max(1.4, 4.2 - strIdx * 0.55);
 
           return (
             <g key={`string-${str.stringNumber}`}>
+              {/* Тень от струны на накладку грифа */}
+              <line
+                x1={0}
+                y1={y + 1.5}
+                x2={width}
+                y2={y + 1.5}
+                stroke="rgba(0,0,0,0.4)"
+                strokeWidth={stringThickness}
+              />
+              {/* Сама струна */}
               <line
                 x1={0}
                 y1={y}
@@ -238,7 +296,6 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
                 y2={y}
                 stroke={isWound ? 'url(#woundString)' : 'url(#steelString)'}
                 strokeWidth={stringThickness}
-                opacity="0.9"
               />
             </g>
           );
@@ -297,7 +354,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
                     <circle
                       cx={midX}
                       cy={y}
-                      r={isLiveSounding ? 12 : 10.5}
+                      r={isLiveSounding ? 13 : 11}
                       fill={isLiveSounding ? 'var(--sig-in)' : isRoot ? 'var(--brand)' : hl?.color || 'var(--ink-800)'}
                       stroke={isLiveSounding ? '#FFFFFF' : isRoot ? '#FFFFFF' : 'var(--ink-300)'}
                       strokeWidth="1.5"
