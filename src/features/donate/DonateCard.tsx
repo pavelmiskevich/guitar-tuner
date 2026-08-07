@@ -12,7 +12,9 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
   const donationUrl = 'https://pay.cloudtips.ru/p/05d48070';
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.origin);
+    // Динамическое копирование текущего URL сайта (без хардкода домена)
+    const currentUrl = `${window.location.origin}${window.location.pathname}`;
+    navigator.clipboard.writeText(currentUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -50,7 +52,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
         }}
       />
 
-      {/* Верхний ряд: заголовок и краткое описание */}
+      {/* Верхний ряд: заголовок и описание */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div
           style={{
@@ -94,7 +96,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
           flexWrap: 'wrap'
         }}
       >
-        {/* Интерактивный QR-код с переходом по клику в новой вкладке */}
+        {/* Интерактивный QR-код с гармоничным темным фоном в тон кнопок */}
         <a
           href={donationUrl}
           target="_blank"
@@ -105,55 +107,70 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
             flexDirection: 'column',
             alignItems: 'center',
             textDecoration: 'none',
-            background: '#FFFFFF',
+            background: 'var(--ink-800)',
+            border: '1px solid var(--ink-600)',
             padding: '8px',
-            borderRadius: 'var(--r-sm)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            transition: 'transform 150ms ease, box-shadow 150ms ease',
+            borderRadius: 'var(--r-md)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            transition: 'all 150ms ease',
             cursor: 'pointer',
             flexShrink: 0
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'scale(1.04)';
-            e.currentTarget.style.boxShadow = '0 6px 18px rgba(110, 86, 248, 0.4)';
+            e.currentTarget.style.borderColor = 'var(--brand)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(110, 86, 248, 0.4)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+            e.currentTarget.style.borderColor = 'var(--ink-600)';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
           }}
         >
           {!imgError ? (
-            <img
-              src="/qrCode.png"
-              alt="QR-код для доната CloudTips"
-              onError={() => setImgError(true)}
+            <div
               style={{
-                width: '100px',
-                height: '100px',
-                objectFit: 'contain',
-                display: 'block',
-                borderRadius: '2px'
+                background: '#EAE7FA',
+                padding: '6px',
+                borderRadius: 'var(--r-sm)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
-            />
+            >
+              <img
+                src="/qrCode.png"
+                alt="QR-код для доната CloudTips"
+                onError={() => setImgError(true)}
+                style={{
+                  width: '92px',
+                  height: '92px',
+                  objectFit: 'contain',
+                  display: 'block',
+                  borderRadius: '2px'
+                }}
+              />
+            </div>
           ) : (
             <div
               style={{
-                width: '100px',
-                height: '100px',
+                width: '104px',
+                height: '104px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: '#F0EEFF',
-                color: 'var(--brand)'
+                background: 'var(--ink-700)',
+                color: 'var(--brand)',
+                borderRadius: 'var(--r-sm)'
               }}
             >
-              <QrCode size={40} />
-              <span style={{ fontSize: '9px', fontWeight: 800, marginTop: '4px', color: '#333' }}>CloudTips QR</span>
+              <QrCode size={42} />
+              <span style={{ fontSize: '9px', fontWeight: 800, marginTop: '4px', color: 'var(--ink-100)' }}>CloudTips QR</span>
             </div>
           )}
-          <span style={{ fontSize: '9px', fontWeight: 700, color: '#444', marginTop: '4px', textAlign: 'center' }}>
-            Нажмите или наведите камеру 📷
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-200)', marginTop: '6px', textAlign: 'center' }}>
+            Нажмите или сканируйте 📷
           </span>
         </a>
 
