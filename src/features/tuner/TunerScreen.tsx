@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Tuning, StringSpec } from '../../domain/tunings';
 import { TUNING_PRESETS } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
@@ -55,14 +55,36 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const stableTimerRef = useRef<number | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
 
-  // Определение ближайшей струны из текущего строя
-  const findClosestString = (freq: number): StringSpec => {
-    let closest = tuning.strings[0];
+  // Хранилище актуальных конфигураций и пропсов для предотвращения разрыва аудио-потока
+  const latestConfigRef = useRef({
+    tuning,
+    a4,
+    inTuneThreshold,
+    lockedStringIndex,
+    autoAdvance,
+    onSelectString
+  });
+
+  useEffect(() => {
+    latestConfigRef.current = {
+      tuning,
+      a4,
+      inTuneThreshold,
+      lockedStringIndex,
+      autoAdvance,
+      onSelectString
+    };
+  }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString]);
+
+  // Определение ближайшей струны
+  const findClosestString = useCallback((freq: number, curTuning: Tuning, curA4: number): StringSpec => {
+    let closest = curTuning.strings[0];
     let minDiff = Infinity;
 
-    for (const str of tuning.strings) {
-      const f = midiToFrequency(str.open.midi, a4);
+    for (const str of curTuning.strings) {
+      const f = midiToFrequency(str.open.midi, curA4);
       const diff = Math.abs(freq - f);
       if (diff < minDiff) {
         minDiff = diff;
@@ -70,16 +92,16 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       }
     }
     return closest;
-  };
+  }, []);
 
-  // Инициализация AudioEngine
+  // Инициализация устойчивого AudioEngine без пересоздания на каждое изменение параметров
   useEffect(() => {
     const engine = new AudioEngine({
       onEstimate: (estimate: PitchEstimate, _timeBuf, freqBuf) => {
         setInputLevelDb(estimate.rms);
         setIsClipping(estimate.isClipping);
 
-        // Обновление мини-спектра (32 полосы)
+        // Обновление спектрограммы
         if (freqBuf && freqBuf.length > 0) {
           const bars: number[] = [];
           const step = Math.floor(Math.min(freqBuf.length, 512) / 32);
@@ -91,41 +113,64 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           setSpectrumBars(bars);
         }
 
-        if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.85) {
+        // Если тишина или недостаточная чистота звука
+        if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.65) {
+          // Если тишина продолжается более 1.8с — плавно сбрасываем индикатор стабильности
+          if (!silenceTimerRef.current) {
+            silenceTimerRef.current = window.setTimeout(() => {
+              setIsStableTuned(false);
+              silenceTimerRef.current = null;
+            }, 1800);
+          }
           return;
         }
+
+        // При появлении звука очищаем таймер тишины
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+
+        const {
+          tuning: curTuning,
+          a4: curA4,
+          inTuneThreshold: curThreshold,
+          lockedStringIndex: curLockedIdx,
+          autoAdvance: curAutoAdvance,
+          onSelectString: curOnSelect
+        } = latestConfigRef.current;
 
         const freq = estimate.frequency;
         setMeasuredFreq(freq);
 
-        // Определяем целевую струну (ручную или автоматическую)
+        // Определение целевой струны
         let currentTargetStr: StringSpec;
-        if (lockedStringIndex !== null && tuning.strings[lockedStringIndex]) {
-          currentTargetStr = tuning.strings[lockedStringIndex];
+        if (curLockedIdx !== null && curTuning.strings[curLockedIdx]) {
+          currentTargetStr = curTuning.strings[curLockedIdx];
         } else {
-          currentTargetStr = findClosestString(freq);
+          currentTargetStr = findClosestString(freq, curTuning, curA4);
         }
 
         setActiveString(currentTargetStr);
-        const tFreq = midiToFrequency(currentTargetStr.open.midi, a4);
+        const tFreq = midiToFrequency(currentTargetStr.open.midi, curA4);
         setTargetFreq(tFreq);
 
         const dCents = calculateCents(freq, tFreq);
         setCents(dCents);
 
-        // Проверка удержания строя (≥ 1.2 с)
-        if (Math.abs(dCents) <= inTuneThreshold) {
+        // Проверка удержания строя
+        if (Math.abs(dCents) <= curThreshold) {
           setIsStableTuned(true);
-          const currentIdx = tuning.strings.findIndex(s => s.stringNumber === currentTargetStr.stringNumber);
+          const currentIdx = curTuning.strings.findIndex(s => s.stringNumber === currentTargetStr.stringNumber);
 
           if (currentIdx !== -1) {
             setTunedStrings(prev => new Set(prev).add(currentIdx));
 
             // Автопереход к следующей струне в режиме мастера
-            if (autoAdvance && !stableTimerRef.current) {
+            if (curAutoAdvance && !stableTimerRef.current) {
               stableTimerRef.current = window.setTimeout(() => {
-                if (currentIdx < tuning.strings.length - 1) {
-                  onSelectString(currentIdx + 1);
+                if (currentIdx < curTuning.strings.length - 1) {
+                  curOnSelect(currentIdx + 1);
                 }
                 stableTimerRef.current = null;
               }, 1200);
@@ -154,8 +199,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     return () => {
       engine.destroy();
       if (stableTimerRef.current) clearTimeout(stableTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
-  }, [tuning, a4, lockedStringIndex, inTuneThreshold, autoAdvance, onSelectString]);
+  }, [findClosestString]);
 
   const toggleListening = async () => {
     if (!audioEngineRef.current) return;
@@ -170,7 +216,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         await audioEngineRef.current.start();
         setIsListening(true);
       } catch {
-        // Ошибка уже обработана в onError
+        // Ошибка обрабатывается в onError
       }
     }
   };
