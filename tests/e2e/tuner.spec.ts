@@ -76,13 +76,22 @@ test.describe('тюнер', () => {
 
   test('удерживает выбранную струну при отклонении в пределах порога', async ({ page }) => {
     await startMic(page);
-    await page.getByTestId('string-chip-6').click();
 
-    // +100 центов от E2 — в пределах порога удержания 250 центов.
-    await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E2', 100));
+    // G3 (196.0 Гц) и B3 (246.9 Гц) разделены 400 центами; частота на +220¢ от G3 (≈222.6 Гц)
+    // лежит ближе по герцам к B3 (24.4 Гц разницы), чем к G3 (26.6 Гц разницы).
+    const freq = centsOff('G3', 220);
 
-    await expect(page.getByTestId('tuner-note')).toHaveText('E', { timeout: 8_000 });
-    await expect(page.getByTestId('tuner-target')).toContainText('82.4 Гц');
+    // Без ручного выбора струны автоопределение берёт ближайшую по герцам — B3.
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), freq);
+    await expect(page.getByTestId('tuner-note')).toHaveText('B', { timeout: 8_000 });
+    await expect(page.getByTestId('tuner-target')).toContainText('246.9 Гц');
+
+    // После ручного выбора G3 то же самое отклонение (220¢) укладывается в порог удержания 250¢,
+    // поэтому тюнер остаётся на G3, а не переключается на более близкую по герцам B3.
+    await page.getByTestId('string-chip-3').click();
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), freq);
+    await expect(page.getByTestId('tuner-note')).toHaveText('G', { timeout: 8_000 });
+    await expect(page.getByTestId('tuner-target')).toContainText('196.0 Гц');
   });
 
   test('в режиме Мастера сам переходит на следующую струну', async ({ page }) => {
