@@ -316,6 +316,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         <button
           className="btn btn-primary"
           onClick={toggleListening}
+          data-testid="mic-toggle"
           style={{
             width: '100%',
             padding: '16px 24px',
@@ -332,6 +333,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </button>
       ) : (
         <div
+          data-testid="mic-status"
           style={{
             display: 'flex',
             alignItems: 'center',
