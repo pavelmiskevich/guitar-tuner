@@ -85,34 +85,21 @@ export const App: React.FC = () => {
       }}
     >
       {/* Верхняя панель (Header) */}
-      <header
-        style={{
-          height: '60px',
-          borderBottom: '1px solid var(--ink-700)',
-          background: 'var(--ink-900)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 var(--s6)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '24px' }}>🎸</span>
-          <div>
-            <h1 style={{ fontSize: '16px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+      <header className="app-header">
+        <div className="header-brand">
+          <span className="brand-icon">🎸</span>
+          <div className="brand-text">
+            <h1 className="brand-title">
               Ночная репетиция
             </h1>
-            <span style={{ fontSize: '11px', color: 'var(--ink-300)', display: 'block' }}>
-              Тюнер & Гриф · {currentTuning.name} · A4={a4}Hz
+            <span className="brand-subtitle">
+              {activeTab === 'tuner' ? 'Тюнер' : activeTab === 'fretboard' ? 'Гриф' : activeTab === 'chord-check' ? 'Аккорды' : activeTab === 'metronome' ? 'Ритм' : 'Тренажер'} · {currentTuning.name} · A4={a4}Hz
             </span>
           </div>
         </div>
 
-        {/* Навигация на десктопе */}
-        <nav style={{ display: 'flex', gap: '6px' }} className="desktop-nav">
+        {/* Навигация на десктопе (скрыта на мобильных) */}
+        <nav className="desktop-nav">
           <button
             className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('tuner')}
@@ -149,7 +136,7 @@ export const App: React.FC = () => {
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => setIsSettingsOpen(true)}
-          style={{ padding: '8px 12px' }}
+          style={{ padding: '8px 12px', flexShrink: 0 }}
           title="Настройки"
         >
           <Settings size={18} />
@@ -158,9 +145,10 @@ export const App: React.FC = () => {
 
       {/* Основной контент */}
       <main
+        className="app-main"
         style={{
           flex: 1,
-          padding: 'var(--s6) var(--s4) calc(var(--s12) + 40px) var(--s4)',
+          padding: 'var(--s6) var(--s4)',
           maxWidth: '1200px',
           margin: '0 auto',
           width: '100%',
@@ -213,22 +201,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Нижний таб-бар для мобильных устройств */}
-      <nav
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '64px',
-          background: 'var(--ink-900)',
-          borderTop: '1px solid var(--ink-700)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          zIndex: 100,
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-        }}
-      >
+      <nav className="mobile-bottom-nav">
         <button
           onClick={() => setActiveTab('tuner')}
           style={{

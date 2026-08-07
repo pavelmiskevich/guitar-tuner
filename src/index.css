@@ -222,6 +222,107 @@ button {
   padding: var(--s6);
 }
 
+/* Шапка приложения */
+.app-header {
+  height: 60px;
+  border-bottom: 1px solid var(--ink-700);
+  background: var(--ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--s4);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.brand-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: var(--ink-300);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desktop-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* Мобильная адаптация (< 840px) */
+@media (max-width: 840px) {
+  .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--ink-900);
+    border-top: 1px solid var(--ink-700);
+    align-items: center;
+    justify-content: space-around;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .app-main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Десктоп (> 840px) */
+@media (min-width: 841px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .desktop-nav {
+    display: flex;
+  }
+
+  .app-main {
+    padding-bottom: var(--s8) !important;
+  }
+}
+
 /* Доступные скрытые элементы */
 .sr-only {
   position: absolute;
