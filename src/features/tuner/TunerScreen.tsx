@@ -238,6 +238,82 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </div>
       </div>
 
+      {/* Верхний блок микрофона: крупная кнопка ДО включения, компактная плашка ПОСЛЕ включения */}
+      {!isListening ? (
+        <button
+          className="btn btn-primary"
+          onClick={toggleListening}
+          style={{
+            width: '100%',
+            padding: '16px 24px',
+            fontSize: '17px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
+          }}
+        >
+          <Mic size={22} /> Включить микрофон
+        </button>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 16px',
+            background: 'var(--ink-900)',
+            border: '1px solid var(--ink-700)',
+            borderRadius: 'var(--r-pill)',
+            gap: '12px'
+          }}
+        >
+          {/* Индикатор работы микрофона */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: 'var(--sig-in)',
+                boxShadow: '0 0 8px var(--sig-in)',
+                animation: 'pulse 1.5s infinite'
+              }}
+            />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
+              Микрофон активен
+            </span>
+          </div>
+
+          {/* Компактный VU-индикатор входного уровня */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
+            <div style={{ flex: 1, height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`,
+                  height: '100%',
+                  background: isClipping ? 'var(--sig-off)' : inputLevelDb > -20 ? 'var(--sig-in)' : 'var(--brand)',
+                  transition: 'width 60ms linear'
+                }}
+              />
+            </div>
+            {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700, fontSize: '10px' }}>MAX!</span>}
+          </div>
+
+          {/* Минимизированная кнопка выключения */}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={toggleListening}
+            style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--ink-300)', borderColor: 'var(--ink-700)' }}
+            title="Остановить микрофон"
+          >
+            <MicOff size={14} /> Выкл
+          </button>
+        </div>
+      )}
+
       {/* Ошибки микрофона */}
       {errorMessage && (
         <div className="banner err">
@@ -463,43 +539,6 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
                 }}
               />
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Кнопка включения микрофона и VU индикатор */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-        <button
-          className={`btn ${isListening ? 'btn-danger' : 'btn-primary'}`}
-          onClick={toggleListening}
-          style={{ minWidth: '220px', fontSize: '16px' }}
-        >
-          {isListening ? (
-            <>
-              <MicOff size={20} /> Остановить тюнер
-            </>
-          ) : (
-            <>
-              <Mic size={20} /> Включить микрофон
-            </>
-          )}
-        </button>
-
-        {/* VU-индикатор входного уровня сигнала */}
-        {isListening && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--ink-300)' }}>
-            <span>Входной уровень:</span>
-            <div style={{ width: '90px', height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
-              <div
-                style={{
-                  width: `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`,
-                  height: '100%',
-                  background: isClipping ? 'var(--sig-off)' : inputLevelDb > -20 ? 'var(--sig-in)' : 'var(--brand)',
-                  transition: 'width 60ms linear'
-                }}
-              />
-            </div>
-            {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700 }}>Клиппинг!</span>}
           </div>
         )}
       </div>

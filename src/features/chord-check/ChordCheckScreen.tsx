@@ -192,6 +192,83 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
       </div>
 
+      {/* Верхний блок микрофона: крупная кнопка ДО включения, минимизированный статус ПОСЛЕ */}
+      {analysisMode === 'arpeggio' ? (
+        !isListening ? (
+          <button
+            className="btn btn-primary"
+            onClick={toggleListening}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              fontSize: '16px',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
+            }}
+          >
+            <Mic size={20} /> Включить микрофон (Перебор)
+          </button>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 16px',
+              background: 'var(--ink-900)',
+              border: '1px solid var(--ink-700)',
+              borderRadius: 'var(--r-pill)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: 'var(--sig-in)',
+                  boxShadow: '0 0 8px var(--sig-in)',
+                  animation: 'pulse 1.5s infinite'
+                }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
+                Слушаю перебор струн...
+              </span>
+            </div>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={toggleListening}
+              style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--ink-300)', borderColor: 'var(--ink-700)' }}
+            >
+              <MicOff size={14} /> Выкл
+            </button>
+          </div>
+        )
+      ) : (
+        <button
+          className="btn btn-primary"
+          onClick={handleStartStrumCapture}
+          disabled={isCapturingStrum}
+          style={{
+            width: '100%',
+            padding: '14px 20px',
+            fontSize: '16px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
+          }}
+        >
+          <Play size={18} /> {isCapturingStrum ? `Слушаю струны (${captureProgress}%)...` : 'Ударьте по всем струнам'}
+        </button>
+      )}
+
       {/* Быстрый выбор аккорда */}
       <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--s4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -360,42 +437,6 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             </div>
           );
         })}
-      </div>
-
-      {/* Кнопка запуска анализа в зависимости от режима */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-        {analysisMode === 'arpeggio' ? (
-          <button
-            className={`btn ${isListening ? 'btn-danger' : 'btn-primary'}`}
-            onClick={toggleListening}
-            style={{ minWidth: '240px' }}
-          >
-            {isListening ? (
-              <>
-                <MicOff size={18} /> Остановить перебор
-              </>
-            ) : (
-              <>
-                <Mic size={18} /> Начать перебор (Арпеджио)
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            className="btn btn-primary"
-            onClick={handleStartStrumCapture}
-            disabled={isCapturingStrum}
-            style={{ minWidth: '260px', padding: '14px 24px', fontSize: '16px' }}
-          >
-            <Play size={18} /> {isCapturingStrum ? 'Запись удара...' : 'Ударьте по всем струнам'}
-          </button>
-        )}
-
-        <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
-          {analysisMode === 'arpeggio'
-            ? 'Сыграйте струны по одной сверху вниз'
-            : 'Сделайте один четкий удар медиатором по всем струнам и дайте им звучать'}
-        </span>
       </div>
     </div>
   );
