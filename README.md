@@ -69,7 +69,7 @@
 
 ---
 
-## 🚀 Запуск и сборка
+## 🚀 Запуск, сборка и деплой
 
 ### Установка зависимостей
 ```bash
@@ -91,6 +91,8 @@ npm test
 npm run build
 ```
 
+Подробное пошаговое руководство по деплою на Linux VPS (Caddy, Nginx) доступно в файле [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ---
 
 ## 📁 Структура проекта
@@ -99,19 +101,21 @@ npm run build
 guitar-tuner/
 ├── 01-tz/                  # Техническое задание и спецификации
 ├── 02-brand/               # Брендбук и дизайн-система «Ночная репетиция»
-├── public/                 # PWA Manifest, Service Worker, иконки
+├── public/                 # PWA Manifest, Service Worker (Network-First), иконки
 ├── src/
-│   ├── audio/              # DSP алгоритмы (MPM/NSDF), Web Audio движок, Karplus-Strong, Drum Synth, Chord Analyzer
+│   ├── audio/              # Shared Audio Engine (синглтон), DSP (MPM/NSDF), Karplus-Strong, Drum Synth, Chord Analyzer
 │   ├── domain/             # Музыкальная математика (ноты, строи, лады, гаммы, аккорды)
 │   ├── features/
-│   │   ├── tuner/          # Экран тюнера, нелинейная шкала, аура, спектр
+│   │   ├── tuner/          # Экран тюнера, нелинейная шкала, аура, спектр, автоопределение струны
 │   │   ├── fretboard/      # Экран грифа, высококонтрастные металлические лады, SVG-рендерер
 │   │   ├── chord-check/    # Экран анализа аккордов и ChordDiagramSVG схемы
 │   │   ├── metronome/      # Экран метронома и драм-машины (Rock, Blues, Bossa, Funk)
 │   │   ├── ear-training/   # Тренажер слуха (Ear Training Game: ноты, струны, мажор/минор)
+│   │   ├── donate/         # Карточка поддержки проекта (CloudTips)
 │   │   └── settings/       # Модальное окно настроек и конструктор строёв
-│   ├── App.tsx             # Корневой компонент с навигацией и состоянием
+│   ├── App.tsx             # Корневой компонент (адаптивная шапка, 3-колоночная сетка, нижний таб-бар)
 │   ├── index.css           # Цветовая палитра и дизайн-токены
-│   └── main.tsx            # Точка входа React
-└── tests/                  # Модульные тесты DSP, математики и алгоритмов
+│   └── main.tsx            # Точка входа React и регистрация SW
+├── tests/                  # Модульные тесты DSP, математики и алгоритмов
+└── DEPLOYMENT.md           # Инструкция по сборке и развертыванию на production VPS
 ```
