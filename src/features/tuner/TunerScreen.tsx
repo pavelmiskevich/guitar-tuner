@@ -371,8 +371,16 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </div>
       )}
 
-      {/* Интерактивные чипы струн */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', overflowX: 'auto', padding: '4px 0' }}>
+      {/* Интерактивные чипы струн (ровная сетка на всю ширину без полосы прокрутки) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${tuning.strings.length}, minmax(0, 1fr))`,
+          gap: '6px',
+          width: '100%',
+          padding: '2px 0'
+        }}
+      >
         {tuning.strings.map((str, idx) => {
           const isSelected = lockedStringIndex === idx;
           const isSounding = activeString?.stringNumber === str.stringNumber;
@@ -395,10 +403,10 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               data-state={state}
               onClick={() => onSelectString(isSelected ? null : idx)}
               title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц)`}
-              style={{ flex: 1, position: 'relative' }}
+              style={{ minWidth: 0, width: '100%', position: 'relative' }}
             >
               <span>{strNoteName}{str.open.octave}</span>
-              <small className="mono">{str.stringNumber}я струна</small>
+              <small className="mono">{str.stringNumber}я</small>
 
               {/* Кнопка воспроизведения эталона на слух */}
               <div
@@ -408,12 +416,12 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
                 }}
                 style={{
                   position: 'absolute',
-                  top: '-6px',
-                  right: '-4px',
+                  top: '3px',
+                  right: '3px',
                   background: 'var(--ink-700)',
                   borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
+                  width: '17px',
+                  height: '17px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -422,7 +430,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
                 }}
                 title="Воспроизвести эталонный звук"
               >
-                <Volume2 size={11} />
+                <Volume2 size={10} />
               </div>
             </button>
           );
