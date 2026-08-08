@@ -318,7 +318,10 @@ button {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    /* box-sizing: border-box глобально, поэтому при height: 60px отступ
+       безопасной зоны съедал бы высоту: на iPhone под иконки оставалось 26px.
+       Высота считается вместе с ним. */
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
     background: var(--ink-900);
     border-top: 1px solid var(--ink-700);
     align-items: center;
@@ -437,4 +440,42 @@ button {
   /* Варианты ответа: цель нажатия остаётся выше 44px за счёт правила
      для pointer: coarse, ужимается только внутренний воздух */
   .ear-screen [data-testid^="et-answer-"] { padding: 9px !important; }
+
+  /* Разбор и кнопка перехода — в одну строку, а не столбиком.
+     На iPhone столбик стоил ~50px и вытеснял кнопку под сгиб: к видимой
+     высоте Safari добавляется ещё безопасная зона снизу (34px на iPhone 12 Pro),
+     которой нет в эмуляторе, поэтому запас нужен реальный. */
+  .ear-screen .banner {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+  }
+
+  /* Кнопка прослушивания и подсказка под ней: на низком экране важнее
+     видеть варианты ответа и кнопку перехода. */
+  .ear-screen .panel button[disabled],
+  .ear-screen .panel button:not([data-testid]) {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .ear-screen .panel > span:last-child { display: none; }
+
+  .ear-screen .ear-stats > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .ear-screen .ear-stats > div > div:last-child { margin-top: 0 !important; }
+
+  .ear-screen [data-testid="et-next"] {
+    width: auto !important;
+    margin-top: 0 !important;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
 }

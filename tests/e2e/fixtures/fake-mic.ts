@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 export interface FakeMic {
   setFrequency(freq: number): void;
   setCents(note: string, cents: number, a4?: number): void;
+  /** Уровень сигнала в dBFS: реальная гитара через микрофон телефона даёт около -60. */
+  setLevel(dbfs: number): void;
   silence(): void;
   stop(): void;
   readonly frequency: number;
@@ -86,6 +88,11 @@ export async function installFakeMic(page: Page): Promise<void> {
       },
       setCents(note: string, cents: number, a4 = 440) {
         applyFrequency(noteToFrequency(note, cents, a4));
+      },
+      setLevel(dbfs: number) {
+        ensureGraph();
+        if (!ctx || !master) return;
+        master.gain.setValueAtTime(Math.pow(10, dbfs / 20), ctx.currentTime);
       },
       silence() {
         if (!ctx || !master) return;

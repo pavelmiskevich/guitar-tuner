@@ -24,6 +24,10 @@ import {
 const SPECTRUM_BARS = 32;
 const SPECTRUM_MIN_HZ = 40;
 const SPECTRUM_MAX_HZ = 4000;
+/** Ниже этого пика считаем, что сигнала нет, и не растягиваем шум на всю шкалу. */
+const SPECTRUM_SILENCE_DB = -75;
+/** Показываемый динамический диапазон под пиком. */
+const SPECTRUM_RANGE_DB = 40;
 
 interface TunerScreenProps {
   tuning: Tuning;
@@ -142,9 +146,21 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             if (freqBuf[b] > peak) peak = freqBuf[b];
           }
           if (!Number.isFinite(peak)) peak = -100;
-          bars.push(Math.max(0, Math.min(100, (peak + 90) * 1.4)));
+          bars.push(peak);
         }
-        setSpectrumBars(bars);
+
+        // Нормировка относительно текущего пика, а не абсолютных децибел.
+        // Гитара через микрофон телефона даёт примерно -60 dBFS, и при
+        // абсолютной шкале все полосы прижимались к нулю — спектрограмма
+        // выглядела плоской линией при исправном расчёте частот.
+        const peakDb = Math.max(...bars);
+        const normalized = peakDb < SPECTRUM_SILENCE_DB
+          ? bars.map(() => 0)
+          : bars.map((db) => {
+              const rel = (db - (peakDb - SPECTRUM_RANGE_DB)) / SPECTRUM_RANGE_DB;
+              return Math.max(0, Math.min(100, rel * 100));
+            });
+        setSpectrumBars(normalized);
       }
 
       // Проверка наличия распознаваемого тона

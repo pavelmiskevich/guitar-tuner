@@ -123,9 +123,12 @@ test.describe('тюнер', () => {
     await expect(page.getByTestId('tuner-action')).toContainText('В СТРОЕ');
   });
 
-  test('спектр показывает основной тон и гармоники', async ({ page }) => {
+  test('спектр показывает основной тон и гармоники на тихом входе', async ({ page }) => {
     await startMic(page);
     await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    // Гитара через микрофон телефона — это примерно -60 dBFS, а не -26, на которых
+    // тест проходил раньше при фактически неработающей спектрограмме.
+    await page.evaluate(() => window.__fakeMic.setLevel(-60));
     await page.getByTestId('spectrum-toggle').click();
 
     // Шкала логарифмическая: 32 полосы на диапазон 40–4000 Гц, то есть

@@ -29,6 +29,8 @@ type AnswerMode = 'buttons' | 'guitar';
 const AUTO_NEXT_MS = 3000;
 /** Насколько близко сыгранная нота должна лечь к струне, чтобы считаться ею. */
 const STRING_MATCH_CENTS = 120;
+/** Сколько тишины считать паузой между щипками. */
+const SILENCE_BEFORE_PLUCK_MS = 250;
 
 interface QuestionState {
   targetLabel: string;
@@ -69,6 +71,11 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const notationRef = useRef(notation);
   const tuningRef = useRef(tuning);
   const handleSelectRef = useRef<(i: number) => void>(() => {});
+  // Следующий ответ принимаем только после нового щипка: иначе непрерывно
+  // звучащая струна отвечала бы снова сразу после автоперехода к следующему вопросу.
+  const awaitingPluckRef = useRef(false);
+  /** Когда в последний раз слышали звук: блокировку снимает устойчивая пауза. */
+  const lastSoundAtRef = useRef(0);
 
   useEffect(() => { isAnsweredRef.current = isAnswered; }, [isAnswered]);
   useEffect(() => { questionRef.current = question; }, [question]);
@@ -233,8 +240,17 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     if (answerMode !== 'guitar' || gameMode === 'chord_quality') return;
 
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
-      if (isAnsweredRef.current || !questionRef.current) return;
-      if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.5) return;
+      // Блокировку снимает УСТОЙЧИВАЯ пауза, а не одиночный тихий кадр:
+      // при кратковременном провале громкости затухающая струна иначе
+      // засчиталась бы как новый щипок.
+      if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.5) {
+        if (performance.now() - lastSoundAtRef.current >= SILENCE_BEFORE_PLUCK_MS) {
+          awaitingPluckRef.current = false;
+        }
+        return;
+      }
+      lastSoundAtRef.current = performance.now();
+      if (isAnsweredRef.current || !questionRef.current || awaitingPluckRef.current) return;
 
       const q = questionRef.current;
       const freq = estimate.frequency;
@@ -257,7 +273,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       }
 
       // Посторонний звук просто игнорируется — он не должен обнулять серию.
-      if (matched >= 0) handleSelectRef.current(matched);
+      if (matched >= 0) {
+        awaitingPluckRef.current = true;
+        handleSelectRef.current(matched);
+      }
     });
 
     return unsubscribe;

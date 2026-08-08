@@ -124,6 +124,12 @@ test.describe('тренажёр слуха', () => {
   test('кнопка следующего вопроса помещается на экран', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile', 'проверка про мобильный экран');
 
+    // 390x600 — намеренно пессимистичный прокси реального Safari на iPhone.
+    // В эмуляции env(safe-area-inset-bottom) равен нулю, а на устройстве это 34px
+    // дополнительного отступа снизу; плюс адресная строка и панель инструментов
+    // съедают высоту. Запас на этом вьюпорте покрывает и то, и другое.
+    await page.setViewportSize({ width: 390, height: 600 });
+
     await page.getByTestId('et-answer-0').click();
     await expect(page.getByTestId('et-next')).toBeVisible();
 
@@ -155,7 +161,31 @@ test.describe('тренажёр слуха', () => {
     // проверяем сам факт: сыгранная нота регистрируется как ответ без нажатий.
     await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
 
-    await expect(page.getByTestId('et-feedback')).toBeVisible({ timeout: 8_000 });
+    // Опираемся на счётчик попыток, а не на баннер обратной связи: баннер живёт
+    // всего три секунды до автоперехода, и под параллельной нагрузкой проверка
+    // успевала прийти уже после его исчезновения.
+    await expect(page.getByTestId('et-score')).toContainText('/ 1', { timeout: 12_000 });
+  });
+
+  test('непрерывно звучащая струна не отвечает дважды', async ({ page }) => {
+    await page.getByTestId('et-mode-string').click();
+    await page.getByTestId('et-input-guitar').click();
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await expect(page.getByTestId('et-score')).toContainText('/ 1', { timeout: 12_000 });
+
+    // Звук не прерываем и ждём дольше автоперехода (3 с). Без требования нового
+    // щипка тот же тон засчитался бы за ответ на следующий вопрос, и счётчик
+    // попыток пополз бы сам собой.
+    await page.waitForTimeout(5_000);
     await expect(page.getByTestId('et-score')).toContainText('/ 1');
+
+    // А после паузы новый щипок снова принимается.
+    await page.evaluate(() => window.__fakeMic.silence());
+    // Анализатору нужно накопить окно тишины, чтобы снять блокировку: при 8192
+    // отсчётах и 48 кГц это около 170 мс плюс кадры отрисовки. Берём с запасом,
+    // иначе звук возвращается раньше, чем приложение увидело паузу.
+    await page.waitForTimeout(1_500);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await expect(page.getByTestId('et-score')).toContainText('/ 2', { timeout: 12_000 });
   });
 });
