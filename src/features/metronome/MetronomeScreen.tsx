@@ -163,6 +163,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         {/* Табы режима */}
         <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
           <button
+            data-testid="mt-tab-metronome"
             className="btn btn-sm"
             style={{
               background: activeTab === 'metronome' ? 'var(--brand)' : 'transparent',
@@ -178,6 +179,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             Метроном
           </button>
           <button
+            data-testid="mt-tab-drums"
             className="btn btn-sm"
             style={{
               background: activeTab === 'drums' ? 'var(--brand)' : 'transparent',
@@ -206,6 +208,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             return (
               <button
                 key={pattern.id}
+                data-testid={`mt-pattern-${pattern.id}`}
                 onClick={() => {
                   setSelectedPattern(pattern);
                   setBpm(pattern.defaultBpm);
@@ -258,6 +261,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
               return (
                 <div
                   key={i}
+                  data-testid={`mt-beat-${i}`}
                   style={{
                     width: isFirst ? '22px' : '16px',
                     height: isFirst ? '22px' : '16px',
@@ -284,6 +288,8 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
                 return (
                   <div
                     key={i}
+                    data-testid={`seq-step-${i}`}
+                    data-active={String(isActive)}
                     style={{
                       flex: 1,
                       height: '14px',
@@ -309,6 +315,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         {/* Крупный дисплей BPM */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
           <span
+            data-testid="mt-bpm"
             className="mono"
             style={{
               fontSize: '80px',
@@ -336,6 +343,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           }}
         >
           <button
+            data-testid="mt-minus-5"
             className="btn btn-ghost btn-sm"
             onClick={() => changeBpm(-5)}
             style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
@@ -344,6 +352,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             -5
           </button>
           <button
+            data-testid="mt-minus-1"
             className="btn btn-ghost btn-sm"
             onClick={() => changeBpm(-1)}
             style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
@@ -354,6 +363,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
 
           {/* Ползунок темпа (адаптивный) */}
           <input
+            data-testid="mt-bpm-slider"
             type="range"
             min={40}
             max={260}
@@ -369,6 +379,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           />
 
           <button
+            data-testid="mt-plus-1"
             className="btn btn-ghost btn-sm"
             onClick={() => changeBpm(1)}
             style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
@@ -377,6 +388,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             <Plus size={15} />
           </button>
           <button
+            data-testid="mt-plus-5"
             className="btn btn-ghost btn-sm"
             onClick={() => changeBpm(5)}
             style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
@@ -393,6 +405,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             {[2, 3, 4, 6].map(beats => (
               <button
                 key={beats}
+                data-testid={`mt-meter-${beats}`}
                 className={`btn btn-sm ${beatsPerBar === beats ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setBeatsPerBar(beats)}
                 style={{ fontWeight: 700, padding: '6px 12px' }}
@@ -406,6 +419,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         {/* Кнопка запуска / остановки */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center', width: '100%', flexWrap: 'wrap' }}>
           <button
+            data-testid="mt-toggle"
             className={`btn ${isPlaying ? 'btn-danger' : 'btn-primary'}`}
             onClick={() => setIsPlaying(!isPlaying)}
             style={{ flex: 1, minWidth: '140px', maxWidth: '200px', padding: '14px 20px', fontSize: '17px', justifyContent: 'center' }}
@@ -423,6 +437,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
 
           {/* Tap Tempo */}
           <button
+            data-testid="mt-tap"
             className="btn btn-ghost"
             onClick={handleTap}
             style={{ flex: 1, minWidth: '130px', maxWidth: '180px', padding: '14px 16px', fontSize: '14px', border: '1px solid var(--ink-700)', justifyContent: 'center' }}
