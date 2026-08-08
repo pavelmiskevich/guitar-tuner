@@ -152,6 +152,34 @@ test.describe('тюнер', () => {
     }).toPass({ timeout: 8_000 });
   });
 
+  test('при отказе в доступе объясняет, как его вернуть', async ({ page }) => {
+    await page.evaluate(() => window.__fakeMic.denyAccess());
+    await page.getByTestId('mic-toggle').click();
+
+    const banner = page.getByTestId('mic-error');
+    await expect(banner).toBeVisible();
+
+    // Одного «разрешите в настройках браузера» мало: пользователь не смог найти,
+    // где именно. Баннер обязан давать конкретный путь.
+    await expect(page.getByTestId('mic-help-quick')).toContainText('адресной строк');
+
+    // Chromium в тестах — значит должен показываться адрес настроек Chrome.
+    await expect(page.getByTestId('mic-settings-url')).toHaveText('chrome://settings/content/microphone');
+    await expect(banner).toContainText('по ссылке браузер такие адреса не открывает');
+  });
+
+  test('адрес настроек микрофона копируется в буфер', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.evaluate(() => window.__fakeMic.denyAccess());
+    await page.getByTestId('mic-toggle').click();
+
+    await page.getByTestId('mic-copy-settings').click();
+    await expect(page.getByTestId('mic-copy-settings')).toContainText('Скопировано');
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe('chrome://settings/content/microphone');
+  });
+
   test('не анализирует собственный эталонный звук', async ({ page }) => {
     await startMic(page);
     await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));

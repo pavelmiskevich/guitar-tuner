@@ -5,6 +5,8 @@ export interface FakeMic {
   setCents(note: string, cents: number, a4?: number): void;
   /** Уровень сигнала в dBFS: реальная гитара через микрофон телефона даёт около -60. */
   setLevel(dbfs: number): void;
+  /** Имитация отказа в доступе: getUserMedia начинает отклоняться, как при запрете. */
+  denyAccess(): void;
   silence(): void;
   stop(): void;
   readonly frequency: number;
@@ -35,6 +37,7 @@ export async function installFakeMic(page: Page): Promise<void> {
     let stream: MediaStream | null = null;
     const oscillators: OscillatorNode[] = [];
     let currentFreq = 82.41;
+    let accessDenied = false;
 
     function ensureGraph(): MediaStream {
       if (stream && ctx) return stream;
@@ -89,6 +92,9 @@ export async function installFakeMic(page: Page): Promise<void> {
       setCents(note: string, cents: number, a4 = 440) {
         applyFrequency(noteToFrequency(note, cents, a4));
       },
+      denyAccess() {
+        accessDenied = true;
+      },
       setLevel(dbfs: number) {
         ensureGraph();
         if (!ctx || !master) return;
@@ -120,7 +126,14 @@ export async function installFakeMic(page: Page): Promise<void> {
       configurable: true,
       writable: true,
       // Клон: продукт останавливает дорожки при выключении микрофона.
-      value: async () => ensureGraph().clone(),
+      value: async () => {
+        if (accessDenied) {
+          const err = new Error('Permission denied');
+          err.name = 'NotAllowedError';
+          throw err;
+        }
+        return ensureGraph().clone();
+      },
     });
   });
 }

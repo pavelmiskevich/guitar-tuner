@@ -5,6 +5,7 @@ import { midiToFrequency, calculateCents, formatNoteName } from '../../domain/no
 import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import { playGuitarString } from '../../audio/synth';
+import { getMicPermissionHelp, queryMicPermission } from '../../domain/micPermission';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
 import { DonateCard } from '../donate/DonateCard';
@@ -60,6 +61,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const [inputLevelDb, setInputLevelDb] = useState(-100);
   const [isClipping, setIsClipping] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [micBlocked, setMicBlocked] = useState(false);
+  const [settingsCopied, setSettingsCopied] = useState(false);
+  const micHelp = getMicPermissionHelp();
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [tunedStrings, setTunedStrings] = useState<Set<number>>(new Set());
   const [showSpectrum, setShowSpectrum] = useState(false);
@@ -259,6 +263,10 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : 'Ошибка доступа к микрофону');
         setIsListening(false);
+        // Отличаем «запрещено навсегда» от «пользователь закрыл запрос»:
+        // в первом случае повторное нажатие ничего не даст без настроек браузера.
+        const state = await queryMicPermission();
+        setMicBlocked(state === 'denied');
       }
     }
   };
@@ -427,10 +435,59 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
       {/* Ошибки микрофона */}
       {errorMessage && (
-        <div className="banner err">
-          <div>
+        <div className="banner err" data-testid="mic-error">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <b>Нет доступа к микрофону</b>
-            <span>{errorMessage}. Пожалуйста, разрешите доступ в настройках браузера.</span>
+            <span>
+              {micBlocked
+                ? 'Доступ запрещён для этого сайта — повторное нажатие кнопки не поможет, разрешение снимается только в браузере.'
+                : `${errorMessage}. Разрешите доступ, когда браузер спросит.`}
+            </span>
+
+            <span data-testid="mic-help-quick">
+              <b>Быстрее всего:</b> {micHelp.quickStep}
+            </span>
+
+            <span style={{ color: 'var(--ink-300)' }}>
+              Или через настройки: {micHelp.settingsPath}
+            </span>
+
+            {micHelp.settingsUrl && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <code
+                  data-testid="mic-settings-url"
+                  style={{
+                    background: 'var(--ink-900)',
+                    border: '1px solid var(--ink-700)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '4px 8px',
+                    fontFamily: 'var(--font-num)',
+                    fontSize: '12px'
+                  }}
+                >
+                  {micHelp.settingsUrl}
+                </code>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  data-testid="mic-copy-settings"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(micHelp.settingsUrl as string);
+                      setSettingsCopied(true);
+                      window.setTimeout(() => setSettingsCopied(false), 2000);
+                    } catch {
+                      setSettingsCopied(false);
+                    }
+                  }}
+                >
+                  {settingsCopied ? 'Скопировано ✓' : 'Скопировать адрес'}
+                </button>
+                <span style={{ fontSize: '11px', color: 'var(--ink-300)' }}>
+                  Вставьте в адресную строку новой вкладки — по ссылке браузер такие
+                  адреса не открывает.
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
