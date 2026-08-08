@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NoteName, NotationSystem } from '../../domain/notes';
 import { NOTE_NAMES, formatNoteName } from '../../domain/notes';
@@ -42,6 +42,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   const [customFrets, setCustomFrets] = useState<(number | 'x')[]>(['x', 'x', 'x', 'x', 'x', 'x']);
   const [lastClickedNote, setLastClickedNote] = useState<{ note: string; str: number; fret: number } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const fretboardSvgRef = useRef<SVGSVGElement>(null);
 
   // Восстановление состояния из URL Hash при первой загрузке (FR-FB-18)
   useEffect(() => {
@@ -80,7 +81,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
 
   // Экспорт SVG (FR-FB-19)
   const handleExportSVG = () => {
-    const svgEl = document.querySelector('svg');
+    const svgEl = fretboardSvgRef.current;
     if (!svgEl) return;
     const svgData = new XMLSerializer().serializeToString(svgEl);
     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -177,6 +178,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
           <button
             className="btn btn-sm"
+            data-testid="fb-mode-explore"
             style={{
               background: viewMode === 'explore' ? 'var(--brand)' : 'transparent',
               color: viewMode === 'explore' ? '#fff' : 'var(--ink-300)',
@@ -188,6 +190,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           </button>
           <button
             className="btn btn-sm"
+            data-testid="fb-mode-scales"
             style={{
               background: viewMode === 'scales' ? 'var(--brand)' : 'transparent',
               color: viewMode === 'scales' ? '#fff' : 'var(--ink-300)',
@@ -199,6 +202,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           </button>
           <button
             className="btn btn-sm"
+            data-testid="fb-mode-chords"
             style={{
               background: viewMode === 'chords' ? 'var(--brand)' : 'transparent',
               color: viewMode === 'chords' ? '#fff' : 'var(--ink-300)',
@@ -219,6 +223,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Тоника</span>
               <select
                 value={selectedRoot}
+                data-testid="fb-root"
                 onChange={(e) => setSelectedRoot(e.target.value as NoteName)}
                 style={{
                   background: 'var(--ink-800)',
@@ -239,6 +244,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Лад / Гамма</span>
               <select
                 value={selectedScaleId}
+                data-testid="fb-scale"
                 onChange={(e) => setSelectedScaleId(e.target.value)}
                 style={{
                   background: 'var(--ink-800)',
@@ -278,6 +284,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Аппликатура аккорда</span>
               <select
                 value={selectedVoicing.id}
+                data-testid="fb-voicing"
                 onChange={(e) => {
                   const found = COMMON_VOICINGS.find(v => v.id === e.target.value);
                   if (found) setSelectedVoicing(found);
@@ -304,7 +311,10 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <div>
               <span className="eyebrow">Обратный поиск аккорда</span>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: detectedChord ? 'var(--sig-in)' : 'var(--ink-300)' }}>
+              <div
+                data-testid="fb-detected-chord"
+                style={{ fontSize: '16px', fontWeight: 800, color: detectedChord ? 'var(--sig-in)' : 'var(--ink-300)' }}
+              >
                 {detectedChord ? `Распознан: ${detectedChord}` : 'Нажмите лады на струнах для построения'}
               </div>
             </div>
@@ -325,6 +335,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Каподастр</span>
             <select
               value={capo === null ? 'none' : capo}
+              data-testid="fb-capo"
               onChange={(e) => setCapo(e.target.value === 'none' ? null : Number(e.target.value))}
               style={{
                 background: 'var(--ink-800)',
@@ -346,6 +357,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Лады</span>
             <select
               value={`${fretRange.from}-${fretRange.to}`}
+              data-testid="fb-range"
               onChange={(e) => {
                 const [from, to] = e.target.value.split('-').map(Number);
                 setFretRange({ from, to });
@@ -370,6 +382,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <input
               type="checkbox"
               checked={leftHanded}
+              data-testid="fb-lefty"
               onChange={(e) => setLeftHanded(e.target.checked)}
               style={{ accentColor: 'var(--brand)' }}
             />
@@ -379,6 +392,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           <div style={{ display: 'flex', gap: '6px', marginTop: '14px' }}>
             <button
               className="btn btn-ghost btn-sm"
+              data-testid="fb-share"
               onClick={handleShareLink}
               title="Скопировать ссылку со схемой"
               style={{ padding: '6px 8px' }}
@@ -387,6 +401,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             </button>
             <button
               className="btn btn-ghost btn-sm"
+              data-testid="fb-export"
               onClick={handleExportSVG}
               title="Экспортировать SVG"
               style={{ padding: '6px 8px' }}
@@ -399,6 +414,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
 
       {/* Интерактивный SVG гриф */}
       <FretboardSVG
+        ref={fretboardSvgRef}
         tuning={tuning}
         visibleFrets={fretRange}
         capo={capo}

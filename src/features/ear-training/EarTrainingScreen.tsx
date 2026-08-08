@@ -218,6 +218,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('note')}
+            data-testid="et-mode-note"
           >
             Ноты
           </button>
@@ -230,6 +231,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('string')}
+            data-testid="et-mode-string"
           >
             Струны
           </button>
@@ -242,6 +244,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('chord_quality')}
+            data-testid="et-mode-quality"
           >
             Мажор/Минор
           </button>
@@ -265,7 +268,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--sig-in)', fontSize: '12px', fontWeight: 600 }}>
             <Award size={14} /> Очки
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }} data-testid="et-score">
             {score} / {totalAttempts}
           </div>
         </div>
@@ -274,7 +277,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: streak > 2 ? 'var(--sig-near)' : 'var(--ink-300)', fontSize: '12px', fontWeight: 600 }}>
             <Flame size={14} /> Серия
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px', color: streak > 2 ? 'var(--sig-near)' : 'inherit' }}>
+          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px', color: streak > 2 ? 'var(--sig-near)' : 'inherit' }} data-testid="et-streak">
             {streak} 🔥
           </div>
         </div>
@@ -283,7 +286,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--brand)', fontSize: '12px', fontWeight: 600 }}>
             <Trophy size={14} /> Рекорд
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }} data-testid="et-best">
             {bestStreak} ({accuracy}%)
           </div>
         </div>
@@ -313,6 +316,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           className="btn btn-primary"
           onClick={() => question && playCurrentSound(question.notesToPlay)}
           disabled={isPlayingSound}
+          data-testid="et-play"
           style={{
             width: '80px',
             height: '80px',
@@ -362,6 +366,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
                 key={idx}
                 onClick={() => handleSelectOption(idx)}
                 disabled={isAnswered}
+                data-testid={`et-answer-${idx}`}
                 style={{
                   background: btnBg,
                   border: `2px solid ${borderColor}`,
@@ -390,6 +395,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
         <div
           className={`banner ${selectedOption === question.correctIndex ? 'ok' : 'err'}`}
           style={{ animation: 'fadeIn 200ms ease', display: 'flex', flexDirection: 'column', gap: '12px' }}
+          data-testid="et-feedback"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {selectedOption === question.correctIndex ? (
@@ -406,6 +412,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <button
             className="btn btn-primary"
             onClick={handleNext}
+            data-testid="et-next"
             style={{ width: '100%', marginTop: '4px', fontSize: '15px', fontWeight: 800 }}
           >
             Следующий вопрос →

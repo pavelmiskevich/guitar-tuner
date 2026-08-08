@@ -93,7 +93,7 @@ export const App: React.FC = () => {
               <h1 className="brand-title">
                 Ночная репетиция
               </h1>
-              <span className="brand-subtitle">
+              <span className="brand-subtitle" data-testid="header-subtitle">
                 {activeTab === 'tuner' ? 'Тюнер' : activeTab === 'fretboard' ? 'Гриф' : activeTab === 'chord-check' ? 'Аккорды' : activeTab === 'metronome' ? 'Ритм' : 'Тренажер'} · {currentTuning.name} · A4={a4}Hz
               </span>
             </div>
@@ -104,30 +104,35 @@ export const App: React.FC = () => {
             <button
               className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('tuner')}
+              data-testid="nav-desktop-tuner"
             >
               <Activity size={15} /> Тюнер
             </button>
             <button
               className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('fretboard')}
+              data-testid="nav-desktop-fretboard"
             >
               <Layers size={15} /> Гриф
             </button>
             <button
               className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('chord-check')}
+              data-testid="nav-desktop-chord-check"
             >
               <Music size={15} /> Аккорд
             </button>
             <button
               className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('metronome')}
+              data-testid="nav-desktop-metronome"
             >
               <Timer size={15} /> Ритм
             </button>
             <button
               className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('ear-training')}
+              data-testid="nav-desktop-ear-training"
             >
               <Sparkles size={15} /> Тренажер
             </button>
@@ -140,6 +145,7 @@ export const App: React.FC = () => {
               onClick={() => setIsSettingsOpen(true)}
               style={{ padding: '8px 12px' }}
               title="Настройки"
+              data-testid="settings-open"
             >
               <Settings size={18} />
             </button>
@@ -208,6 +214,7 @@ export const App: React.FC = () => {
       <nav className="mobile-bottom-nav">
         <button
           onClick={() => setActiveTab('tuner')}
+          data-testid="nav-mobile-tuner"
           style={{
             flex: 1,
             height: '100%',
@@ -227,6 +234,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('fretboard')}
+          data-testid="nav-mobile-fretboard"
           style={{
             flex: 1,
             height: '100%',
@@ -246,6 +254,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('chord-check')}
+          data-testid="nav-mobile-chord-check"
           style={{
             flex: 1,
             height: '100%',
@@ -265,6 +274,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('metronome')}
+          data-testid="nav-mobile-metronome"
           style={{
             flex: 1,
             height: '100%',
@@ -284,6 +294,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('ear-training')}
+          data-testid="nav-mobile-ear-training"
           style={{
             flex: 1,
             height: '100%',

@@ -65,7 +65,7 @@
 * **Аудио & DSP**: Web Audio API, McLeod Pitch Method (NSDF), Karplus-Strong Synthesis, FFT Analyzer, Drum Synthesizer
 * **Графика & UI**: Векторный SVG, Lucide Icons, CSS Custom Properties (Design Tokens)
 * **PWA**: Service Worker Cache-First, Web App Manifest
-* **Тестирование**: Vitest
+* **Тестирование**: Vitest, Playwright
 
 ---
 
@@ -85,6 +85,13 @@ npm run dev
 ```bash
 npm test
 ```
+
+### Запуск E2E-тестов
+```bash
+npm run test:e2e
+```
+
+Подробности — в [tests/e2e/README.md](tests/e2e/README.md).
 
 ### Продакшн-сборка
 ```bash

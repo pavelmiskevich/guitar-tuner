@@ -33,3 +33,9 @@ donat/
 donate/
 public/qrCode.png
 public/donat/
+
+# Playwright E2E artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

@@ -25,6 +25,7 @@ interface FretboardSVGProps {
   activeSoundingNote?: { stringIndex: number; fret: number } | null;
   onFretClick?: (stringIndex: number, fret: number) => void;
   a4?: number;
+  ref?: React.Ref<SVGSVGElement>;
 }
 
 export const FretboardSVG: React.FC<FretboardSVGProps> = ({
@@ -38,7 +39,8 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
   highlightedNotes = [],
   activeSoundingNote = null,
   onFretClick,
-  a4 = 440
+  a4 = 440,
+  ref
 }) => {
   const fromFret = visibleFrets.from;
   const toFret = visibleFrets.to;
@@ -88,6 +90,8 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
   return (
     <div style={{ width: '100%', overflowX: 'auto', padding: '8px 0' }}>
       <svg
+        ref={ref}
+        data-testid="fretboard-svg"
         viewBox={`0 0 ${width} ${height}`}
         style={{
           width: '100%',
@@ -339,7 +343,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
 
                 {/* Подсветка ноты (если активна или найдена в гамме/аккорде) */}
                 {(hl || isLiveSounding) && (
-                  <g>
+                  <g data-highlighted={hl ? 'true' : 'false'}>
                     {isLiveSounding && (
                       <circle
                         cx={midX}
