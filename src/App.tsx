@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Tuning } from './domain/tunings';
 import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings } from './domain/tunings';
 import type { NotationSystem } from './domain/notes';
@@ -14,6 +14,7 @@ type TabId = 'tuner' | 'fretboard' | 'chord-check' | 'metronome' | 'ear-training
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('tuner');
+  const [customTunings, setCustomTunings] = useState<Tuning[]>(() => loadSavedCustomTunings());
   const [currentTuning, setCurrentTuning] = useState<Tuning>(() => {
     const saved = localStorage.getItem('gt_tuning');
     const all = [...TUNING_PRESETS, ...loadSavedCustomTunings()];
@@ -23,6 +24,13 @@ export const App: React.FC = () => {
     }
     return DEFAULT_TUNING;
   });
+
+  // Пресеты и пользовательские строи в одном списке: селектор тюнера должен
+  // показывать оба, иначе сохранённый строй нельзя выбрать повторно.
+  const availableTunings = useMemo(
+    () => [...TUNING_PRESETS, ...customTunings],
+    [customTunings]
+  );
 
   const [a4, setA4] = useState<number>(() => {
     const saved = localStorage.getItem('gt_a4');
@@ -170,6 +178,7 @@ export const App: React.FC = () => {
         {activeTab === 'tuner' && (
           <TunerScreen
             tuning={currentTuning}
+            availableTunings={availableTunings}
             onTuningChange={setCurrentTuning}
             a4={a4}
             notation={notation}
@@ -325,7 +334,16 @@ export const App: React.FC = () => {
         onThresholdChange={setInTuneThreshold}
         theme={theme}
         onThemeChange={setTheme}
-        onCustomTuningCreated={(tuning) => setCurrentTuning(tuning)}
+        onCustomTuningCreated={(tuning) => {
+          setCustomTunings(loadSavedCustomTunings());
+          setCurrentTuning(tuning);
+        }}
+        onCustomTuningDeleted={(id) => {
+          setCustomTunings(loadSavedCustomTunings());
+          // Удалили активный строй — откатываемся на стандартный, иначе тюнер
+          // остался бы настроен на то, чего больше нет в списке.
+          setCurrentTuning((prev) => (prev.id === id ? DEFAULT_TUNING : prev));
+        }}
       />
     </div>
   );

@@ -22,6 +22,7 @@ interface SettingsModalProps {
   theme: 'night' | 'day';
   onThemeChange: (val: 'night' | 'day') => void;
   onCustomTuningCreated?: (tuning: Tuning) => void;
+  onCustomTuningDeleted?: (id: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -35,7 +36,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onThresholdChange,
   theme,
   onThemeChange,
-  onCustomTuningCreated
+  onCustomTuningCreated,
+  onCustomTuningDeleted
 }) => {
   const [customTunings, setCustomTunings] = useState<Tuning[]>(() => loadSavedCustomTunings());
   const [isCreatingCustom, setIsCreatingCustom] = useState(false);
@@ -88,6 +90,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleDeleteTuning = (id: string) => {
     deleteCustomTuning(id);
     setCustomTunings(loadSavedCustomTunings());
+    onCustomTuningDeleted?.(id);
   };
 
   return (
@@ -386,6 +389,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => handleDeleteTuning(ct.id)}
+                    data-testid="custom-tuning-delete"
                     title="Удалить строй"
                   >
                     <Trash2 size={14} color="var(--sig-off)" />

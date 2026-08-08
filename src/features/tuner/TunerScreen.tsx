@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Tuning, StringSpec } from '../../domain/tunings';
-import { TUNING_PRESETS } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { midiToFrequency, calculateCents, formatNoteName } from '../../domain/notes';
 import { sharedAudioEngine } from '../../audio/audioEngine';
@@ -23,6 +22,7 @@ import {
 
 interface TunerScreenProps {
   tuning: Tuning;
+  availableTunings: Tuning[];
   onTuningChange: (tuning: Tuning) => void;
   a4: number;
   notation: NotationSystem;
@@ -33,6 +33,7 @@ interface TunerScreenProps {
 
 export const TunerScreen: React.FC<TunerScreenProps> = ({
   tuning,
+  availableTunings,
   onTuningChange,
   a4,
   notation,
@@ -289,7 +290,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           <select
             value={tuning.id}
             onChange={(e) => {
-              const found = TUNING_PRESETS.find(t => t.id === e.target.value);
+              const found = availableTunings.find(t => t.id === e.target.value);
               if (found) onTuningChange(found);
             }}
             data-testid="tuning-select"
@@ -305,7 +306,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               cursor: 'pointer'
             }}
           >
-            {TUNING_PRESETS.map(t => (
+            {availableTunings.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
