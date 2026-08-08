@@ -47,7 +47,9 @@
    - подсказка «Совет мастера» показывается при `cents > 15`;
    - порог «в строе» по умолчанию — `5` центов (настраивается).
 
-6. **Состояние в `localStorage`:** `gt_tuning`, `gt_a4`, `gt_notation`, `gt_threshold`, `gt_theme`. Тесты обязаны стартовать с чистого хранилища, иначе сценарии настроек протекают друг в друга.
+6. **Состояние в `localStorage`:** `gt_tuning`, `gt_a4`, `gt_notation`, `gt_threshold`, `gt_theme`, а также `night_rehearsal_custom_tunings` (пользовательские строи) и `nr_ear_best_streak` (рекорд тренажёра). Тесты обязаны стартовать с чистого хранилища, иначе сценарии настроек протекают друг в друга.
+
+7. **Экспорт SVG берёт первый `<svg>` документа.** `handleExportSVG` вызывает `document.querySelector('svg')`, а раньше грифа в DOM идут иконки lucide. Сценарий экспорта пишется так, чтобы отличить схему грифа от иконки, а не просто зафиксировать факт скачивания.
 
 ---
 
@@ -162,20 +164,22 @@ window.__fakeMic.stop()                 // останавливает генер
 `header-subtitle`, `settings-open`.
 
 **Тюнер** (`TunerScreen.tsx`):
-`mic-toggle`, `mic-status`, `mic-error`, `tuning-select`, `tuner-note`, `tuner-octave`, `tuner-action`, `tuner-measured`, `tuner-target`, `master-mode`, `string-chip-{stringNumber}`, `master-tip`, `spectrum-toggle`.
+`mic-toggle`, `mic-status`, `tuning-select`, `tuner-note`, `tuner-action`, `tuner-measured`, `tuner-target`, `master-mode`, `master-tip`, `string-chip-{stringNumber}`, `spectrum-toggle`.
 
 **Настройки** (`SettingsModal.tsx`):
-`settings-modal`, `settings-a4`, `settings-notation`, `settings-threshold`, `settings-theme`, `custom-tuning-create`, `settings-close`.
+`settings-modal`, `settings-a4-{432|440|442|444}`, `settings-a4-slider`, `settings-notation-{english|german|solfege}`, `settings-threshold-{3|5|10}`, `settings-theme-{night|day}`, `custom-tuning-create`, `custom-tuning-name`, `custom-tuning-save`, `settings-close`.
 
-**Гриф** (`FretboardScreen.tsx`): `fretboard-svg`, `fb-mode-{explore|scales|chords}`, `fb-root`, `fb-scale`, `fb-capo`, `fb-lefty`, `fb-export-svg`.
+**Гриф** (`FretboardScreen.tsx`, `FretboardSVG.tsx`): `fretboard-svg`, `fb-mode-{explore|scales|chords}`, `fb-root`, `fb-scale`, `fb-voicing`, `fb-capo`, `fb-range`, `fb-lefty`, `fb-share`, `fb-export`, `fb-detected-chord`.
 
-**Проверка аккорда** (`ChordCheckScreen.tsx`): `chord-diagram`, `chord-select`, `chord-mode-{arpeggio|strum}`, `chord-start`, `chord-string-{n}`, `chord-go-tune-{n}`.
+**Проверка аккорда** (`ChordCheckScreen.tsx`, `ChordDiagramSVG.tsx`): `chord-diagram`, `cc-mode-{arpeggio|strum}`, `cc-mic-toggle`, `cc-strum-start`, `cc-voicing-{id}`, `cc-string-{n}`, `cc-status-{n}`, `cc-tune-{n}`, `cc-reset`.
 
-**Метроном** (`MetronomeScreen.tsx`): `metronome-toggle`, `metronome-bpm`, `metronome-tap`, `metronome-meter`, `rhythm-{rock|blues|bossa|funk}`, `seq-step-{0..15}`.
+**Метроном** (`MetronomeScreen.tsx`): `mt-tab-{metronome|drums}`, `mt-bpm`, `mt-bpm-slider`, `mt-minus-5`, `mt-minus-1`, `mt-plus-1`, `mt-plus-5`, `mt-meter-{2|3|4|6}`, `mt-toggle`, `mt-tap`, `mt-beat-{i}`, `mt-pattern-{rock|blues|bossa|funk}`, `seq-step-{i}`.
 
-**Тренажёр слуха** (`EarTrainingScreen.tsx`): `ear-mode-{notes|strings|quality}`, `ear-play`, `ear-answer-{n}`, `ear-score`, `ear-streak`, `ear-best`, `ear-feedback`.
+**Тренажёр слуха** (`EarTrainingScreen.tsx`): `et-mode-{note|string|quality}`, `et-play`, `et-answer-{index}`, `et-score`, `et-streak`, `et-best`, `et-feedback`, `et-next`.
 
-Идентификаторы, зависящие от данных (`string-chip-{n}`, `seq-step-{n}`), нумеруются так же, как в модели: `string-chip` — по `stringNumber` (1 — самая тонкая), `seq-step` — по индексу шага с нуля.
+Идентификаторы, зависящие от данных (`string-chip-{n}`, `cc-string-{n}`, `seq-step-{i}`), нумеруются так же, как в модели: по струнам — `stringNumber` (1 — самая тонкая, 6 — самая толстая), по шагам секвенсора — индекс с нуля.
+
+**Два атрибута состояния, помимо testid.** Кружку подсвеченной ноты на грифе добавляется `data-highlighted`, ячейке секвенсора — `data-active`. Без них подсветка отличима только по инлайновому цвету, а привязка теста к конкретному CSS-значению — это тот же снимок экрана, только хрупче.
 
 ---
 
@@ -231,7 +235,7 @@ window.__fakeMic.stop()                 // останавливает генер
 - Выбор тоники и гаммы подсвечивает ожидаемое число ступеней.
 - Каподастр смещает подсвеченные позиции; леворукий режим зеркалит гриф.
 - Экспорт SVG инициирует загрузку файла (событие `download`).
-- **Deep linking**: изменение состояния меняет хэш URL; открытие того же URL в новой странице восстанавливает режим, тонику и гамму.
+- **Deep linking**: кнопка «Поделиться» кладёт в буфер обмена ссылку с параметрами `mode`, `root`, `scale`, `capo`; открытие URL с таким хэшем восстанавливает режим, тонику и гамму. Важно: состояние **не** пишется в адресную строку само по себе — `handleShareLink` только копирует ссылку, `window.location.hash` не меняется.
 
 ### 7.5 `chord-check.spec.ts`
 
