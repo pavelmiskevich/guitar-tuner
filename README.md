@@ -64,7 +64,7 @@
 * **Frontend**: React 19, TypeScript, Vite
 * **Аудио & DSP**: Web Audio API, McLeod Pitch Method (NSDF), Karplus-Strong Synthesis, FFT Analyzer, Drum Synthesizer
 * **Графика & UI**: Векторный SVG, Lucide Icons, CSS Custom Properties (Design Tokens)
-* **PWA**: Service Worker Cache-First, Web App Manifest
+* **PWA**: Service Worker Network-First, Web App Manifest
 * **Тестирование**: Vitest, Playwright
 
 ---

@@ -15,6 +15,18 @@ test.describe('проверка аккорда', () => {
     }
   });
 
+  test('быстрый выбор аккорда меняет аппликатуру', async ({ page }) => {
+    // По умолчанию выбран аккорд из открытых струн: заглушенных нет.
+    await expect(page.getByTestId('cc-status-6')).not.toContainText('Глушится');
+
+    // У Am шестая струна глушится, а третья зажимается на 2-м ладу —
+    // проверяем и статус, и подпись лада, чтобы утверждение зависело
+    // именно от выбранной аппликатуры.
+    await page.getByTestId('cc-voicing-am-open').click();
+    await expect(page.getByTestId('cc-status-6')).toContainText('Глушится');
+    await expect(page.getByTestId('cc-string-4')).toContainText('лад 2');
+  });
+
   test('переключает режимы анализа', async ({ page }) => {
     await expect(page.getByTestId('cc-mic-toggle')).toBeVisible();
 

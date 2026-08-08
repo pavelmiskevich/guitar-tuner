@@ -31,6 +31,21 @@ test.describe('гриф', () => {
     expect(await highlighted.count()).toBeGreaterThan(20);
   });
 
+  test('диапазон ладов меняет объём грифа', async ({ page }) => {
+    await page.getByTestId('fb-mode-scales').click();
+    const highlighted = page.getByTestId('fretboard-svg').locator('[data-highlighted="true"]');
+
+    await page.getByTestId('fb-range').selectOption('0-12');
+    await expect(highlighted.first()).toBeVisible();
+    const narrow = await highlighted.count();
+
+    await page.getByTestId('fb-range').selectOption('0-24');
+    // Вдвое больше ладов — строго больше подсвеченных ступеней гаммы.
+    await expect(async () => {
+      expect(await highlighted.count()).toBeGreaterThan(narrow);
+    }).toPass();
+  });
+
   test('каподастр меняет подсветку', async ({ page }) => {
     await page.getByTestId('fb-mode-scales').click();
     const before = await page
