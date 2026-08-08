@@ -152,6 +152,25 @@ test.describe('тюнер', () => {
     }).toPass({ timeout: 8_000 });
   });
 
+  test('не анализирует собственный эталонный звук', async ({ page }) => {
+    await startMic(page);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await expect(page.getByTestId('tuner-note')).toHaveText('E', { timeout: 8_000 });
+
+    // Нажатие на ноту играет эталон через динамик. На телефоне микрофон слышит
+    // его же, и до исправления тюнер «проверял строй» собственного звука.
+    await page.getByTestId('tuner-note').click();
+
+    // Подменяем вход на другую СТРУНУ: 440 Гц не годится — тюнер отнёс бы её
+    // к ближайшей E4, и нота осталась бы «E» независимо от подавления.
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('D3'));
+    await page.waitForTimeout(1_200);
+    await expect(page.getByTestId('tuner-note')).toHaveText('E');
+
+    // Эталон длится 2.8 с плюс запас на отзвук — после этого анализ возвращается.
+    await expect(page.getByTestId('tuner-note')).toHaveText('D', { timeout: 8_000 });
+  });
+
   test('переключение на Drop D меняет шестую струну на D2', async ({ page }) => {
     await page.getByTestId('tuning-select').selectOption('drop-d');
     await expect(page.getByTestId('string-chip-6')).toContainText('D2');

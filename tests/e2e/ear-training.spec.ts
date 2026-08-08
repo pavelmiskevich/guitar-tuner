@@ -124,21 +124,23 @@ test.describe('тренажёр слуха', () => {
   test('кнопка следующего вопроса помещается на экран', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile', 'проверка про мобильный экран');
 
-    // 390x600 — намеренно пессимистичный прокси реального Safari на iPhone.
-    // В эмуляции env(safe-area-inset-bottom) равен нулю, а на устройстве это 34px
-    // дополнительного отступа снизу; плюс адресная строка и панель инструментов
-    // съедают высоту. Запас на этом вьюпорте покрывает и то, и другое.
-    await page.setViewportSize({ width: 390, height: 600 });
+    // 390x480 — заведомо меньше любого реального телефона. Подгонка высот
+    // дважды оказывалась оптимистичнее реальности: доступная высота Safari
+    // меняется на ходу, а env(safe-area-inset-bottom) в эмуляции равен нулю.
+    // Блок с кнопкой прижат к низу экрана, поэтому высота вообще не важна —
+    // именно это свойство здесь и проверяется.
+    await page.setViewportSize({ width: 390, height: 480 });
 
     await page.getByTestId('et-answer-0').click();
     await expect(page.getByTestId('et-next')).toBeVisible();
 
     const fits = await page.evaluate(() => {
       const n = document.querySelector('[data-testid="et-next"]')!.getBoundingClientRect();
-      return { overflow: Math.round(n.bottom - window.innerHeight) };
+      return { overflow: Math.round(n.bottom - window.innerHeight), top: Math.round(n.top) };
     });
     // До исправления кнопка уходила под сгиб на 19–89px, а документ не скроллился.
     expect(fits.overflow, `кнопка ниже экрана на ${fits.overflow}px`).toBeLessThanOrEqual(0);
+    expect(fits.top, `кнопка выше экрана на ${-fits.top}px`).toBeGreaterThanOrEqual(0);
   });
 
   test('переключатель способа ответа скрыт в режиме «Мажор/минор»', async ({ page }) => {

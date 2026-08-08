@@ -31,6 +31,8 @@ export class AudioEngine {
   private freqDataArray: Float32Array;
 
   private listeners: Set<EstimateCallback> = new Set();
+  /** До этого момента оценки не рассылаются: приложение играет само. */
+  private suppressUntil = 0;
   private onError?: (err: Error) => void;
   private onStateChange?: (state: AudioEngineState) => void;
 
@@ -50,6 +52,22 @@ export class AudioEngine {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
+  }
+
+  /**
+   * Заглушить анализ на время собственного воспроизведения.
+   *
+   * Динамик телефона слышен своему же микрофону, и без этого приложение
+   * анализирует эталонный звук как игру пользователя: тюнер «проверяет строй»
+   * собственного тона, а тренажёр слуха мог бы засчитать сыгранный вопрос
+   * за ответ.
+   */
+  public suppressFor(ms: number): void {
+    this.suppressUntil = Math.max(this.suppressUntil, performance.now() + ms);
+  }
+
+  public isSuppressed(): boolean {
+    return performance.now() < this.suppressUntil;
   }
 
   public subscribe(cb: EstimateCallback): () => void {
@@ -167,6 +185,12 @@ export class AudioEngine {
       this.analyserNode.getFloatTimeDomainData(this.timeDataArray);
       // @ts-expect-error Float32Array buffer compatibility
       this.analyserNode.getFloatFrequencyData(this.freqDataArray);
+
+      // Пока звучит собственный эталон, оценки не рассылаем вовсе.
+      if (this.isSuppressed()) {
+        this.animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
 
       const estimate = this.detector.detectPitch(this.timeDataArray);
       const sampleRate = this.audioContext?.sampleRate || 48000;

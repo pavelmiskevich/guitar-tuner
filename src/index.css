@@ -333,6 +333,22 @@ button {
   .app-main {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
+
+  /* Разбор ответа с кнопкой перехода прижимаем к низу экрана.
+     Подгонка высот не работала: доступная высота Safari меняется при
+     сворачивании адресной строки, а env(safe-area-inset-bottom) не виден
+     в эмуляции. Фиксированное положение снимает зависимость от размеров
+     устройства вовсе. Блок появляется только после ответа, когда варианты
+     уже заблокированы и перекрывать нечего. */
+  .ear-screen .banner {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    z-index: 90;
+    margin: 0;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
 }
 
 /* Десктоп (> 840px) */
