@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Тесты, линтер, сборка
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      # Браузер кэшируется по версии Playwright из lock-файла: пока версия
+      # не менялась, повторная загрузка ~130 МБ не нужна.
+      - name: Кэш браузера Playwright
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Установка Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # При попадании в кэш сам браузер уже есть, но системные библиотеки —
+      # нет: они живут вне кэшируемого каталога.
+      - name: Системные зависимости браузера
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Линтер
+        run: npm run lint
+
+      - name: Модульные тесты
+        run: npm test
+
+      - name: Сборка
+        run: npm run build
+
+      # Поднимает production-сборку на порту 4173 и гоняет все три проекта:
+      # десктоп, мобильный и реальный захват микрофона из WAV.
+      - name: E2E-тесты
+        run: npm run test:e2e
+
+      - name: Отчёт Playwright при падении
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
