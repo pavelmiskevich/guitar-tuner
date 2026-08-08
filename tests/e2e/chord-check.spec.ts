@@ -69,6 +69,6 @@ test.describe('проверка аккорда', () => {
     await page.getByTestId('cc-mic-toggle').click();
     await page.getByTestId('cc-reset').click();
 
-    await expect(page.getByTestId('cc-status-6')).not.toContainText('В строе');
+    await expect(page.getByTestId('cc-status-6')).toContainText('Ожидание');
   });
 });
