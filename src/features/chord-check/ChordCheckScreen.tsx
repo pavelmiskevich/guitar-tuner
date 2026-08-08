@@ -157,6 +157,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
           <button
             className="btn btn-sm"
+            data-testid="cc-mode-arpeggio"
             style={{
               background: analysisMode === 'arpeggio' ? 'var(--brand)' : 'transparent',
               color: analysisMode === 'arpeggio' ? '#fff' : 'var(--ink-300)',
@@ -172,6 +173,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
           </button>
           <button
             className="btn btn-sm"
+            data-testid="cc-mode-strum"
             style={{
               background: analysisMode === 'strum' ? 'var(--brand)' : 'transparent',
               color: analysisMode === 'strum' ? '#fff' : 'var(--ink-300)',
@@ -193,6 +195,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         !isListening ? (
           <button
             className="btn btn-primary"
+            data-testid="cc-mic-toggle"
             onClick={toggleListening}
             style={{
               width: '100%',
@@ -237,6 +240,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             </div>
             <button
               className="btn btn-ghost btn-sm"
+              data-testid="cc-mic-toggle"
               onClick={toggleListening}
               style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--ink-300)', borderColor: 'var(--ink-700)' }}
             >
@@ -247,6 +251,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       ) : (
         <button
           className="btn btn-primary"
+          data-testid="cc-strum-start"
           onClick={handleStartStrumCapture}
           disabled={isCapturingStrum}
           style={{
@@ -269,7 +274,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--s4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <span className="eyebrow">Быстрый выбор аккорда</span>
-          <button className="btn btn-ghost btn-sm" onClick={resetAnalysis} title="Сбросить статус">
+          <button className="btn btn-ghost btn-sm" data-testid="cc-reset" onClick={resetAnalysis} title="Сбросить статус">
             <RotateCcw size={14} /> Сбросить
           </button>
         </div>
@@ -279,6 +284,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             <button
               key={v.id}
               className={`btn btn-sm ${selectedVoicing.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
+              data-testid={`cc-voicing-${v.id}`}
               onClick={() => setSelectedVoicing(v)}
               style={{ fontWeight: 700 }}
             >
@@ -367,6 +373,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             return (
               <div
                 key={str.stringNumber}
+                data-testid={`cc-string-${str.stringNumber}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -416,6 +423,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
                 {/* Статус и кнопка перейти к настройке */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
+                    data-testid={`cc-status-${str.stringNumber}`}
                     style={{
                       fontSize: '11px',
                       fontWeight: 700,
@@ -432,6 +440,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
                   {!isMuted && status && status.status !== 'in-tune' && (
                     <button
                       className="btn btn-ghost btn-sm"
+                      data-testid={`cc-tune-${str.stringNumber}`}
                       onClick={() => onGoTuneString(idx)}
                       title={`Перейти в тюнер для ${str.stringNumber}-й струны`}
                       style={{ padding: '4px 8px', fontSize: '11px' }}

@@ -84,7 +84,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
         </button>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
+      <svg data-testid="chord-diagram" viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
         <defs>
           {/* Яркий хромированный/никелевый металлический ладовый порожек как в разделе «Гриф» */}
           <linearGradient id="chordFretMetal" x1="0%" y1="0%" x2="100%" y2="0%">
