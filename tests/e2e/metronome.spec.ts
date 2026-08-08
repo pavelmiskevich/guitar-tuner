@@ -21,6 +21,13 @@ test.describe('метроном', () => {
     await expect(page.getByTestId('mt-bpm')).toHaveText('125');
     await page.getByTestId('mt-minus-1').click();
     await expect(page.getByTestId('mt-bpm')).toHaveText('124');
+    await page.getByTestId('mt-minus-5').click();
+    await expect(page.getByTestId('mt-bpm')).toHaveText('119');
+    await page.getByTestId('mt-plus-1').click();
+    await expect(page.getByTestId('mt-bpm')).toHaveText('120');
+
+    await page.getByTestId('mt-bpm-slider').fill('200');
+    await expect(page.getByTestId('mt-bpm')).toHaveText('200');
   });
 
   test('меняет размер такта', async ({ page }) => {
@@ -34,6 +41,16 @@ test.describe('метроном', () => {
   });
 
   test('tap-tempo вычисляет темп по интервалу нажатий', async ({ page }) => {
+    // Метроном стартует со 120 BPM — если тапать в темпе, подразумевающем
+    // те же 120, тест не отличит "tap-tempo действительно посчитал BPM" от
+    // "обработчик тапа ничего не сделал". Поэтому сначала уводим BPM в
+    // сторону кнопками, а затем проверяем, что tap-tempo возвращает его
+    // обратно к ~120 по интервалам нажатий.
+    for (let i = 0; i < 6; i++) {
+      await page.getByTestId('mt-plus-5').click();
+    }
+    await expect(page.getByTestId('mt-bpm')).toHaveText('150');
+
     const tap = page.getByTestId('mt-tap');
     // Пять нажатий с интервалом 500 мс — это 120 BPM.
     // click() сам по себе занимает заметное время (проверка actionability,
@@ -78,7 +95,10 @@ test.describe('метроном', () => {
       return count;
     });
 
-    expect(activations).toBeGreaterThanOrEqual(1);
+    // Нижняя граница 2, а не 1: при вдвое замедленном секвенсоре (регресс
+    // тайминга) за 4 секунды случилась бы ровно одна активация — такой
+    // дефект не должен проходить тест.
+    expect(activations).toBeGreaterThanOrEqual(2);
     expect(activations).toBeLessThanOrEqual(3);
   });
 
