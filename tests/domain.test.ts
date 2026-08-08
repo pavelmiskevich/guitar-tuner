@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { midiToFrequency, calculateCents, frequencyToMidi, formatNoteName } from '../src/domain/notes';
+import { midiToFrequency, calculateCents, formatNoteName } from '../src/domain/notes';
 import { calculateFretPositions, getFretNote } from '../src/domain/fretboard';
 import { DEFAULT_TUNING } from '../src/domain/tunings';
 import { getScaleNotes } from '../src/domain/scales';
