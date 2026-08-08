@@ -1,4 +1,7 @@
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+
+const REAL_MIC_WAV = path.resolve('tests/e2e/audio/e2-open-string.wav');
 
 const CHROMIUM_ARGS = ['--autoplay-policy=no-user-gesture-required'];
 
@@ -21,6 +24,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-desktop',
+      testIgnore: /smoke-realmic\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1440, height: 900 },
@@ -29,9 +33,26 @@ export default defineConfig({
     },
     {
       name: 'chromium-mobile',
+      testIgnore: /smoke-realmic\.spec\.ts/,
       use: {
         ...devices['Pixel 7'],
         launchOptions: { args: CHROMIUM_ARGS },
+      },
+    },
+    {
+      name: 'chromium-realmic',
+      testMatch: /smoke-realmic\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        launchOptions: {
+          args: [
+            ...CHROMIUM_ARGS,
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            `--use-file-for-fake-audio-capture=${REAL_MIC_WAV}`,
+          ],
+        },
       },
     },
   ],
