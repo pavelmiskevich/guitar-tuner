@@ -118,6 +118,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
+        data-testid="settings-modal"
       >
         {/* Шапка модального окна */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -142,6 +143,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`btn btn-sm ${theme === 'night' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onThemeChange('night')}
+              data-testid="settings-theme-night"
             >
               <Moon size={16} /> Ночь (Индиго)
             </button>
@@ -149,6 +151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`btn btn-sm ${theme === 'day' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onThemeChange('day')}
+              data-testid="settings-theme-day"
             >
               <Sun size={16} /> День (Светлая)
             </button>
@@ -172,6 +175,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             value={a4}
             onChange={(e) => onA4Change(Number(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--brand)', cursor: 'pointer' }}
+            data-testid="settings-a4-slider"
           />
 
           <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
@@ -200,6 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={notation === 'english'}
                 onChange={() => onNotationChange('english')}
                 style={{ accentColor: 'var(--brand)' }}
+                data-testid="settings-notation-english"
               />
               <div>
                 <b style={{ display: 'block', fontSize: '14px' }}>Английская (C, D, E, F, G, A, B)</b>
@@ -214,6 +219,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={notation === 'german'}
                 onChange={() => onNotationChange('german')}
                 style={{ accentColor: 'var(--brand)' }}
+                data-testid="settings-notation-german"
               />
               <div>
                 <b style={{ display: 'block', fontSize: '14px' }}>Немецкая (C, D, E, F, G, A, H)</b>
@@ -228,6 +234,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={notation === 'solfege'}
                 onChange={() => onNotationChange('solfege')}
                 style={{ accentColor: 'var(--brand)' }}
+                data-testid="settings-notation-solfege"
               />
               <div>
                 <b style={{ display: 'block', fontSize: '14px' }}>Скрипичная / Сольфеджио (До, Ре, Ми...)</b>
@@ -245,6 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`btn btn-sm ${inTuneThreshold === 3 ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(3)}
+              data-testid="settings-threshold-3"
             >
               Строгий (±3¢)
             </button>
@@ -252,6 +260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`btn btn-sm ${inTuneThreshold === 5 ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(5)}
+              data-testid="settings-threshold-5"
             >
               Стандарт (±5¢)
             </button>
@@ -259,6 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className={`btn btn-sm ${inTuneThreshold === 10 ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(10)}
+              data-testid="settings-threshold-10"
             >
               Свободный (±10¢)
             </button>
@@ -270,7 +280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span className="eyebrow">Пользовательские строи</span>
             {!isCreatingCustom && (
-              <button className="btn btn-ghost btn-sm" onClick={() => setIsCreatingCustom(true)}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setIsCreatingCustom(true)} data-testid="custom-tuning-create">
                 <Plus size={14} /> Создать строй
               </button>
             )}
@@ -292,6 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   padding: '8px 12px',
                   fontSize: '14px'
                 }}
+                data-testid="custom-tuning-name"
               />
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -344,7 +355,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button className="btn btn-ghost btn-sm" onClick={() => setIsCreatingCustom(false)}>
                   Отмена
                 </button>
-                <button className="btn btn-primary btn-sm" onClick={handleSaveNewCustomTuning}>
+                <button className="btn btn-primary btn-sm" onClick={handleSaveNewCustomTuning} data-testid="custom-tuning-save">
                   <Check size={14} /> Сохранить строй
                 </button>
               </div>

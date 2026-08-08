@@ -15,7 +15,9 @@ export const test = base.extend({
   page: async ({ page }, runTest) => {
     await page.addInitScript((keys: string[]) => {
       try {
+        if (sessionStorage.getItem('__e2e_cleaned') === '1') return;
         keys.forEach((k) => localStorage.removeItem(k));
+        sessionStorage.setItem('__e2e_cleaned', '1');
       } catch {
         // приватный режим — игнорируем
       }
