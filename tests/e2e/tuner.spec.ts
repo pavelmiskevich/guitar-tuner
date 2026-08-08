@@ -37,14 +37,19 @@ test.describe('тюнер', () => {
     await startMic(page);
     await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E2', -20));
 
+    // Пока анализатор высоты тона «домотает» окно анализа до новой частоты, показания
+    // цента колеблются (наблюдалось от -26 до +5, включая кратковременное «ОСЛАБИТЬ»).
+    // Оба чтения текста и числовое сравнение должны выполняться за один снимок DOM
+    // внутри toPass — иначе toPass может зафиксировать успех на переходном значении,
+    // а последующее отдельное чтение подхватит уже другое число и упадёт без вины теста.
     await expect(async () => {
-      await expect(page.getByTestId('tuner-action')).toContainText('ПОДТЯНУТЬ');
-      await expect(page.getByTestId('tuner-action')).toContainText('¢');
-    }).toPass({ timeout: 8_000 });
+      const action = await page.getByTestId('tuner-action').innerText();
+      expect(action).toContain('ПОДТЯНУТЬ');
+      expect(action).toContain('¢');
 
-    const action = await page.getByTestId('tuner-action').innerText();
-    const cents = Number(/\(([-+]?\d+)¢\)/.exec(action)?.[1]);
-    expect(Math.abs(cents + 20)).toBeLessThanOrEqual(1);
+      const cents = Number(/\(([-+]?\d+)¢\)/.exec(action)?.[1]);
+      expect(Math.abs(cents + 20)).toBeLessThanOrEqual(1);
+    }).toPass({ timeout: 8_000 });
   });
 
   test('на завышенной струне требует ослабить и даёт совет мастера', async ({ page }) => {

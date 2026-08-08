@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
+    "test:e2e": "playwright test --grep-invert @exploration",
+    "test:e2e:ui": "playwright test --grep-invert @exploration --ui",
+    "test:e2e:explore": "playwright test --grep @exploration",
     "lint": "oxlint",
     "preview": "vite preview"
   },

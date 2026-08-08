@@ -13,8 +13,6 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 30_000,
   expect: { timeout: 7_000 },
-  // Разведочный прогон запускается отдельно: npm run test:e2e -- --grep @exploration
-  grepInvert: /@exploration/,
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
