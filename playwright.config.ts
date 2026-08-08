@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
-const REAL_MIC_WAV = path.resolve('tests/e2e/audio/e2-open-string.wav');
+const REAL_MIC_WAV = path.resolve(import.meta.dirname, 'tests/e2e/audio/e2-open-string.wav');
 
 const CHROMIUM_ARGS = ['--autoplay-policy=no-user-gesture-required'];
 
@@ -9,7 +9,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
+  retries: process.env.CI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 30_000,
   expect: { timeout: 7_000 },

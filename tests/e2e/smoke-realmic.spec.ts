@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { consoleGuardTest as test, expect } from './fixtures/test-base';
 
 test('распознаёт ноту при настоящем захвате микрофона', async ({ page }) => {
   await page.goto('/');

@@ -28,15 +28,36 @@ test.describe('настройки', () => {
     await expect(page.getByTestId('string-chip-2')).toContainText('Си3');
   });
 
+  // Отклонение в 4¢ было слишком близко к принятому в этом наборе разбросу детектора
+  // (±0.3 Гц ≈ ±6.3¢ на E2): сигнал успевал уйти за 5¢ (дефолтный порог) в течение 8с
+  // просто из-за шума, и тест «проходил» независимо от выбранного порога. 8¢ лежит
+  // заведомо между строгим (3¢) и свободным (10¢) порогами, поэтому именно порог,
+  // а не шум детектора, решает исход теста. Оба чтения — в одном снимке DOM внутри
+  // toPass, как в tests/e2e/tuner.spec.ts:45-52.
   test('строгий порог сужает зону «В СТРОЕ»', async ({ page }) => {
     await page.getByTestId('settings-threshold-3').click();
     await page.getByTestId('settings-close').click();
 
     await page.getByTestId('mic-toggle').click();
-    await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E2', 4));
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E2', 8));
 
-    // При пороге 3¢ отклонение в 4¢ уже вне строя.
-    await expect(page.getByTestId('tuner-action')).toContainText('ОСЛАБИТЬ', { timeout: 8_000 });
+    await expect(async () => {
+      const action = await page.getByTestId('tuner-action').innerText();
+      expect(action).toContain('ОСЛАБИТЬ');
+    }).toPass({ timeout: 8_000 });
+  });
+
+  test('свободный порог расширяет зону «В СТРОЕ»', async ({ page }) => {
+    await page.getByTestId('settings-threshold-10').click();
+    await page.getByTestId('settings-close').click();
+
+    await page.getByTestId('mic-toggle').click();
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E2', 8));
+
+    await expect(async () => {
+      const action = await page.getByTestId('tuner-action').innerText();
+      expect(action).toContain('В СТРОЕ');
+    }).toPass({ timeout: 8_000 });
   });
 
   test('переключение темы меняет атрибут на html', async ({ page }) => {

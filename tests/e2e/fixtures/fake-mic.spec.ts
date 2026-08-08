@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { consoleGuardTest as test, expect } from './test-base';
 import { installFakeMic } from './fake-mic';
 
 test('фейковый микрофон отдаёт поток с заданной частотой', async ({ page }) => {

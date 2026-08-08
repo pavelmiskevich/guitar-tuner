@@ -76,7 +76,11 @@ test.describe('тренажёр слуха', () => {
 
   test('рекорд серии сохраняется между сессиями', async ({ page }, testInfo) => {
     await answerCorrectly(page);
-    await expect(page.getByTestId('et-best')).toContainText('1');
+    // et-best рендерится как «{bestStreak} ({accuracy}%)», а accuracy равна 100 и при
+    // totalAttempts === 0 (см. EarTrainingScreen.tsx). Проверяем позицию значения —
+    // «1 (» в начале строки, — а не просто наличие «1» где-то в тексте: иначе совпадение
+    // могло бы случайно произойти из-за «100%», а не из-за bestStreak.
+    await expect(page.getByTestId('et-best')).toHaveText(/^1 \(/);
 
     const stored = await page.evaluate(() => localStorage.getItem('nr_ear_best_streak'));
     expect(stored).toBe('1');
@@ -86,6 +90,6 @@ test.describe('тренажёр слуха', () => {
     await page.reload();
     const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-ear-training`).click();
-    await expect(page.getByTestId('et-best')).toContainText('1');
+    await expect(page.getByTestId('et-best')).toHaveText(/^1 \(/);
   });
 });

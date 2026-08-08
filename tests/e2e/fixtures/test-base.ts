@@ -11,7 +11,13 @@ export const STORAGE_KEYS = [
   'nr_ear_best_streak',
 ];
 
-export const test = base.extend({
+/**
+ * Базовый слой: очистка localStorage перед тестом и страж консоли, который роняет
+ * тест при любом console.error или необработанном исключении страницы.
+ * Не устанавливает фейковый микрофон — им пользуются спеки, которым он не нужен
+ * или прямо противопоказан (например, smoke-realmic.spec.ts).
+ */
+export const consoleGuardTest = base.extend({
   page: async ({ page }, runTest) => {
     await page.addInitScript((keys: string[]) => {
       try {
@@ -22,8 +28,6 @@ export const test = base.extend({
         // приватный режим — игнорируем
       }
     }, STORAGE_KEYS);
-
-    await installFakeMic(page);
 
     const problems: string[] = [];
     page.on('console', (msg) => {
@@ -36,6 +40,13 @@ export const test = base.extend({
     await runTest(page);
 
     expect(problems, `Страница сообщила об ошибках:\n${problems.join('\n')}`).toEqual([]);
+  },
+});
+
+export const test = consoleGuardTest.extend({
+  page: async ({ page }, runTest) => {
+    await installFakeMic(page);
+    await runTest(page);
   },
 });
 
