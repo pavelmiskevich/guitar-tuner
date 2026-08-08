@@ -41,10 +41,14 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
   const needlePos = isActive ? centsToPercent(cents) : 50;
 
   let needleColor = 'var(--sig-idle)';
+  // Цвет текста отделён от цвета стрелки: у графики требование к контрасту 3:1,
+  // у текста — 4.5:1, и приглушённый --sig-idle его не проходит.
+  let readoutColor = 'var(--ink-300)';
   if (isActive) {
     if (isInTune) needleColor = 'var(--sig-in)';
     else if (isNear) needleColor = 'var(--sig-near)';
     else if (isOff) needleColor = 'var(--sig-off)';
+    readoutColor = needleColor;
   }
 
   return (
@@ -171,7 +175,7 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
           style={{
             fontSize: '15px',
             fontWeight: 700,
-            color: needleColor,
+            color: readoutColor,
             padding: '2px 8px',
             background: 'var(--ink-800)',
             borderRadius: 'var(--r-sm)',

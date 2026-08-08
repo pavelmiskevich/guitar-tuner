@@ -153,6 +153,7 @@ export const App: React.FC = () => {
               onClick={() => setIsSettingsOpen(true)}
               style={{ padding: '8px 12px' }}
               title="Настройки"
+              aria-label="Открыть настройки"
               data-testid="settings-open"
             >
               <Settings size={18} />

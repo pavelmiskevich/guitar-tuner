@@ -171,7 +171,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
               <span style={{ fontSize: '9px', fontWeight: 800, marginTop: '4px', color: 'var(--ink-100)' }}>CloudTips QR</span>
             </div>
           )}
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-200)', marginTop: '6px', textAlign: 'center' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-100)', marginTop: '6px', textAlign: 'center' }}>
             Нажмите или сканируйте 📷
           </span>
         </a>

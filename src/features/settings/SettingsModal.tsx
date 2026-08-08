@@ -179,6 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onChange={(e) => onA4Change(Number(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--brand)', cursor: 'pointer' }}
             data-testid="settings-a4-slider"
+            aria-label="Эталонная частота A4 в герцах"
           />
 
           <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
@@ -390,6 +391,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="btn btn-ghost btn-sm"
                     onClick={() => handleDeleteTuning(ct.id)}
                     data-testid="custom-tuning-delete"
+                    aria-label="Удалить пользовательский строй"
                     title="Удалить строй"
                   >
                     <Trash2 size={14} color="var(--sig-off)" />

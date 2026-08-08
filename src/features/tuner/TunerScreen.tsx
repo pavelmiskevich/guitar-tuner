@@ -20,6 +20,11 @@ import {
   Compass
 } from 'lucide-react';
 
+// Диапазон спектрограммы: от ниже самой низкой басовой струны до верхних гармоник.
+const SPECTRUM_BARS = 32;
+const SPECTRUM_MIN_HZ = 40;
+const SPECTRUM_MAX_HZ = 4000;
+
 interface TunerScreenProps {
   tuning: Tuning;
   availableTunings: Tuning[];
@@ -54,7 +59,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [tunedStrings, setTunedStrings] = useState<Set<number>>(new Set());
   const [showSpectrum, setShowSpectrum] = useState(false);
-  const [spectrumBars, setSpectrumBars] = useState<number[]>(new Array(32).fill(0));
+  const [spectrumBars, setSpectrumBars] = useState<number[]>(new Array(SPECTRUM_BARS).fill(0));
 
   const stableTimerRef = useRef<number | null>(null);
   const soundDecayTimerRef = useRef<number | null>(null);
@@ -114,18 +119,30 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     // Синхронизируем начальное состояние микрофона
     setIsListening(sharedAudioEngine.isRunning());
 
-    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate, _timeBuf, freqBuf) => {
+    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate, _timeBuf, freqBuf, sampleRate) => {
       setInputLevelDb(estimate.rms);
       setIsClipping(estimate.isClipping);
 
-      // Обновление спектрограммы
-      if (freqBuf && freqBuf.length > 0) {
+      // Обновление спектрограммы.
+      // Каждая полоса берёт МАКСИМУМ по своему диапазону бинов, а не одиночный бин:
+      // гармоника — узкий пик шириной в пару бинов, и выборка через равные
+      // промежутки почти всегда попадала между пиками, показывая шумовой пол.
+      // Шкала логарифмическая, иначе рабочий диапазон гитары (82–330 Гц)
+      // занимает лишь первые полосы из 32.
+      if (freqBuf && freqBuf.length > 0 && sampleRate) {
+        const binWidth = sampleRate / (freqBuf.length * 2);
         const bars: number[] = [];
-        const step = Math.floor(Math.min(freqBuf.length, 512) / 32);
-        for (let i = 0; i < 32; i++) {
-          const db = freqBuf[i * step] || -100;
-          const norm = Math.max(0, Math.min(100, (db + 90) * 1.4));
-          bars.push(norm);
+        for (let i = 0; i < SPECTRUM_BARS; i++) {
+          const fLo = SPECTRUM_MIN_HZ * Math.pow(SPECTRUM_MAX_HZ / SPECTRUM_MIN_HZ, i / SPECTRUM_BARS);
+          const fHi = SPECTRUM_MIN_HZ * Math.pow(SPECTRUM_MAX_HZ / SPECTRUM_MIN_HZ, (i + 1) / SPECTRUM_BARS);
+          const loBin = Math.max(1, Math.floor(fLo / binWidth));
+          const hiBin = Math.min(freqBuf.length - 1, Math.max(loBin, Math.ceil(fHi / binWidth)));
+          let peak = -Infinity;
+          for (let b = loBin; b <= hiBin; b++) {
+            if (freqBuf[b] > peak) peak = freqBuf[b];
+          }
+          if (!Number.isFinite(peak)) peak = -100;
+          bars.push(Math.max(0, Math.min(100, (peak + 90) * 1.4)));
         }
         setSpectrumBars(bars);
       }
@@ -294,6 +311,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               if (found) onTuningChange(found);
             }}
             data-testid="tuning-select"
+            aria-label="Выбор строя гитары"
             style={{
               background: 'var(--ink-800)',
               color: 'var(--ink-050)',
@@ -684,6 +702,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             {spectrumBars.map((val, i) => (
               <div
                 key={i}
+                data-level={Math.round(val)}
                 style={{
                   flex: 1,
                   height: `${Math.max(4, val)}%`,

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
-import { formatNoteName, midiToFrequency, NOTE_NAMES } from '../../domain/notes';
+import { formatNoteName, midiToFrequency, frequencyToMidi, midiToPitch, calculateCents, NOTE_NAMES } from '../../domain/notes';
+import { sharedAudioEngine } from '../../audio/audioEngine';
+import type { PitchEstimate } from '../../audio/dsp';
 import { getFretNote } from '../../domain/fretboard';
 import { COMMON_VOICINGS } from '../../domain/chords';
 import { playGuitarString } from '../../audio/synth';
@@ -21,6 +23,12 @@ interface EarTrainingScreenProps {
 }
 
 type GameMode = 'note' | 'string' | 'chord_quality';
+type AnswerMode = 'buttons' | 'guitar';
+
+/** Пауза перед автопереходом: хватает прочитать разбор, но не заставляет ждать. */
+const AUTO_NEXT_MS = 3000;
+/** Насколько близко сыгранная нота должна лечь к струне, чтобы считаться ею. */
+const STRING_MATCH_CENTS = 120;
 
 interface QuestionState {
   targetLabel: string;
@@ -47,8 +55,27 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const [isAnswered, setIsAnswered] = useState(false);
   const [question, setQuestion] = useState<QuestionState | null>(null);
   const [isPlayingSound, setIsPlayingSound] = useState(false);
+  const [answerMode, setAnswerMode] = useState<AnswerMode>('buttons');
+  const [micError, setMicError] = useState<string | null>(null);
 
   const timeoutRef = useRef<number | null>(null);
+
+  // Актуальные значения для обработчика аудиопотока: подписка живёт дольше
+  // одного рендера, и замыкание на состояние давало бы устаревшие данные.
+  const isAnsweredRef = useRef(isAnswered);
+  const questionRef = useRef(question);
+  const gameModeRef = useRef(gameMode);
+  const a4Ref = useRef(a4);
+  const notationRef = useRef(notation);
+  const tuningRef = useRef(tuning);
+  const handleSelectRef = useRef<(i: number) => void>(() => {});
+
+  useEffect(() => { isAnsweredRef.current = isAnswered; }, [isAnswered]);
+  useEffect(() => { questionRef.current = question; }, [question]);
+  useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
+  useEffect(() => { a4Ref.current = a4; }, [a4]);
+  useEffect(() => { notationRef.current = notation; }, [notation]);
+  useEffect(() => { tuningRef.current = tuning; }, [tuning]);
 
   // Воспроизведение звука текущего вопроса
   const playCurrentSound = useCallback((notes: { freq: number; delay: number }[]) => {
@@ -192,6 +219,62 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     }
   };
 
+  // Автопереход к следующему вопросу: экран тренажёра рассчитан на серию
+  // ответов подряд, и ручное нажатие после каждого сбивает ритм занятия.
+  useEffect(() => {
+    if (!isAnswered) return;
+    const t = window.setTimeout(() => generateNewQuestion(), AUTO_NEXT_MS);
+    return () => window.clearTimeout(t);
+  }, [isAnswered, generateNewQuestion]);
+
+  // Ответ игрой на инструменте. Режим «Мажор/минор» сюда не попадает:
+  // характер аккорда одной струной не сыграть, переключатель там скрыт.
+  useEffect(() => {
+    if (answerMode !== 'guitar' || gameMode === 'chord_quality') return;
+
+    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
+      if (isAnsweredRef.current || !questionRef.current) return;
+      if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.5) return;
+
+      const q = questionRef.current;
+      const freq = estimate.frequency;
+      let matched = -1;
+
+      if (gameModeRef.current === 'note') {
+        // Вопрос про ноту, а не про октаву: E2 и E4 одинаково засчитываются за E.
+        const name = midiToPitch(frequencyToMidi(freq, a4Ref.current)).name;
+        matched = q.options.indexOf(formatNoteName(name, notationRef.current));
+      } else {
+        // Ищем ближайшую открытую струну и требуем попадания в узкий допуск,
+        // иначе случайный звук засчитался бы за ответ.
+        let best = -1;
+        let bestCents = Infinity;
+        tuningRef.current.strings.forEach((str, i) => {
+          const d = Math.abs(calculateCents(freq, midiToFrequency(str.open.midi, a4Ref.current)));
+          if (d < bestCents) { bestCents = d; best = i; }
+        });
+        if (bestCents <= STRING_MATCH_CENTS) matched = best;
+      }
+
+      // Посторонний звук просто игнорируется — он не должен обнулять серию.
+      if (matched >= 0) handleSelectRef.current(matched);
+    });
+
+    return unsubscribe;
+  }, [answerMode, gameMode]);
+
+  useEffect(() => { handleSelectRef.current = handleSelectOption; });
+
+  const enableGuitarAnswers = async () => {
+    setMicError(null);
+    try {
+      await sharedAudioEngine.start();
+      setAnswerMode('guitar');
+    } catch (e) {
+      setMicError(e instanceof Error ? e.message : 'Нет доступа к микрофону');
+    }
+  };
+
   const handleNext = () => {
     generateNewQuestion();
   };
@@ -199,7 +282,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const accuracy = totalAttempts > 0 ? Math.round((score / totalAttempts) * 100) : 100;
 
   return (
-    <div style={{ width: '100%', maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div className="ear-screen" style={{ width: '100%', maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       {/* Заголовок и выбор режима */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -253,6 +336,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
 
       {/* Статистика игрока (Очки, Стрик, Точность) */}
       <div
+        className="ear-stats"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
@@ -260,7 +344,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           background: 'var(--ink-900)',
           border: '1px solid var(--ink-700)',
           borderRadius: 'var(--r-md)',
-          padding: '12px 16px',
+          padding: '8px 12px',
           textAlign: 'center'
         }}
       >
@@ -292,6 +376,54 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
         </div>
       </div>
 
+      {/* Способ ответа. В режиме «Мажор/минор» скрыт: характер аккорда
+          одной струной не сыграть. */}
+      {gameMode !== 'chord_quality' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span>Отвечать:</span>
+          <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
+            <button
+              className="btn btn-sm"
+              data-testid="et-input-buttons"
+              aria-pressed={answerMode === 'buttons'}
+              style={{
+                background: answerMode === 'buttons' ? 'var(--brand-strong)' : 'transparent',
+                color: answerMode === 'buttons' ? '#fff' : 'var(--ink-300)',
+                borderRadius: 'var(--r-pill)',
+                padding: '6px 12px'
+              }}
+              onClick={() => setAnswerMode('buttons')}
+            >
+              Кнопками
+            </button>
+            <button
+              className="btn btn-sm"
+              data-testid="et-input-guitar"
+              aria-pressed={answerMode === 'guitar'}
+              style={{
+                background: answerMode === 'guitar' ? 'var(--brand-strong)' : 'transparent',
+                color: answerMode === 'guitar' ? '#fff' : 'var(--ink-300)',
+                borderRadius: 'var(--r-pill)',
+                padding: '6px 12px'
+              }}
+              onClick={enableGuitarAnswers}
+            >
+              Игрой на гитаре
+            </button>
+          </div>
+          {answerMode === 'guitar' && !micError && (
+            <span data-testid="et-guitar-hint" style={{ color: 'var(--sig-in)' }}>
+              {gameMode === 'string' ? 'Сыграйте открытую струну' : 'Сыграйте услышанную ноту'}
+            </span>
+          )}
+          {micError && (
+            <span data-testid="et-mic-error" style={{ color: 'var(--sig-off)' }}>
+              Нет доступа к микрофону
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Центральная карточка вопроса с большой кнопкой прослушивания */}
       <div
         className="panel"
@@ -300,10 +432,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 'var(--s8) var(--s6)',
+          padding: 'var(--s5) var(--s4)',
           textAlign: 'center',
-          gap: '16px',
-          minHeight: '220px',
+          gap: '10px',
+          minHeight: '150px',
           position: 'relative'
         }}
       >
@@ -318,8 +450,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           disabled={isPlayingSound}
           data-testid="et-play"
           style={{
-            width: '80px',
-            height: '80px',
+            width: '64px',
+            height: '64px',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -330,7 +462,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           }}
           title="Нажмите, чтобы прослушать ещё раз"
         >
-          <Volume2 size={36} />
+          <Volume2 size={30} />
         </button>
 
         <span style={{ fontSize: '13px', color: 'var(--ink-300)' }}>
@@ -340,7 +472,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
 
       {/* Варианты ответов */}
       {question && (
-        <div style={{ display: 'grid', gridTemplateColumns: gameMode === 'string' ? '1fr 1fr' : '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {question.options.map((opt, idx) => {
             const isCorrect = idx === question.correctIndex;
             const isChosen = idx === selectedOption;
@@ -371,8 +503,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
                   background: btnBg,
                   border: `2px solid ${borderColor}`,
                   borderRadius: 'var(--r-md)',
-                  padding: '16px',
-                  fontSize: '16px',
+                  padding: '12px',
+                  fontSize: '15px',
                   fontWeight: 800,
                   color: textColor,
                   cursor: isAnswered ? 'default' : 'pointer',

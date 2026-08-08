@@ -224,6 +224,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <select
                 value={selectedRoot}
                 data-testid="fb-root"
+                aria-label="Тоника гаммы"
                 onChange={(e) => setSelectedRoot(e.target.value as NoteName)}
                 style={{
                   background: 'var(--ink-800)',
@@ -245,6 +246,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <select
                 value={selectedScaleId}
                 data-testid="fb-scale"
+                aria-label="Лад или гамма"
                 onChange={(e) => setSelectedScaleId(e.target.value)}
                 style={{
                   background: 'var(--ink-800)',
@@ -285,6 +287,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               <select
                 value={selectedVoicing.id}
                 data-testid="fb-voicing"
+                aria-label="Аппликатура аккорда"
                 onChange={(e) => {
                   const found = COMMON_VOICINGS.find(v => v.id === e.target.value);
                   if (found) setSelectedVoicing(found);
@@ -336,6 +339,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <select
               value={capo === null ? 'none' : capo}
               data-testid="fb-capo"
+              aria-label="Положение каподастра"
               onChange={(e) => setCapo(e.target.value === 'none' ? null : Number(e.target.value))}
               style={{
                 background: 'var(--ink-800)',
@@ -358,6 +362,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <select
               value={`${fretRange.from}-${fretRange.to}`}
               data-testid="fb-range"
+              aria-label="Диапазон отображаемых ладов"
               onChange={(e) => {
                 const [from, to] = e.target.value.split('-').map(Number);
                 setFretRange({ from, to });
@@ -404,6 +409,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               data-testid="fb-export"
               onClick={handleExportSVG}
               title="Экспортировать SVG"
+              aria-label="Экспортировать схему грифа в SVG"
               style={{ padding: '6px 8px' }}
             >
               <Download size={14} />

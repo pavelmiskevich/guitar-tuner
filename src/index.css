@@ -7,7 +7,11 @@
 }
 
 html, body {
-  height: 100%;
+  /* min-height, а не height: при height: 100% тело жёстко равно высоте экрана,
+     и контент, не помещающийся в него, оказывается недостижим — документ
+     не создаёт прокрутку. Именно из-за этого кнопка «Следующий вопрос»
+     в тренажёре слуха уезжала под экран на iPhone. */
+  min-height: 100%;
   width: 100%;
   background: var(--ink-950);
   color: var(--ink-050);
@@ -98,13 +102,13 @@ button {
 }
 
 .btn-primary {
-  background: var(--brand);
+  background: var(--brand-strong);
   color: #ffffff;
   border: 1px solid transparent;
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--brand) 88%, white);
+  background: color-mix(in srgb, var(--brand-strong) 88%, white);
 }
 
 .btn-ghost {
@@ -387,3 +391,50 @@ button {
   border: 1px solid var(--brand) !important;
 }
 
+
+/* Цели нажатия на сенсорных устройствах.
+   Правило намеренно ограничено pointer: coarse — на десктопе с мышью
+   плотная раскладка остаётся как была, увеличиваются только пальцевые цели. */
+@media (pointer: coarse) {
+  .btn-sm,
+  .schip,
+  [data-testid^="et-answer-"] {
+    min-height: 44px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Ползунки: увеличиваем бегунок, сама дорожка остаётся тонкой */
+  input[type="range"] {
+    height: 28px;
+  }
+}
+
+/* Тренажёр слуха на низких экранах.
+   iPhone 12 Pro в Safari даёт всего ~664px видимой высоты, из которых шапка и
+   нижний таб-бар забирают около 130px. Без уплотнения кнопка перехода
+   к следующему вопросу уходит под сгиб, и заниматься приходится со скроллом. */
+@media (max-height: 740px) {
+  .ear-screen { gap: var(--s3) !important; }
+
+  /* Заголовок экрана дублирует подпись активной вкладки в шапке */
+  .ear-screen .eyebrow,
+  .ear-screen h2 { display: none; }
+
+  .ear-screen .panel { padding: var(--s3) var(--s4) !important; min-height: 0 !important; }
+
+  .ear-screen .banner { padding: var(--s3) !important; }
+
+  /* Статистика: значения остаются читаемыми, уходит воздух вокруг них */
+  .ear-screen .ear-stats { padding: 6px 12px !important; gap: 8px !important; }
+  .ear-screen .ear-stats div { font-size: 17px !important; }
+  .ear-screen .ear-stats div div:first-child { font-size: 11px !important; }
+
+  /* Варианты ответа: цель нажатия остаётся выше 44px за счёт правила
+     для pointer: coarse, ужимается только внутренний воздух */
+  .ear-screen [data-testid^="et-answer-"] { padding: 9px !important; }
+}

@@ -123,6 +123,32 @@ test.describe('тюнер', () => {
     await expect(page.getByTestId('tuner-action')).toContainText('В СТРОЕ');
   });
 
+  test('спектр показывает основной тон и гармоники', async ({ page }) => {
+    await startMic(page);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await page.getByTestId('spectrum-toggle').click();
+
+    // Шкала логарифмическая: 32 полосы на диапазон 40–4000 Гц, то есть
+    // множитель 1.1548 на полосу. Основной тон E2 (82.41 Гц) попадает в 5-ю.
+    const bars = page.getByTestId('spectrum-toggle').locator('xpath=../div').locator('div[data-level]');
+
+    await expect(async () => {
+      const levels = await bars.evaluateAll((els) =>
+        els.map((e) => Number((e as HTMLElement).dataset.level))
+      );
+      expect(levels).toHaveLength(32);
+
+      // До исправления каждая полоса читала шумовой пол между пиками и все
+      // уровни были нулевыми — этой проверки хватает, чтобы поймать регресс.
+      const loud = levels.filter((v) => v >= 40).length;
+      expect(loud, `полос с заметным уровнем: ${loud}`).toBeGreaterThanOrEqual(3);
+
+      // Основной тон громче своих гармоник, поэтому пик должен лежать в 5-й полосе.
+      const peakIndex = levels.indexOf(Math.max(...levels));
+      expect(Math.abs(peakIndex - 5), `пик в полосе ${peakIndex}`).toBeLessThanOrEqual(1);
+    }).toPass({ timeout: 8_000 });
+  });
+
   test('переключение на Drop D меняет шестую струну на D2', async ({ page }) => {
     await page.getByTestId('tuning-select').selectOption('drop-d');
     await expect(page.getByTestId('string-chip-6')).toContainText('D2');
