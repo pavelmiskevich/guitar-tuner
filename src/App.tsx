@@ -110,6 +110,7 @@ export const App: React.FC = () => {
           {/* Навигация на десктопе (скрыта на мобильных) */}
           <nav className="desktop-nav">
             <button
+              id="nav-desktop-tuner"
               className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('tuner')}
               data-testid="nav-desktop-tuner"
@@ -117,6 +118,7 @@ export const App: React.FC = () => {
               <Activity size={15} /> Тюнер
             </button>
             <button
+              id="nav-desktop-fretboard"
               className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('fretboard')}
               data-testid="nav-desktop-fretboard"
@@ -124,6 +126,7 @@ export const App: React.FC = () => {
               <Layers size={15} /> Гриф
             </button>
             <button
+              id="nav-desktop-chord-check"
               className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('chord-check')}
               data-testid="nav-desktop-chord-check"
@@ -131,6 +134,7 @@ export const App: React.FC = () => {
               <Music size={15} /> Аккорд
             </button>
             <button
+              id="nav-desktop-metronome"
               className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('metronome')}
               data-testid="nav-desktop-metronome"
@@ -138,6 +142,7 @@ export const App: React.FC = () => {
               <Timer size={15} /> Ритм
             </button>
             <button
+              id="nav-desktop-ear-training"
               className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('ear-training')}
               data-testid="nav-desktop-ear-training"
@@ -149,6 +154,7 @@ export const App: React.FC = () => {
           {/* Правая колонка: Кнопка настроек */}
           <div className="header-right">
             <button
+              id="settings-open"
               className="btn btn-ghost btn-sm"
               onClick={() => setIsSettingsOpen(true)}
               style={{ padding: '8px 12px' }}
@@ -223,6 +229,7 @@ export const App: React.FC = () => {
       {/* Нижний таб-бар для мобильных устройств */}
       <nav className="mobile-bottom-nav">
         <button
+          id="nav-mobile-tuner"
           onClick={() => setActiveTab('tuner')}
           data-testid="nav-mobile-tuner"
           style={{
@@ -243,6 +250,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
+          id="nav-mobile-fretboard"
           onClick={() => setActiveTab('fretboard')}
           data-testid="nav-mobile-fretboard"
           style={{
@@ -263,6 +271,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
+          id="nav-mobile-chord-check"
           onClick={() => setActiveTab('chord-check')}
           data-testid="nav-mobile-chord-check"
           style={{
@@ -283,6 +292,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
+          id="nav-mobile-metronome"
           onClick={() => setActiveTab('metronome')}
           data-testid="nav-mobile-metronome"
           style={{
@@ -303,6 +313,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
+          id="nav-mobile-ear-training"
           onClick={() => setActiveTab('ear-training')}
           data-testid="nav-mobile-ear-training"
           style={{
