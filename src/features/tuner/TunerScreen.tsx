@@ -18,7 +18,8 @@ import {
   RotateCw,
   Info,
   SlidersHorizontal,
-  Compass
+  Compass,
+  Music
 } from 'lucide-react';
 
 // Диапазон спектрограммы: от ниже самой низкой басовой струны до верхних гармоник.
@@ -300,7 +301,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   // Определение команды действия тюнера (FR-TN-18)
   let actionCommandText = 'Сыграйте струну';
   let actionCommandColor = 'var(--ink-400)';
-  let ActionIcon = Info;
+  let ActionIcon = Music;
 
   if (isListening && measuredFreq > 0 && isSoundActive) {
     if (Math.abs(cents) <= inTuneThreshold) {
