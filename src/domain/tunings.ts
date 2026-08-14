@@ -1,5 +1,6 @@
 import type { Pitch } from './notes';
-import { midiToPitch } from './notes';
+import { calculateCents, midiToFrequency, midiToPitch } from './notes';
+import { isValidTuning } from './storage';
 
 export interface StringSpec {
   index: number;
@@ -18,6 +19,8 @@ export interface Tuning {
   instrument: InstrumentType;
   strings: StringSpec[];
   isCustom?: boolean;
+  /** Строй пришёл из ссылки и в хранилище получателя не сохранён (см. domain/deepLink). */
+  isEphemeral?: boolean;
 }
 
 export const DEFAULT_STRING_GAUGES_6 = [0.046, 0.036, 0.026, 0.017, 0.013, 0.010];
@@ -166,6 +169,30 @@ export const TUNING_PRESETS: Tuning[] = [
 
 export const DEFAULT_TUNING = TUNING_PRESETS[0];
 
+/**
+ * Ближайшая струна к услышанной частоте — по расстоянию в центах, а не в герцах.
+ *
+ * Слух и строй логарифмические: между E2 (82.4) и A2 (110) — 27.6 Гц, между
+ * B3 (246.9) и E4 (329.6) — 82.7 Гц, хотя интервалы почти одинаковые. При
+ * сравнении в герцах низкие струны «притягивают» к себе всё подряд, и на
+ * басовых строях тюнер выбирал соседнюю струну вместо сыгранной.
+ */
+export function findClosestString(freq: number, strings: StringSpec[], a4 = 440): StringSpec {
+  let closest = strings[0];
+  let minDistance = Infinity;
+
+  for (const str of strings) {
+    const target = midiToFrequency(str.open.midi, a4);
+    const distance = Math.abs(calculateCents(freq, target));
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = str;
+    }
+  }
+
+  return closest;
+}
+
 const STORAGE_CUSTOM_KEY = 'night_rehearsal_custom_tunings';
 
 export function loadSavedCustomTunings(): Tuning[] {
@@ -173,7 +200,11 @@ export function loadSavedCustomTunings(): Tuning[] {
   try {
     const raw = localStorage.getItem(STORAGE_CUSTOM_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Битую запись отбрасываем поштучно: одна испорченная строка в хранилище
+    // не должна лишать пользователя остальных сохранённых строёв.
+    return parsed.filter(isValidTuning);
   } catch {
     return [];
   }

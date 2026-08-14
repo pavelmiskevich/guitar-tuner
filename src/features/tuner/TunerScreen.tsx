@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Tuning, StringSpec } from '../../domain/tunings';
+import { findClosestString } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { midiToFrequency, calculateCents, formatNoteName } from '../../domain/notes';
 import { sharedAudioEngine } from '../../audio/audioEngine';
@@ -72,6 +73,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   const stableTimerRef = useRef<number | null>(null);
   const soundDecayTimerRef = useRef<number | null>(null);
+  // Последний показанный уровень входа: VU-метр обновляется только на заметном
+  // изменении, иначе шум в доли децибела перерисовывал весь экран на каждом кадре.
+  const shownLevelDbRef = useRef(-100);
 
   // Хранилище актуальных настроек для обработчика аудиопотока
   const latestConfigRef = useRef({
@@ -80,7 +84,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     inTuneThreshold,
     lockedStringIndex,
     autoAdvance,
-    onSelectString
+    onSelectString,
+    showSpectrum
   });
 
   useEffect(() => {
@@ -90,9 +95,10 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       inTuneThreshold,
       lockedStringIndex,
       autoAdvance,
-      onSelectString
+      onSelectString,
+      showSpectrum
     };
-  }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString]);
+  }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString, showSpectrum]);
 
   // Интеллектуальный подбор струны
   const findBestString = useCallback((freq: number, curTuning: Tuning, curA4: number, lockedIdx: number | null): StringSpec => {
@@ -109,18 +115,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     }
 
     // Иначе (или если звук далёк от выбранной струны) — автоматически находим ближайшую струну
-    let closest = curTuning.strings[0];
-    let minDiff = Infinity;
-
-    for (const str of curTuning.strings) {
-      const f = midiToFrequency(str.open.midi, curA4);
-      const diff = Math.abs(freq - f);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = str;
-      }
-    }
-    return closest;
+    return findClosestString(freq, curTuning.strings, curA4);
   }, []);
 
   // Подписка на глобальный AudioEngine
@@ -129,7 +124,11 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     setIsListening(sharedAudioEngine.isRunning());
 
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate, _timeBuf, freqBuf, sampleRate) => {
-      setInputLevelDb(estimate.rms);
+      // Порог в 1 дБ: на глаз шкала не меняется, а ререндеров становится в разы меньше.
+      if (Math.abs(estimate.rms - shownLevelDbRef.current) >= 1) {
+        shownLevelDbRef.current = estimate.rms;
+        setInputLevelDb(estimate.rms);
+      }
       setIsClipping(estimate.isClipping);
 
       // Обновление спектрограммы.
@@ -138,7 +137,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       // промежутки почти всегда попадала между пиками, показывая шумовой пол.
       // Шкала логарифмическая, иначе рабочий диапазон гитары (82–330 Гц)
       // занимает лишь первые полосы из 32.
-      if (freqBuf && freqBuf.length > 0 && sampleRate) {
+      // Скрытая спектрограмма не считается вовсе: 32 полосы по сотням бинов
+      // на каждом кадре — заметная работа ради невидимого результата.
+      if (latestConfigRef.current.showSpectrum && freqBuf && freqBuf.length > 0 && sampleRate) {
         const binWidth = sampleRate / (freqBuf.length * 2);
         const bars: number[] = [];
         for (let i = 0; i < SPECTRUM_BARS; i++) {

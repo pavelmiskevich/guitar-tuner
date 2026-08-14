@@ -27,6 +27,7 @@ dist-ssr
 _worklog/
 .worklog/
 _notes/
+review/
 
 # Private donation media/assets (not pushed to GitHub)
 donat/

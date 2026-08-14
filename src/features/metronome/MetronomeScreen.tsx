@@ -101,6 +101,9 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
     }
   };
 
+  const schedulerRef = useRef(scheduler);
+  schedulerRef.current = scheduler;
+
   useEffect(() => {
     if (isPlaying) {
       if (!audioCtxRef.current) {
@@ -112,7 +115,9 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
       nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
       currentStepRef.current = 0;
 
-      const intervalId = window.setInterval(scheduler, 25);
+      // Планировщик берётся из ref, а не из замыкания: сам он пересоздаётся на
+      // каждый рендер, и прямая ссылка требовала бы его в зависимостях эффекта.
+      const intervalId = window.setInterval(() => schedulerRef.current(), 25);
       timerIdRef.current = intervalId;
 
       return () => {

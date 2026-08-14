@@ -88,4 +88,47 @@ describe('PitchDetector (McLeod NSDF Algorithm)', () => {
     expect(estimate.frequency).toBe(0);
     expect(estimate.rms).toBeLessThan(-90);
   });
+
+  // Рабочие буферы переиспользуются между кадрами — проверяем, что от предыдущего
+  // вызова не остаётся состояния, влияющего на следующий результат.
+  it('should give identical results on repeated calls with the same buffer', () => {
+    const reused = new PitchDetector(sampleRate, bufferSize);
+    const buffer = generateSineBuffer(146.832, sampleRate, bufferSize);
+
+    const first = reused.detectPitch(buffer);
+    const second = reused.detectPitch(buffer);
+
+    expect(second.frequency).toBe(first.frequency);
+    expect(second.clarity).toBe(first.clarity);
+  });
+
+  it('should not carry state between different signals', () => {
+    const reused = new PitchDetector(sampleRate, bufferSize);
+    const fresh = new PitchDetector(sampleRate, bufferSize);
+
+    reused.detectPitch(generateSineBuffer(329.628, sampleRate, bufferSize));
+    reused.detectPitch(new Float32Array(bufferSize));
+    reused.detectPitch(generateHarmonicBuffer(110, [0.5, 0.3, 0.2, 0.1], sampleRate, bufferSize));
+
+    const low = generateSineBuffer(82.407, sampleRate, bufferSize);
+    expect(reused.detectPitch(low).frequency).toBeCloseTo(fresh.detectPitch(low).frequency, 6);
+  });
+
+  it('should handle a buffer longer than the configured size', () => {
+    const small = new PitchDetector(sampleRate, 2048);
+    const long = generateSineBuffer(110, sampleRate, 8192);
+
+    const estimate = small.detectPitch(long);
+
+    expect(Math.abs(calculateCents(estimate.frequency, 110))).toBeLessThanOrEqual(0.5);
+  });
+
+  it('should tolerate a DC offset in the input', () => {
+    const buffer = generateSineBuffer(196.0, sampleRate, bufferSize);
+    for (let i = 0; i < buffer.length; i++) buffer[i] += 0.15;
+
+    const estimate = detector.detectPitch(buffer);
+
+    expect(Math.abs(calculateCents(estimate.frequency, 196.0))).toBeLessThanOrEqual(0.5);
+  });
 });

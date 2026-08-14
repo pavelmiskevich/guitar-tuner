@@ -194,7 +194,8 @@ export function resolveSharedTuning(hash: string, availableTunings: Tuning[]): T
     category: 'Из ссылки',
     instrument,
     strings: createStringsFromMidi(midi),
-    isCustom: true
+    isCustom: true,
+    isEphemeral: true
   };
 }
 

@@ -4,13 +4,34 @@ import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings } from './domain
 import type { NotationSystem } from './domain/notes';
 import type { TabId } from './domain/deepLink';
 import { parseTabFromHash, resolveSharedTuning } from './domain/deepLink';
+import { readEnumSetting, readNumberSetting } from './domain/storage';
 import { TunerScreen } from './features/tuner/TunerScreen';
 import { FretboardScreen } from './features/fretboard/FretboardScreen';
 import { ChordCheckScreen } from './features/chord-check/ChordCheckScreen';
 import { MetronomeScreen } from './features/metronome/MetronomeScreen';
 import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
+import type { LucideIcon } from 'lucide-react';
 import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
+
+const NOTATION_SYSTEMS = ['english', 'german', 'solfege'] as const;
+const THEMES = ['night', 'day'] as const;
+
+/**
+ * Единый источник правды для навигации: десктопная панель, мобильный таб-бар и
+ * подпись в шапке рисуются из одного списка. Раньше это были три независимых
+ * набора строк, и они уже начали расходиться.
+ *
+ * `short` — для узкого таб-бара, `title` — для подписи в шапке: там уместно
+ * полное слово, которое не влезает в кнопку.
+ */
+const NAV_ITEMS: { id: TabId; icon: LucideIcon; label: string; short: string; title: string }[] = [
+  { id: 'tuner', icon: Activity, label: 'Тюнер', short: 'Тюнер', title: 'Тюнер' },
+  { id: 'fretboard', icon: Layers, label: 'Гриф', short: 'Гриф', title: 'Гриф' },
+  { id: 'chord-check', icon: Music, label: 'Аккорд', short: 'Аккорд', title: 'Аккорды' },
+  { id: 'metronome', icon: Timer, label: 'Ритм', short: 'Ритм', title: 'Ритм' },
+  { id: 'ear-training', icon: Sparkles, label: 'Тренажер', short: 'Слух', title: 'Тренажер' }
+];
 
 const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
 
@@ -48,25 +69,19 @@ export const App: React.FC = () => {
     [customTunings]
   );
 
-  const [a4, setA4] = useState<number>(() => {
-    const saved = localStorage.getItem('gt_a4');
-    return saved ? Number(saved) : 440;
-  });
+  // Границы совпадают с теми, что предлагает окно настроек: чужое или устаревшее
+  // значение из хранилища не должно уводить расчёт частот в NaN или в бессмыслицу.
+  const [a4, setA4] = useState<number>(() => readNumberSetting('gt_a4', { fallback: 440, min: 415, max: 466 }));
 
-  const [notation, setNotation] = useState<NotationSystem>(() => {
-    const saved = localStorage.getItem('gt_notation');
-    return (saved as NotationSystem) || 'english';
-  });
+  const [notation, setNotation] = useState<NotationSystem>(
+    () => readEnumSetting('gt_notation', NOTATION_SYSTEMS, 'english')
+  );
 
-  const [inTuneThreshold, setInTuneThreshold] = useState<number>(() => {
-    const saved = localStorage.getItem('gt_threshold');
-    return saved ? Number(saved) : 5;
-  });
+  const [inTuneThreshold, setInTuneThreshold] = useState<number>(
+    () => readNumberSetting('gt_threshold', { fallback: 5, min: 1, max: 25 })
+  );
 
-  const [theme, setTheme] = useState<'night' | 'day'>(() => {
-    const saved = localStorage.getItem('gt_theme');
-    return (saved as 'night' | 'day') || 'night';
-  });
+  const [theme, setTheme] = useState<'night' | 'day'>(() => readEnumSetting('gt_theme', THEMES, 'night'));
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lockedStringIndex, setLockedStringIndex] = useState<number | null>(null);
@@ -80,10 +95,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     // Строй из ссылки живёт только в этой сессии: перезаписав им gt_tuning, мы бы
     // потеряли сохранённый выбор получателя (восстановить его было бы неоткуда).
-    const isPersisted =
-      TUNING_PRESETS.some(t => t.id === currentTuning.id) ||
-      loadSavedCustomTunings().some(t => t.id === currentTuning.id);
-    if (isPersisted) localStorage.setItem('gt_tuning', currentTuning.id);
+    if (!currentTuning.isEphemeral) localStorage.setItem('gt_tuning', currentTuning.id);
   }, [currentTuning]);
 
   // Вкладку держим в адресе, чтобы ссылку можно было скопировать прямо из браузера.
@@ -110,6 +122,8 @@ export const App: React.FC = () => {
     setActiveTab('tuner');
   };
 
+  const activeTitle = NAV_ITEMS.find(item => item.id === activeTab)?.title ?? '';
+
   return (
     <div
       style={{
@@ -130,53 +144,24 @@ export const App: React.FC = () => {
                 Ночная репетиция
               </h1>
               <span className="brand-subtitle" data-testid="header-subtitle">
-                {activeTab === 'tuner' ? 'Тюнер' : activeTab === 'fretboard' ? 'Гриф' : activeTab === 'chord-check' ? 'Аккорды' : activeTab === 'metronome' ? 'Ритм' : 'Тренажер'} · {currentTuning.name} · A4={a4}Hz
+                {activeTitle} · {currentTuning.name} · A4={a4}Hz
               </span>
             </div>
           </div>
 
           {/* Навигация на десктопе (скрыта на мобильных) */}
           <nav className="desktop-nav">
-            <button
-              id="nav-desktop-tuner"
-              className={`btn btn-sm ${activeTab === 'tuner' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveTab('tuner')}
-              data-testid="nav-desktop-tuner"
-            >
-              <Activity size={15} /> Тюнер
-            </button>
-            <button
-              id="nav-desktop-fretboard"
-              className={`btn btn-sm ${activeTab === 'fretboard' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveTab('fretboard')}
-              data-testid="nav-desktop-fretboard"
-            >
-              <Layers size={15} /> Гриф
-            </button>
-            <button
-              id="nav-desktop-chord-check"
-              className={`btn btn-sm ${activeTab === 'chord-check' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveTab('chord-check')}
-              data-testid="nav-desktop-chord-check"
-            >
-              <Music size={15} /> Аккорд
-            </button>
-            <button
-              id="nav-desktop-metronome"
-              className={`btn btn-sm ${activeTab === 'metronome' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveTab('metronome')}
-              data-testid="nav-desktop-metronome"
-            >
-              <Timer size={15} /> Ритм
-            </button>
-            <button
-              id="nav-desktop-ear-training"
-              className={`btn btn-sm ${activeTab === 'ear-training' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveTab('ear-training')}
-              data-testid="nav-desktop-ear-training"
-            >
-              <Sparkles size={15} /> Тренажер
-            </button>
+            {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                id={`nav-desktop-${id}`}
+                className={`btn btn-sm ${activeTab === id ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setActiveTab(id)}
+                data-testid={`nav-desktop-${id}`}
+              >
+                <Icon size={15} /> {label}
+              </button>
+            ))}
           </nav>
 
           {/* Правая колонка: Кнопка настроек */}
@@ -256,110 +241,29 @@ export const App: React.FC = () => {
 
       {/* Нижний таб-бар для мобильных устройств */}
       <nav className="mobile-bottom-nav">
-        <button
-          id="nav-mobile-tuner"
-          onClick={() => setActiveTab('tuner')}
-          data-testid="nav-mobile-tuner"
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            color: activeTab === 'tuner' ? 'var(--brand)' : 'var(--ink-300)',
-            fontSize: '11px',
-            fontWeight: activeTab === 'tuner' ? 700 : 500
-          }}
-        >
-          <Activity size={18} />
-          <span>Тюнер</span>
-        </button>
-
-        <button
-          id="nav-mobile-fretboard"
-          onClick={() => setActiveTab('fretboard')}
-          data-testid="nav-mobile-fretboard"
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            color: activeTab === 'fretboard' ? 'var(--brand)' : 'var(--ink-300)',
-            fontSize: '11px',
-            fontWeight: activeTab === 'fretboard' ? 700 : 500
-          }}
-        >
-          <Layers size={18} />
-          <span>Гриф</span>
-        </button>
-
-        <button
-          id="nav-mobile-chord-check"
-          onClick={() => setActiveTab('chord-check')}
-          data-testid="nav-mobile-chord-check"
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            color: activeTab === 'chord-check' ? 'var(--brand)' : 'var(--ink-300)',
-            fontSize: '11px',
-            fontWeight: activeTab === 'chord-check' ? 700 : 500
-          }}
-        >
-          <Music size={18} />
-          <span>Аккорд</span>
-        </button>
-
-        <button
-          id="nav-mobile-metronome"
-          onClick={() => setActiveTab('metronome')}
-          data-testid="nav-mobile-metronome"
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            color: activeTab === 'metronome' ? 'var(--brand)' : 'var(--ink-300)',
-            fontSize: '11px',
-            fontWeight: activeTab === 'metronome' ? 700 : 500
-          }}
-        >
-          <Timer size={18} />
-          <span>Ритм</span>
-        </button>
-
-        <button
-          id="nav-mobile-ear-training"
-          onClick={() => setActiveTab('ear-training')}
-          data-testid="nav-mobile-ear-training"
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            color: activeTab === 'ear-training' ? 'var(--brand)' : 'var(--ink-300)',
-            fontSize: '11px',
-            fontWeight: activeTab === 'ear-training' ? 700 : 500
-          }}
-        >
-          <Sparkles size={18} />
-          <span>Слух</span>
-        </button>
+        {NAV_ITEMS.map(({ id, icon: Icon, short }) => (
+          <button
+            key={id}
+            id={`nav-mobile-${id}`}
+            onClick={() => setActiveTab(id)}
+            data-testid={`nav-mobile-${id}`}
+            style={{
+              flex: 1,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2px',
+              color: activeTab === id ? 'var(--brand)' : 'var(--ink-300)',
+              fontSize: '11px',
+              fontWeight: activeTab === id ? 700 : 500
+            }}
+          >
+            <Icon size={18} />
+            <span>{short}</span>
+          </button>
+        ))}
       </nav>
 
       {/* Модальное окно настроек */}

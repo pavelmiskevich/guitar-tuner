@@ -195,6 +195,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   useEffect(() => {
     generateNewQuestion();
     return () => {
+      // Таймер ставится уже после запуска эффекта (при ответе на вопрос), поэтому
+      // читать нужно именно актуальное значение ref: копия, снятая на старте
+      // эффекта, всегда была бы null и оставляла бы таймер висеть.
+      // oxlint-disable-next-line react-hooks/exhaustive-deps
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [generateNewQuestion]);

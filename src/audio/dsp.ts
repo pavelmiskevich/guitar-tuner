@@ -16,10 +16,29 @@ export class PitchDetector {
   private cutoffRate: number;
   private nsdfBuffer: Float32Array;
 
+  // Рабочие буферы живут вместе с детектором: detectPitch вызывается до 30 раз
+  // в секунду, и аллокации на кадр создавали заметное давление на сборщик мусора.
+  private preprocessed: Float32Array;
+  private squarePrefix: Float64Array;
+  private peakTaus: Int32Array;
+  private peakCount = 0;
+
   constructor(sampleRate = 48000, bufferSize = 4096, cutoffRate = 0.85) {
     this.sampleRate = sampleRate;
     this.cutoffRate = cutoffRate;
     this.nsdfBuffer = new Float32Array(bufferSize);
+    this.preprocessed = new Float32Array(bufferSize);
+    this.squarePrefix = new Float64Array(bufferSize + 1);
+    this.peakTaus = new Int32Array(Math.floor(bufferSize / 2) + 1);
+  }
+
+  /** Входной буфер может оказаться длиннее заявленного — тогда буферы растут один раз. */
+  private ensureCapacity(len: number): void {
+    if (this.preprocessed.length >= len) return;
+    this.nsdfBuffer = new Float32Array(len);
+    this.preprocessed = new Float32Array(len);
+    this.squarePrefix = new Float64Array(len + 1);
+    this.peakTaus = new Int32Array(Math.floor(len / 2) + 1);
   }
 
   /**
@@ -46,8 +65,7 @@ export class PitchDetector {
   /**
    * Предобработка сигнала: удаление DC-смещения
    */
-  private preprocess(input: Float32Array, output: Float32Array): void {
-    const len = input.length;
+  private preprocess(input: Float32Array, output: Float32Array, len: number): void {
     let mean = 0;
     for (let i = 0; i < len; i++) mean += input[i];
     mean /= len;
@@ -59,25 +77,34 @@ export class PitchDetector {
 
   /**
    * Вычисление Normalized Square Difference Function (NSDF)
+   *
+   * Знаменатель m(τ) = Σ x[i]² + Σ x[i+τ]² берётся из префикс-сумм квадратов:
+   * это O(1) на каждый τ вместо второго прохода по половине буфера, то есть
+   * внутренний цикл (~2.5 млн операций на кадр) сокращается почти вдвое.
+   * Префикс-суммы в Float64, иначе на 4096 отсчётах накапливается заметная
+   * ошибка округления и знаменатель уводит частоту.
    */
-  private computeNSDF(buffer: Float32Array): void {
-    const len = buffer.length;
+  private computeNSDF(buffer: Float32Array, len: number): void {
     const halfLen = Math.floor(len / 2);
-    this.nsdfBuffer.fill(0);
+    const prefix = this.squarePrefix;
+
+    prefix[0] = 0;
+    for (let i = 0; i < len; i++) {
+      prefix[i + 1] = prefix[i] + buffer[i] * buffer[i];
+    }
+    const headEnergy = prefix[halfLen];
 
     for (let tau = 0; tau < halfLen; tau++) {
       let acf = 0;
-      let divisorM = 0;
-
       for (let i = 0; i < halfLen; i++) {
-        const x1 = buffer[i];
-        const x2 = buffer[i + tau];
-        acf += x1 * x2;
-        divisorM += x1 * x1 + x2 * x2;
+        acf += buffer[i] * buffer[i + tau];
       }
 
+      const divisorM = headEnergy + (prefix[tau + halfLen] - prefix[tau]);
       this.nsdfBuffer[tau] = divisorM > 1e-9 ? (2 * acf) / divisorM : 0;
     }
+    // Хвост может остаться от буфера большей длины, а его читают как next/gamma.
+    this.nsdfBuffer[halfLen] = 0;
   }
 
   /**
@@ -91,14 +118,16 @@ export class PitchDetector {
       return { frequency: 0, clarity: 0, rms: rmsDb, isSilent: true, isClipping };
     }
 
-    const preprocessed = new Float32Array(buffer.length);
-    this.preprocess(buffer, preprocessed);
-    this.computeNSDF(preprocessed);
+    const len = buffer.length;
+    this.ensureCapacity(len);
+    this.preprocess(buffer, this.preprocessed, len);
+    this.computeNSDF(this.preprocessed, len);
 
     const minTau = Math.max(2, Math.floor(this.sampleRate / maxFreq));
-    const maxTau = Math.min(Math.floor(buffer.length / 2) - 1, Math.floor(this.sampleRate / minFreq));
+    const maxTau = Math.min(Math.floor(len / 2) - 1, Math.floor(this.sampleRate / minFreq));
 
-    const maxPositions: number[] = [];
+    const peaks = this.peakTaus;
+    this.peakCount = 0;
     let isPositive = false;
 
     for (let tau = minTau; tau < maxTau; tau++) {
@@ -113,19 +142,18 @@ export class PitchDetector {
       }
 
       if (isPositive && val > prev && val >= next && val > 0) {
-        maxPositions.push(tau);
+        peaks[this.peakCount++] = tau;
       }
     }
 
-    if (maxPositions.length === 0) {
+    if (this.peakCount === 0) {
       return { frequency: 0, clarity: 0, rms: rmsDb, isSilent: false, isClipping };
     }
 
     let highestPeak = 0;
-    for (const tau of maxPositions) {
-      if (this.nsdfBuffer[tau] > highestPeak) {
-        highestPeak = this.nsdfBuffer[tau];
-      }
+    for (let i = 0; i < this.peakCount; i++) {
+      const val = this.nsdfBuffer[peaks[i]];
+      if (val > highestPeak) highestPeak = val;
     }
 
     // Мягкий порог пика (0.25) для акустических гармоник и 3-й струны G
@@ -134,11 +162,11 @@ export class PitchDetector {
     }
 
     const threshold = this.cutoffRate * highestPeak;
-    let chosenTau = maxPositions[0];
+    let chosenTau = peaks[0];
 
-    for (const tau of maxPositions) {
-      if (this.nsdfBuffer[tau] >= threshold) {
-        chosenTau = tau;
+    for (let i = 0; i < this.peakCount; i++) {
+      if (this.nsdfBuffer[peaks[i]] >= threshold) {
+        chosenTau = peaks[i];
         break;
       }
     }

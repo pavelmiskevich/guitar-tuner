@@ -18,6 +18,14 @@ export interface AudioEngineOptions {
   onStateChange?: (state: AudioEngineState) => void;
 }
 
+/**
+ * Частота анализа. Детекция тона стоит миллисекунды процессорного времени, и на
+ * каждом кадре 60 fps она впустую жжёт батарею: стрелка тюнера всё равно
+ * сглажена, а 30 измерений в секунду человек воспринимает как мгновенный отклик.
+ */
+const ANALYSIS_FPS = 30;
+const ANALYSIS_INTERVAL_MS = 1000 / ANALYSIS_FPS;
+
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
@@ -33,6 +41,7 @@ export class AudioEngine {
   private listeners: Set<EstimateCallback> = new Set();
   /** До этого момента оценки не рассылаются: приложение играет само. */
   private suppressUntil = 0;
+  private lastAnalysisAt = 0;
   private onError?: (err: Error) => void;
   private onStateChange?: (state: AudioEngineState) => void;
 
@@ -170,6 +179,9 @@ export class AudioEngine {
       this.animationFrameId = null;
     }
 
+    // После паузы или возврата на вкладку первый кадр анализируем сразу.
+    this.lastAnalysisAt = 0;
+
     const tick = () => {
       if (this.state !== 'running' || !this.analyserNode) {
         this.animationFrameId = null;
@@ -180,6 +192,13 @@ export class AudioEngine {
       if (this.audioContext && this.audioContext.state === 'suspended') {
         this.audioContext.resume().catch(() => {});
       }
+
+      const now = performance.now();
+      if (now - this.lastAnalysisAt < ANALYSIS_INTERVAL_MS) {
+        this.animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+      this.lastAnalysisAt = now;
 
       // @ts-expect-error Float32Array buffer compatibility
       this.analyserNode.getFloatTimeDomainData(this.timeDataArray);
