@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { Tuning } from './domain/tunings';
 import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings } from './domain/tunings';
 import type { NotationSystem } from './domain/notes';
+import type { TabId } from './domain/deepLink';
+import { parseTabFromHash, resolveSharedTuning } from './domain/deepLink';
 import { TunerScreen } from './features/tuner/TunerScreen';
 import { FretboardScreen } from './features/fretboard/FretboardScreen';
 import { ChordCheckScreen } from './features/chord-check/ChordCheckScreen';
@@ -10,19 +12,33 @@ import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
 import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
 
-type TabId = 'tuner' | 'fretboard' | 'chord-check' | 'metronome' | 'ear-training';
+const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
+
+/** Строй из deep link имеет приоритет над сохранённым: ссылка описывает чужую схему. */
+function resolveInitialTuning(): Tuning {
+  const saved = loadSavedCustomTunings();
+  const all = [...TUNING_PRESETS, ...saved];
+
+  const shared = resolveSharedTuning(initialHash, all);
+  if (shared) return shared;
+
+  const savedId = localStorage.getItem('gt_tuning');
+  if (savedId) {
+    const found = all.find(t => t.id === savedId);
+    if (found) return found;
+  }
+  return DEFAULT_TUNING;
+}
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('tuner');
-  const [customTunings, setCustomTunings] = useState<Tuning[]>(() => loadSavedCustomTunings());
-  const [currentTuning, setCurrentTuning] = useState<Tuning>(() => {
-    const saved = localStorage.getItem('gt_tuning');
-    const all = [...TUNING_PRESETS, ...loadSavedCustomTunings()];
-    if (saved) {
-      const found = all.find(t => t.id === saved);
-      if (found) return found;
-    }
-    return DEFAULT_TUNING;
+  const [activeTab, setActiveTab] = useState<TabId>(() => parseTabFromHash(initialHash) ?? 'tuner');
+  const [currentTuning, setCurrentTuning] = useState<Tuning>(resolveInitialTuning);
+  const [customTunings, setCustomTunings] = useState<Tuning[]>(() => {
+    const saved = loadSavedCustomTunings();
+    // Строй, пришедший ссылкой, должен быть виден в селекторах, хотя у получателя не сохранён.
+    const shared = resolveSharedTuning(initialHash, [...TUNING_PRESETS, ...saved]);
+    if (shared?.isCustom && !saved.some(t => t.id === shared.id)) return [...saved, shared];
+    return saved;
   });
 
   // Пресеты и пользовательские строи в одном списке: селектор тюнера должен
@@ -62,8 +78,20 @@ export const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('gt_tuning', currentTuning.id);
+    // Строй из ссылки живёт только в этой сессии: перезаписав им gt_tuning, мы бы
+    // потеряли сохранённый выбор получателя (восстановить его было бы неоткуда).
+    const isPersisted =
+      TUNING_PRESETS.some(t => t.id === currentTuning.id) ||
+      loadSavedCustomTunings().some(t => t.id === currentTuning.id);
+    if (isPersisted) localStorage.setItem('gt_tuning', currentTuning.id);
   }, [currentTuning]);
+
+  // Вкладку держим в адресе, чтобы ссылку можно было скопировать прямо из браузера.
+  // Гриф пишет хэш сам — там в него уходит вся схема (см. FretboardScreen).
+  useEffect(() => {
+    if (activeTab === 'fretboard') return;
+    window.history.replaceState(null, '', `${window.location.pathname}#tab=${activeTab}`);
+  }, [activeTab]);
 
   useEffect(() => {
     localStorage.setItem('gt_a4', String(a4));

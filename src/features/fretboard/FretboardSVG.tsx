@@ -329,6 +329,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
             return (
               <g
                 key={`cell-${strIdx}-${fretNum}`}
+                data-testid={`fb-cell-${strIdx}-${fretNum}`}
                 onClick={() => handleCellClick(strIdx, fretNum)}
                 style={{ cursor: 'pointer' }}
               >

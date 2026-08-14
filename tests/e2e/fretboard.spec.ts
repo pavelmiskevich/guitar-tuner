@@ -109,6 +109,77 @@ test.describe('гриф', () => {
     await expect(page.getByTestId('fb-capo')).toHaveValue('3');
   });
 
+  test('ссылка открывает сразу вкладку «Гриф» без ручного переключения', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=scales&root=D&scale=blues');
+    await page.reload();
+
+    await expect(page.getByTestId('fretboard-svg')).toBeVisible();
+    await expect(page.getByTestId('fb-root')).toHaveValue('D');
+  });
+
+  test('ссылка несёт строй, капо, диапазон, ориентацию и режим подписей', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=scales&root=A&scale=blues&tuning=drop-c&capo=2&range=5-12&left=1&labels=degree');
+    await page.reload();
+
+    await expect(page.getByTestId('fb-capo')).toHaveValue('2');
+    await expect(page.getByTestId('fb-range')).toHaveValue('5-12');
+    await expect(page.getByTestId('fb-lefty')).toBeChecked();
+    // Строй из ссылки применяется глобально — его видно в подзаголовке шапки.
+    await expect(page.getByTestId('header-subtitle')).toContainText('Drop C');
+  });
+
+  test('ссылка восстанавливает аппликатуру аккорда', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=chords&root=C&voicing=c-open');
+    await page.reload();
+
+    await expect(page.getByTestId('fb-voicing')).toHaveValue('c-open');
+  });
+
+  test('ссылка восстанавливает ноты, расставленные вручную', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=explore&root=A&frets=x.3.2.0.1.0');
+    await page.reload();
+
+    await expect(page.getByTestId('fb-detected-chord')).toContainText('Распознан');
+    const highlighted = page.getByTestId('fretboard-svg').locator('[data-highlighted="true"]');
+    await expect(highlighted).toHaveCount(5);
+  });
+
+  test('ссылка различается для разных наборов нот на грифе', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    await page.getByTestId('fb-mode-explore').click();
+    await page.getByTestId('fb-cell-1-3').click();
+    await page.getByTestId('fb-share').click();
+    const first = await page.evaluate(() => navigator.clipboard.readText());
+
+    await page.getByTestId('fb-cell-2-2').click();
+    await page.getByTestId('fb-share').click();
+    const second = await page.evaluate(() => navigator.clipboard.readText());
+
+    expect(first).toContain('frets=');
+    expect(second).toContain('frets=');
+    expect(second).not.toBe(first);
+  });
+
+  test('адрес в браузере обновляется вслед за схемой', async ({ page }) => {
+    await page.getByTestId('fb-mode-scales').click();
+    await page.getByTestId('fb-root').selectOption('G');
+    await page.getByTestId('fb-scale').selectOption('dorian');
+
+    await expect(async () => {
+      const hash = page.url().split('#')[1] ?? '';
+      expect(hash).toContain('tab=fretboard');
+      expect(hash).toContain('root=G');
+      expect(hash).toContain('scale=dorian');
+    }).toPass();
+  });
+
+  test('раздел объясняет, что делает кнопка «Поделиться»', async ({ page }) => {
+    const hint = page.getByTestId('fb-share-hint');
+    await expect(hint).toBeVisible();
+    await expect(hint).toContainText('ссылк');
+  });
+
   test('экспорт скачивает схему грифа, а не иконку', async ({ page }) => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('fb-export').click();

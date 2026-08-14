@@ -3,6 +3,8 @@ import type { Tuning } from '../../domain/tunings';
 import type { NoteName, NotationSystem } from '../../domain/notes';
 import { NOTE_NAMES, formatNoteName } from '../../domain/notes';
 import { SCALES, getScaleNotes } from '../../domain/scales';
+import type { FretboardShareState } from '../../domain/deepLink';
+import { buildShareUrl, decodeFretboardHash, encodeFretboardHash } from '../../domain/deepLink';
 import type { Voicing } from '../../domain/chords';
 import { COMMON_VOICINGS, detectChordFromFrets } from '../../domain/chords';
 import { getFretNote } from '../../domain/fretboard';
@@ -26,55 +28,59 @@ interface FretboardScreenProps {
 
 type ViewMode = 'explore' | 'scales' | 'chords';
 
+const EMPTY_FRETS: (number | 'x')[] = ['x', 'x', 'x', 'x', 'x', 'x'];
+
 export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   tuning,
   notation,
   a4
 }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('explore');
-  const [selectedRoot, setSelectedRoot] = useState<NoteName>('A');
-  const [selectedScaleId, setSelectedScaleId] = useState<string>('pentatonic-minor');
-  const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(COMMON_VOICINGS[1]); // Am
-  const [capo, setCapo] = useState<number | null>(null);
-  const [leftHanded, setLeftHanded] = useState(false);
-  const [labelMode, setLabelMode] = useState<'note' | 'degree'>('note');
-  const [fretRange, setFretRange] = useState<{ from: number; to: number }>({ from: 0, to: 15 });
-  const [customFrets, setCustomFrets] = useState<(number | 'x')[]>(['x', 'x', 'x', 'x', 'x', 'x']);
+  // Состояние схемы читается из хэша до первого рендера (FR-FB-18): гриф сразу
+  // рисуется в присланном виде, без промежуточного кадра со значениями по умолчанию.
+  // Хэш всегда актуален (см. эффект ниже), поэтому возврат на вкладку сохраняет схему.
+  const [shared] = useState(() => decodeFretboardHash(typeof window !== 'undefined' ? window.location.hash : ''));
+
+  const [viewMode, setViewMode] = useState<ViewMode>(shared.mode ?? 'explore');
+  const [selectedRoot, setSelectedRoot] = useState<NoteName>(shared.root ?? 'A');
+  const [selectedScaleId, setSelectedScaleId] = useState<string>(shared.scaleId ?? 'pentatonic-minor');
+  const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(
+    () => COMMON_VOICINGS.find(v => v.id === shared.voicingId) ?? COMMON_VOICINGS[1] // Am
+  );
+  const [capo, setCapo] = useState<number | null>(shared.capo ?? null);
+  const [leftHanded, setLeftHanded] = useState(shared.leftHanded ?? false);
+  const [labelMode, setLabelMode] = useState<'note' | 'degree'>(shared.labelMode ?? 'note');
+  const [fretRange, setFretRange] = useState<{ from: number; to: number }>(
+    shared.fretRange ?? { from: 0, to: 15 }
+  );
+  const [customFrets, setCustomFrets] = useState<(number | 'x')[]>(shared.customFrets ?? EMPTY_FRETS);
   const [lastClickedNote, setLastClickedNote] = useState<{ note: string; str: number; fret: number } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const fretboardSvgRef = useRef<SVGSVGElement>(null);
 
-  // Восстановление состояния из URL Hash при первой загрузке (FR-FB-18)
+  const shareState: FretboardShareState = {
+    mode: viewMode,
+    root: selectedRoot,
+    scaleId: selectedScaleId,
+    voicingId: selectedVoicing.id,
+    customFrets,
+    capo,
+    leftHanded,
+    fretRange,
+    labelMode,
+    tuning
+  };
+
+  const shareHash = encodeFretboardHash(shareState);
+
+  // Схема всегда отражена в адресной строке — ссылку можно скопировать и из браузера.
+  // replaceState, а не push: перебор гамм не должен забивать историю навигации.
   useEffect(() => {
-    try {
-      const hash = window.location.hash.replace('#', '');
-      if (hash) {
-        const params = new URLSearchParams(hash);
-        const m = params.get('mode');
-        if (m === 'scales' || m === 'chords' || m === 'explore') setViewMode(m);
-        const r = params.get('root');
-        if (r && NOTE_NAMES.includes(r as NoteName)) setSelectedRoot(r as NoteName);
-        const s = params.get('scale');
-        if (s && SCALES.some(sc => sc.id === s)) setSelectedScaleId(s);
-        const c = params.get('capo');
-        if (c !== null && c !== 'none') setCapo(Number(c));
-      }
-    } catch {
-      // Игнорируем ошибки парсинга
-    }
-  }, []);
+    window.history.replaceState(null, '', `${window.location.pathname}#${shareHash}`);
+  }, [shareHash]);
 
-  // Синхронизация с URL Hash
   const handleShareLink = () => {
-    const params = new URLSearchParams();
-    params.set('mode', viewMode);
-    params.set('root', selectedRoot);
-    if (viewMode === 'scales') params.set('scale', selectedScaleId);
-    if (capo !== null) params.set('capo', String(capo));
-
-    const baseUrl = getPublicSiteUrl();
-    const newUrl = `${baseUrl.replace(/\/$/, '')}${window.location.pathname}#${params.toString()}`;
-    navigator.clipboard.writeText(newUrl);
+    const url = buildShareUrl(getPublicSiteUrl(), window.location.pathname, shareState);
+    navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
@@ -399,7 +405,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               className="btn btn-ghost btn-sm"
               data-testid="fb-share"
               onClick={handleShareLink}
-              title="Скопировать ссылку со схемой"
+              title="Скопировать ссылку на эту схему (строй, капо, гамма или аппликатура, ноты, ориентация)"
+              aria-label="Скопировать ссылку на эту схему грифа"
               style={{ padding: '6px 8px' }}
             >
               {copiedLink ? <Check size={14} color="var(--sig-in)" /> : <Share2 size={14} />}
@@ -438,6 +445,27 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         {lastClickedNote && (
           <span style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
             Струна {lastClickedNote.str}, Лад {lastClickedNote.fret}: {lastClickedNote.note}
+          </span>
+        )}
+      </div>
+
+      {/* Пояснение к шарингу схемы (FR-FB-18) */}
+      <div
+        className="panel"
+        data-testid="fb-share-hint"
+        style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: '6px' }}
+      >
+        <span className="eyebrow">🔗 Ссылка на схему</span>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-100)', lineHeight: 1.5 }}>
+          Кнопка <Share2 size={12} style={{ verticalAlign: '-1px' }} /> копирует ссылку на то, что вы видите
+          сейчас: строй, каподастр, диапазон ладов, ориентацию грифа и содержимое режима — гамму с тоникой,
+          аппликатуру аккорда или ноты, расставленные вручную. Тот, кто её откроет, попадёт сразу на вкладку
+          «Гриф» с этой же схемой. Адрес в браузере обновляется на лету, так что ссылку можно скопировать
+          и прямо из адресной строки.
+        </p>
+        {copiedLink && (
+          <span data-testid="fb-share-copied" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sig-in)' }}>
+            Ссылка скопирована в буфер обмена
           </span>
         )}
       </div>
