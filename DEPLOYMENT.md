@@ -36,7 +36,11 @@
    ```bash
    npm run build
    ```
-   В результате сборки в корне проекта появится папка `dist/` со статическими оптимизированными файлами (`index.html`, `assets/*.js`, `assets/*.css`, `sw.js`, `manifest.json` и др.).
+   В результате сборки в корне проекта появится папка `dist/` со статическими оптимизированными файлами (`index.html`, `assets/*.js`, `assets/*.css`, `fonts/*.woff2`, `sw.js`, `manifest.json` и др.).
+
+   Приложение не обращается ни к одному стороннему хосту: шрифты лежат в `public/fonts/`
+   и попадают в сборку (см. `src/ui/fonts.css`). Если каталог `fonts/` не доехал на
+   сервер, интерфейс отрисуется системным шрифтом.
 
 ---
 
@@ -46,6 +50,18 @@
 
 ### Вариант A. Через архив tar (рекомендуемый, быстрый)
 
+> **Распаковывать только через `sudo`.** Каталог `/var/www/html` принадлежит `root`,
+> и `tar` без прав суперпользователя не может выставить каталогам режим и время —
+> он валится с `Cannot change mode ... Operation not permitted` (код возврата 2)
+> **уже после** записи файлов. Со стороны это выглядит как «деплой упал», хотя
+> файлы частично обновились. Не пытайтесь обойти это флагами `--no-same-permissions`:
+> на существующие каталоги они не влияют.
+
+> **Старые бандлы удаляются вместе с каталогом `assets/`.** Имена файлов содержат
+> хэш содержимого, поэтому распаковка поверх не удаляет предыдущие сборки — они
+> копятся годами. `index.html` всегда ссылается на актуальные, так что снос
+> каталога целиком безопасен.
+
 **PowerShell (Windows):**
 ```powershell
 # 1. Упаковка папки dist
@@ -54,8 +70,8 @@ tar -czf dist.tar.gz -C dist .
 # 2. Копирование архива на сервер во временную папку
 scp -P <PORT> dist.tar.gz <USER>@<SERVER_IP>:/tmp/dist.tar.gz
 
-# 3. Распаковка в целевую папку веб-сервера и выставление прав
-ssh -p <PORT> <USER>@<SERVER_IP> "sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
+# 3. Снос старых бандлов, распаковка и выставление прав
+ssh -p <PORT> <USER>@<SERVER_IP> "sudo rm -rf /var/www/html/assets && sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
 
 # 4. Удаление локального временного архива
 Remove-Item -Force dist.tar.gz
@@ -69,17 +85,36 @@ tar -czf dist.tar.gz -C dist .
 # 2. Копирование на сервер
 scp -P <PORT> dist.tar.gz <USER>@<SERVER_IP>:/tmp/dist.tar.gz
 
-# 3. Распаковка на сервере
-ssh -p <PORT> <USER>@<SERVER_IP> "sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
+# 3. Снос старых бандлов, распаковка и права
+ssh -p <PORT> <USER>@<SERVER_IP> "sudo rm -rf /var/www/html/assets && sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
 
 # 4. Очистка локального архива
 rm -f dist.tar.gz
 ```
 
+### Проверка после доставки
+
+```bash
+# Главная и текущий бандл отвечают 200, шрифты на месте
+curl -s -o /dev/null -w "%{http_code}\n" https://<DOMAIN>/
+curl -s https://<DOMAIN>/ | grep -o 'assets/index-[^"]*'
+curl -s -o /dev/null -w "%{http_code}\n" https://<DOMAIN>/fonts/manrope-cyrillic.woff2
+```
+
+Хэш в `assets/index-*.js` должен совпадать с локальным `dist/assets/`. Если браузер
+показывает старую версию — это Service Worker: он работает по стратегии
+network-first, поэтому обновляется при первой же успешной загрузке, достаточно
+обновить страницу.
+
 ### Вариант B. Через rsync (для Linux / macOS)
 ```bash
-rsync -avz --delete -e "ssh -p <PORT>" dist/ <USER>@<SERVER_IP>:/var/www/html/
+rsync -avz --delete --rsync-path="sudo rsync" -e "ssh -p <PORT>" dist/ <USER>@<SERVER_IP>:/var/www/html/
 ```
+
+`--delete` сам убирает бандлы прошлых сборок, отдельный `rm -rf assets` не нужен.
+`--rsync-path="sudo rsync"` — по той же причине, что и `sudo` в варианте A: каталог
+принадлежит `root`. Если у пользователя нет `sudo` без пароля, вариант A с
+предварительным `ssh` предпочтительнее.
 
 ---
 
