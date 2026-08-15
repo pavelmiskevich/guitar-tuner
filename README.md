@@ -2,6 +2,12 @@
 
 > **Высокоточный гитарный тюнер, интерактивный гриф, полифонический анализатор аккордов, драм-машина ритмов и интерактивный тренажер слуха с эстетикой ночной сцены.**
 
+<a href="https://ic-albatross.com/">
+  <img src="https://img.shields.io/badge/%E2%96%B6_%D0%9E%D1%82%D0%BA%D1%80%D1%8B%D1%82%D1%8C_%D1%82%D1%8E%D0%BD%D0%B5%D1%80-ic--albatross.com-9B6BFF?style=for-the-badge&logoColor=white" alt="Открыть тюнер — ic-albatross.com" height="42">
+</a>
+
+Работает прямо в браузере, устанавливается как приложение (PWA) и открывается офлайн.
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite)](https://vitejs.dev/)

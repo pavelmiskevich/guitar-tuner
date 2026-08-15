@@ -295,7 +295,20 @@ button {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 4px;
   justify-self: end;
+}
+
+/* На узком экране у ссылки остаётся только метка GitHub: подпись рядом
+   с иконкой настроек не помещается, а сам значок узнаётся без слова. */
+.github-link-label {
+  font-weight: 600;
+}
+
+@media (max-width: 840px) {
+  .github-link-label {
+    display: none;
+  }
 }
 
 .mobile-bottom-nav {

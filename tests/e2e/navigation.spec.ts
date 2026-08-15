@@ -45,6 +45,18 @@ test.describe('навигация', () => {
     }
   });
 
+  test('в шапке есть ссылка на исходный код', async ({ page }) => {
+    await page.goto('/');
+
+    const link = page.getByTestId('github-link');
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', 'https://github.com/pavelmiskevich/guitar-tuner');
+    // Внешняя ссылка открывается отдельной вкладкой и не даёт доступа к window.opener.
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', /noopener/);
+    await expect(link).toHaveAttribute('aria-label', /GitHub/);
+  });
+
   test('микрофон переживает переключение экранов', async ({ page }, testInfo) => {
     await page.goto('/');
     const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';

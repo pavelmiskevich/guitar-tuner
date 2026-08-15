@@ -11,6 +11,7 @@ import { ChordCheckScreen } from './features/chord-check/ChordCheckScreen';
 import { MetronomeScreen } from './features/metronome/MetronomeScreen';
 import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
+import { GitHubMark } from './ui/GitHubMark';
 import type { LucideIcon } from 'lucide-react';
 import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
 
@@ -166,6 +167,20 @@ export const App: React.FC = () => {
 
           {/* Правая колонка: Кнопка настроек */}
           <div className="header-right">
+            <a
+              id="github-link"
+              className="btn btn-ghost btn-sm"
+              href="https://github.com/pavelmiskevich/guitar-tuner"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ padding: '8px 12px' }}
+              title="Исходный код на GitHub"
+              aria-label="Открыть исходный код на GitHub"
+              data-testid="github-link"
+            >
+              <GitHubMark size={18} />
+              <span className="github-link-label">GitHub</span>
+            </a>
             <button
               id="settings-open"
               className="btn btn-ghost btn-sm"
