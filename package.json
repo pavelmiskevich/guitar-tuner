@@ -13,6 +13,7 @@
     "test:e2e:explore": "playwright test --grep @exploration",
     "lint": "oxlint",
     "preview": "vite preview",
+    "preview:e2e": "npm run build && vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {

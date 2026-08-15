@@ -55,7 +55,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'cmd /c "npm run build && npm run preview -- --port 4173 --strictPort"',
+    // Через npm-скрипт, а не `cmd /c ...`: на Linux-раннере CI команды `cmd` нет,
+    // и E2E падали с `cmd: not found` ещё до запуска браузера. Внутри npm-скрипта
+    // `&&` одинаково работает и в sh, и в cmd.
+    command: 'npm run preview:e2e',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
