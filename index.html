@@ -8,9 +8,10 @@
     <meta name="theme-color" content="#0B0A1C" />
     <meta name="description" content="Высокоточный гитарный тюнер через микрофон с анализом аккордов и интерактивным грифом. Дизайн «Ночная репетиция»." />
     <title>Гитарный тюнер и интерактивный гриф · Ночная репетиция</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=block" rel="stylesheet" />
+    <!-- Шрифты лежат рядом с приложением (см. src/ui/fonts.css): внешний CDN
+         был единственной сторонней зависимостью при загрузке страницы. -->
+    <link rel="preload" href="/fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>
