@@ -15,6 +15,9 @@ import {
 import { ChordDiagramSVG } from './ChordDiagramSVG';
 import { Mic, MicOff, ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
 
+/** Сколько после сброса не принимать оценки высоты тона (D-4, см. ignoreEstimatesUntilRef). */
+const RESET_SETTLE_MS = 400;
+
 interface ChordCheckScreenProps {
   tuning: Tuning;
   notation: NotationSystem;
@@ -42,6 +45,16 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 
   const captureTimerRef = useRef<number | null>(null);
 
+  /**
+   * До этого момента оценки после сброса игнорируются (D-4).
+   *
+   * AnalyserNode отдаёт валидные оценки ещё ~100–250 мс после того, как звук
+   * стих: его окно анализа промывается новыми сэмплами не мгновенно. При живом
+   * микрофоне такая «догоняющая» оценка перезаписывала только что сброшенный
+   * статус, и он на мгновение мигал обратно в «В строе».
+   */
+  const ignoreEstimatesUntilRef = useRef(0);
+
   // Сброс статусов при смене аккорда или строя
   useEffect(() => {
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
@@ -53,6 +66,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
       if (analysisMode !== 'arpeggio') return;
+      if (performance.now() < ignoreEstimatesUntilRef.current) return;
       if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.50) return;
 
       setStringStatuses(prev => {
@@ -134,6 +148,9 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   };
 
   const resetAnalysis = () => {
+    // Запас над наблюдавшимися 250 мс: за это время окно анализатора полностью
+    // промывается, а для нового щипка пауза всё равно неощутима.
+    ignoreEstimatesUntilRef.current = performance.now() + RESET_SETTLE_MS;
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
     setLastMatchedIndex(null);
     setCaptureProgress(0);

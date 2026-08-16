@@ -74,13 +74,30 @@ test.describe('проверка аккорда', () => {
     await expect(page.getByTestId('cc-status-6')).toContainText('В строе', { timeout: 10_000 });
 
     await page.evaluate(() => window.__fakeMic.silence());
-    // Останавливаем микрофон перед сбросом: AnalyserNode отдаёт ещё несколько валидных
-    // оценок высоты тона в течение ~100–250 мс после silence() (буфер анализа ещё не
-    // "вымылся" новыми нулевыми сэмплами), и живая подписка арпеджио успевает переписать
-    // статус поверх сброса. Остановка микрофона снимает эту гонку детерминированно.
     await page.getByTestId('cc-mic-toggle').click();
     await page.getByTestId('cc-reset').click();
 
     await expect(page.getByTestId('cc-status-6')).toContainText('Ожидание');
+  });
+
+  test('сброс при включённом микрофоне не мигает статусом обратно', async ({ page }) => {
+    // D-4: AnalyserNode отдаёт валидные оценки ещё ~100–250 мс после silence() —
+    // окно анализа промывается не мгновенно. Раньше такая «догоняющая» оценка
+    // переписывала сброшенный статус, и тест приходилось страховать выключением
+    // микрофона. Здесь микрофон остаётся включённым — именно то, что делает
+    // пользователь.
+    await page.getByTestId('cc-mic-toggle').click();
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await expect(page.getByTestId('cc-status-6')).toContainText('В строе', { timeout: 10_000 });
+
+    await page.evaluate(() => window.__fakeMic.silence());
+    await page.getByTestId('cc-reset').click();
+
+    // Статус обязан оставаться в «Ожидании» всё время промывки окна анализа,
+    // а не вернуться на мгновение в «В строе».
+    for (let i = 0; i < 6; i++) {
+      await expect(page.getByTestId('cc-status-6')).toContainText('Ожидание');
+      await page.waitForTimeout(50);
+    }
   });
 });
