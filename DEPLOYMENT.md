@@ -46,21 +46,33 @@
 
 ## 📦 Шаг 2. Доставка файлов на сервер (Deploy)
 
-Для быстрой и атомарной доставки рекомендуется упаковать каталог `dist/` в архив `tar.gz`, передать его через `scp` и распаковать в целевую директорию веб-сервера.
+Сборка выкладывается **атомарно**: каждая версия распаковывается в собственный
+каталог выпуска, и только потом на него переставляется симлинк `current`, на
+который смотрит веб-сервер. Подмена симлинка происходит между запросами, поэтому
+посетитель никогда не увидит полураспакованный сайт.
 
-### Вариант A. Через архив tar (рекомендуемый, быстрый)
+Раскладка на сервере (`<WEBROOT>` — каталог проекта, например `/var/www/guitar-tuner`):
 
-> **Распаковывать только через `sudo`.** Каталог `/var/www/html` принадлежит `root`,
-> и `tar` без прав суперпользователя не может выставить каталогам режим и время —
+```
+<WEBROOT>/
+├── current -> releases/20260816-223307   # симлинк, его переставляет выкладка
+└── releases/
+    ├── 20260816-223307/                  # index.html, assets/, fonts/, sw.js …
+    └── 20260815-201530/                  # предыдущий выпуск — готовый откат
+```
+
+### Вариант A. Через архив tar (рекомендуемый)
+
+> **Распаковывать только через `sudo`.** Каталоги под `<WEBROOT>` принадлежат
+> `root`, и `tar` без прав суперпользователя не может выставить им режим и время —
 > он валится с `Cannot change mode ... Operation not permitted` (код возврата 2)
 > **уже после** записи файлов. Со стороны это выглядит как «деплой упал», хотя
-> файлы частично обновились. Не пытайтесь обойти это флагами `--no-same-permissions`:
-> на существующие каталоги они не влияют.
+> файлы частично обновились. Флаги `--no-same-permissions` не помогают: на
+> существующие каталоги они не влияют.
 
-> **Старые бандлы удаляются вместе с каталогом `assets/`.** Имена файлов содержат
-> хэш содержимого, поэтому распаковка поверх не удаляет предыдущие сборки — они
-> копятся годами. `index.html` всегда ссылается на актуальные, так что снос
-> каталога целиком безопасен.
+> **Каждый выпуск — в чистый каталог.** Имена бандлов содержат хэш содержимого,
+> поэтому распаковка поверх старого выпуска не удаляла бы предыдущие сборки —
+> они копились бы годами. При выкладке в новый каталог этой проблемы нет вовсе.
 
 **PowerShell (Windows):**
 ```powershell
@@ -70,8 +82,8 @@ tar -czf dist.tar.gz -C dist .
 # 2. Копирование архива на сервер во временную папку
 scp -P <PORT> dist.tar.gz <USER>@<SERVER_IP>:/tmp/dist.tar.gz
 
-# 3. Снос старых бандлов, распаковка и выставление прав
-ssh -p <PORT> <USER>@<SERVER_IP> "sudo rm -rf /var/www/html/assets && sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
+# 3. Распаковка в новый выпуск и атомарное переключение симлинка
+ssh -p <PORT> <USER>@<SERVER_IP> "set -e; REL=<WEBROOT>/releases/`$(date +%Y%m%d-%H%M%S); sudo mkdir -p `$REL; sudo tar -xzf /tmp/dist.tar.gz -C `$REL; sudo chown -R root:root <WEBROOT>; sudo ln -sfn `$REL <WEBROOT>/current; rm -f /tmp/dist.tar.gz; echo `$REL"
 
 # 4. Удаление локального временного архива
 Remove-Item -Force dist.tar.gz
@@ -85,11 +97,46 @@ tar -czf dist.tar.gz -C dist .
 # 2. Копирование на сервер
 scp -P <PORT> dist.tar.gz <USER>@<SERVER_IP>:/tmp/dist.tar.gz
 
-# 3. Снос старых бандлов, распаковка и права
-ssh -p <PORT> <USER>@<SERVER_IP> "sudo rm -rf /var/www/html/assets && sudo mkdir -p /var/www/html && sudo tar -xzf /tmp/dist.tar.gz -C /var/www/html/ && sudo chown -R root:root /var/www/html && rm -f /tmp/dist.tar.gz"
+# 3. Распаковка в новый выпуск и атомарное переключение симлинка
+ssh -p <PORT> <USER>@<SERVER_IP> 'set -e
+  REL=<WEBROOT>/releases/$(date +%Y%m%d-%H%M%S)
+  sudo mkdir -p "$REL"
+  sudo tar -xzf /tmp/dist.tar.gz -C "$REL"
+  sudo chown -R root:root <WEBROOT>
+  sudo ln -sfn "$REL" <WEBROOT>/current
+  rm -f /tmp/dist.tar.gz
+  echo "выложено: $REL"'
 
 # 4. Очистка локального архива
 rm -f dist.tar.gz
+```
+
+Перезагружать веб-сервер не нужно: он открывает файлы через симлинк на каждый
+запрос и подхватывает новый выпуск сразу.
+
+### Откат на предыдущий выпуск
+
+```bash
+# Список выпусков, свежие сверху. Сортировка по имени, а не по времени файла:
+# имя каталога и есть отметка времени выкладки, а mtime сбивается при любом
+# копировании и правке внутри выпуска.
+ssh -p <PORT> <USER>@<SERVER_IP> 'ls -1 <WEBROOT>/releases | sort -r | head -5'
+ssh -p <PORT> <USER>@<SERVER_IP> 'sudo ln -sfn <WEBROOT>/releases/<ВЫПУСК> <WEBROOT>/current'
+```
+
+### Уборка старых выпусков
+
+Каждый выпуск занимает около 0.5 МБ, но копить их бесконечно незачем — оставляем
+пять последних. Выпуск, на который смотрит `current`, исключается явно: после
+отката он может оказаться и не в пятёрке свежих, а удалить работающий сайт из-под
+себя — худшее, что может сделать команда уборки.
+
+```bash
+ssh -p <PORT> <USER>@<SERVER_IP> 'set -e
+  CUR=$(basename "$(readlink <WEBROOT>/current)")
+  cd <WEBROOT>/releases
+  ls -1 | sort -r | tail -n +6 | grep -vx "$CUR" | xargs -r sudo rm -rf
+  ls -1 | sort -r'
 ```
 
 ### Проверка после доставки
@@ -108,13 +155,18 @@ network-first, поэтому обновляется при первой же у
 
 ### Вариант B. Через rsync (для Linux / macOS)
 ```bash
-rsync -avz --delete --rsync-path="sudo rsync" -e "ssh -p <PORT>" dist/ <USER>@<SERVER_IP>:/var/www/html/
+REL=<WEBROOT>/releases/$(date +%Y%m%d-%H%M%S)
+rsync -avz --rsync-path="sudo rsync" -e "ssh -p <PORT>" dist/ <USER>@<SERVER_IP>:"$REL/"
+ssh -p <PORT> <USER>@<SERVER_IP> "sudo ln -sfn $REL <WEBROOT>/current"
 ```
 
-`--delete` сам убирает бандлы прошлых сборок, отдельный `rm -rf assets` не нужен.
-`--rsync-path="sudo rsync"` — по той же причине, что и `sudo` в варианте A: каталог
-принадлежит `root`. Если у пользователя нет `sudo` без пароля, вариант A с
+`--rsync-path="sudo rsync"` — по той же причине, что и `sudo` в варианте A: каталоги
+принадлежат `root`. Если у пользователя нет `sudo` без пароля, вариант A с
 предварительным `ssh` предпочтительнее.
+
+Обратите внимание: выкладка **не** идёт прямо в `current` с `--delete`. Так сайт
+несколько секунд отдавал бы полуобновлённое содержимое — ровно то, ради чего
+и заведён симлинк.
 
 ---
 
@@ -126,10 +178,35 @@ Caddy автоматически получает бесплатные Let's Enc
 Откройте конфигурацию `/etc/caddy/Caddyfile`:
 ```caddyfile
 your-domain.com {
-    root * /var/www/html
+    # Корень — симлинк на текущий выпуск, а не сам каталог выпуска:
+    # его перестановка атомарна (см. Шаг 2).
+    root * <WEBROOT>/current
     file_server
     try_files {path} /index.html
-    encode gzip zstd
+
+    # Бандлы содержат хэш содержимого в имени: другое содержимое — другое имя,
+    # поэтому их можно кэшировать навсегда.
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+
+    # Шрифты лежат под постоянными именами, поэтому без immutable: месяц кэша
+    # даёт весь выигрыш, но позволяет заменить файл, не меняя ссылку.
+    @fonts path /fonts/*
+    header @fonts Cache-Control "public, max-age=2592000"
+
+    # Страница, service worker и манифест обязаны проверяться при каждом заходе:
+    # имена у них постоянные, и закэшированные они закрепят старую сборку.
+    @nocache path / /index.html /sw.js /manifest.json
+    header @nocache Cache-Control "no-cache"
+
+    # Сжатие: zstd на уровне better обгоняет gzip примерно на 2.5%, на уровне по
+    # умолчанию — наоборот, проигрывает ему. gzip остаётся запасным для браузеров
+    # без поддержки zstd. Шрифты woff2 сжаты внутри — их сжимать незачем.
+    @compressible path /assets/* / /index.html /sw.js /manifest.json *.svg
+    encode @compressible {
+        zstd better
+        gzip
+    }
 
     # Заголовки безопасности и разрешений микрофона
     header {
@@ -140,10 +217,19 @@ your-domain.com {
     }
 }
 ```
-Перезапустите Caddy:
+
+Эффект сжатия на текущей сборке: бандл **320 КБ → 97 КБ**, стили 9.4 → 3.1 КБ.
+
+Перечитайте конфигурацию (без простоя):
 ```bash
+sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 sudo systemctl reload caddy
 ```
+
+> Если этот же блок Caddy обслуживает что-то помимо статики (прокси, API), не
+> переписывайте его целиком и не вешайте `encode` без матчера пути: обработчик
+> сжатия встанет и на пути остального трафика. Матчер `@compressible` выше
+> ограничивает сжатие файлами сайта.
 
 ### 2. Настройка Nginx
 Если на сервере используется Nginx, создайте конфигурацию в `/etc/nginx/sites-available/guitar-tuner`:
@@ -165,7 +251,9 @@ server {
     ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
-    root /var/www/html;
+    # Симлинк на текущий выпуск (см. Шаг 2). Nginx кэширует открытые
+    # дескрипторы, поэтому после перестановки симлинка полезен reload.
+    root <WEBROOT>/current;
     index index.html;
 
     # Поддержка SPA-роутинга
