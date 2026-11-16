@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { midiToFrequency, calculateCents, formatNoteName } from '../src/domain/notes';
+import { midiToFrequency, calculateCents, formatNoteName, NOTE_NAMES } from '../src/domain/notes';
 import { calculateFretPositions, getFretNote } from '../src/domain/fretboard';
 import { DEFAULT_TUNING } from '../src/domain/tunings';
 import { getScaleNotes } from '../src/domain/scales';
-import { detectChordFromFrets } from '../src/domain/chords';
+import { COMMON_VOICINGS, detectChordFromFrets, getTriadVoicings, getVoicingExpectedPitches } from '../src/domain/chords';
 
 describe('Domain: Notes & Math Formulas', () => {
   it('should compute exact note frequencies: f(m) = A4 * 2^((m-69)/12)', () => {
@@ -83,5 +83,43 @@ describe('Domain: Scales & Chord Identification', () => {
     // G major chord: 3 2 0 0 0 3
     const detectedG = detectChordFromFrets([3, 2, 0, 0, 0, 3], DEFAULT_TUNING);
     expect(detectedG).toBe('G');
+  });
+});
+
+describe('Domain: Triad voicings for ear training', () => {
+  const major = getTriadVoicings('maj');
+  const minor = getTriadVoicings('min');
+
+  it('в каждом наборе только трезвучия своего наклонения', () => {
+    expect(major.length).toBeGreaterThan(0);
+    expect(minor.length).toBeGreaterThan(0);
+    expect(major.every(v => v.type === 'maj')).toBe(true);
+    expect(minor.every(v => v.type === 'min')).toBe(true);
+  });
+
+  it('мажорные септаккорды не попадают в минорный набор', () => {
+    const minorIds = minor.map(v => v.id);
+    for (const v of COMMON_VOICINGS.filter(c => c.type === 'maj7' || c.type === 'm7')) {
+      expect(minorIds).not.toContain(v.id);
+    }
+  });
+
+  it('мажорный набор включает A, B и F, а не только C/G/D/E', () => {
+    const roots = major.map(v => v.root);
+    for (const root of ['A', 'B', 'C', 'D', 'E', 'F', 'G']) expect(roots).toContain(root);
+  });
+
+  it('звучащие ноты аппликатуры действительно дают заявленное трезвучие', () => {
+    for (const [set, third] of [[major, 4], [minor, 3]] as const) {
+      for (const v of set) {
+        const rootPc = NOTE_NAMES.indexOf(v.root);
+        const pcs = new Set(
+          getVoicingExpectedPitches(v, DEFAULT_TUNING)
+            .filter((p): p is NonNullable<typeof p> => p !== null)
+            .map(p => (p.midi - rootPc + 120) % 12)
+        );
+        expect([...pcs].sort((a, b) => a - b), v.id).toEqual([0, third, 7]);
+      }
+    }
   });
 });

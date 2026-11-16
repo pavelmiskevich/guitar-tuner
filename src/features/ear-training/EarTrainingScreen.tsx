@@ -5,7 +5,7 @@ import { formatNoteName, midiToFrequency, frequencyToMidi, midiToPitch, calculat
 import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import { getFretNote } from '../../domain/fretboard';
-import { COMMON_VOICINGS } from '../../domain/chords';
+import { getTriadVoicings } from '../../domain/chords';
 import { playGuitarString } from '../../audio/synth';
 import {
   Volume2,
@@ -157,13 +157,9 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     } else if (gameMode === 'chord_quality') {
       // Мажор или Минор
       const isMajor = Math.random() > 0.5;
-      const filteredVoicings = COMMON_VOICINGS.filter(v =>
-        isMajor
-          ? (v.name.includes('Major') || v.name === 'C' || v.name === 'G' || v.name === 'D' || v.name === 'E' || v.name === 'A')
-          : (v.name.includes('Minor') || v.name.includes('m') || v.name === 'Am' || v.name === 'Em' || v.name === 'Dm')
-      );
+      const filteredVoicings = getTriadVoicings(isMajor ? 'maj' : 'min');
 
-      const randomVoicing = filteredVoicings[Math.floor(Math.random() * filteredVoicings.length)] || COMMON_VOICINGS[0];
+      const randomVoicing = filteredVoicings[Math.floor(Math.random() * filteredVoicings.length)];
       const options = ['Мажор (Светлый / Радостный)', 'Минор (Грустный / Драматичный)'];
       const correctIdx = isMajor ? 0 : 1;
 
