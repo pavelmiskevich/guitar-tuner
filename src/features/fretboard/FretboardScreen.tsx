@@ -78,11 +78,29 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
     window.history.replaceState(null, '', `${window.location.pathname}#${shareHash}`);
   }, [shareHash]);
 
+  const activeTimeoutsRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const timeouts = activeTimeoutsRef.current;
+    return () => {
+      timeouts.forEach(id => window.clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+  const safeSetTimeout = (cb: () => void, delay: number) => {
+    const id = window.setTimeout(() => {
+      activeTimeoutsRef.current.delete(id);
+      cb();
+    }, delay);
+    activeTimeoutsRef.current.add(id);
+    return id;
+  };
+
   const handleShareLink = () => {
     const url = buildShareUrl(getPublicSiteUrl(), window.location.pathname, shareState);
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+    safeSetTimeout(() => setCopiedLink(false), 2000);
   };
 
   // Экспорт SVG (FR-FB-19)
