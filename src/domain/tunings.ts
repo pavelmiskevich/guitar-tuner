@@ -1,6 +1,6 @@
 import type { Pitch } from './notes';
 import { calculateCents, midiToFrequency, midiToPitch } from './notes';
-import { isValidTuning } from './storage';
+import { STORAGE_KEYS, isValidTuning, readSetting, writeSetting } from './storage';
 
 export interface StringSpec {
   index: number;
@@ -193,13 +193,10 @@ export function findClosestString(freq: number, strings: StringSpec[], a4 = 440)
   return closest;
 }
 
-const STORAGE_CUSTOM_KEY = 'night_rehearsal_custom_tunings';
-
 export function loadSavedCustomTunings(): Tuning[] {
-  if (typeof localStorage === 'undefined') return [];
+  const raw = readSetting(STORAGE_KEYS.customTunings);
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_CUSTOM_KEY);
-    if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     // Битую запись отбрасываем поштучно: одна испорченная строка в хранилище
@@ -210,23 +207,15 @@ export function loadSavedCustomTunings(): Tuning[] {
   }
 }
 
-export function saveCustomTuning(tuning: Tuning): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const current = loadSavedCustomTunings().filter(t => t.id !== tuning.id);
-    current.push(tuning);
-    localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(current));
-  } catch (e) {
-    console.error('Failed to save tuning:', e);
-  }
+/** Возвращает false, если хранилище недоступно или переполнено. */
+export function saveCustomTuning(tuning: Tuning): boolean {
+  const current = loadSavedCustomTunings().filter(t => t.id !== tuning.id);
+  current.push(tuning);
+  return writeSetting(STORAGE_KEYS.customTunings, JSON.stringify(current));
 }
 
-export function deleteCustomTuning(tuningId: string): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const current = loadSavedCustomTunings().filter(t => t.id !== tuningId);
-    localStorage.setItem(STORAGE_CUSTOM_KEY, JSON.stringify(current));
-  } catch (e) {
-    console.error('Failed to delete tuning:', e);
-  }
+/** Возвращает false, если хранилище недоступно или переполнено. */
+export function deleteCustomTuning(tuningId: string): boolean {
+  const current = loadSavedCustomTunings().filter(t => t.id !== tuningId);
+  return writeSetting(STORAGE_KEYS.customTunings, JSON.stringify(current));
 }

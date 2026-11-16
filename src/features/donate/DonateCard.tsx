@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy, QrCode } from 'lucide-react';
 import { getPublicSiteUrl } from '../../domain/siteUrl';
+import { copyToClipboard } from '../../ui/clipboard';
 
 interface DonateCardProps {
   // Props
 }
 
 export const DonateCard: React.FC<DonateCardProps> = () => {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [imgError, setImgError] = useState(false);
 
   const donationUrl = 'https://pay.cloudtips.ru/p/05d48070';
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     // Получение публичного адреса сайта (через env в разработке или dynamic origin на бою)
     const baseSiteUrl = getPublicSiteUrl();
     const currentUrl = baseSiteUrl.endsWith('/') ? baseSiteUrl : `${baseSiteUrl}/`;
-    navigator.clipboard.writeText(currentUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyToClipboard(currentUrl);
+    setCopyStatus(ok ? 'copied' : 'failed');
+    setTimeout(() => setCopyStatus('idle'), ok ? 2000 : 4000);
   };
 
   return (
@@ -218,10 +219,12 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
           onClick={handleCopyLink}
           style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
         >
-          {copied ? (
+          {copyStatus === 'copied' ? (
             <>
               <Check size={12} color="var(--sig-in)" /> Скопировано!
             </>
+          ) : copyStatus === 'failed' ? (
+            <span style={{ color: 'var(--sig-off)' }}>Не удалось скопировать</span>
           ) : (
             <>
               <Copy size={12} /> Скопировать ссылку

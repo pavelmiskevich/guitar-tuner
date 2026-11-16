@@ -15,6 +15,7 @@ import {
   Sparkles,
   HelpCircle
 } from 'lucide-react';
+import { STORAGE_KEYS, readNumberSetting, writeSetting } from '../../domain/storage';
 
 interface EarTrainingScreenProps {
   tuning: Tuning;
@@ -50,9 +51,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(() => {
-    return parseInt(localStorage.getItem('nr_ear_best_streak') || '0', 10);
-  });
+  // Через readNumberSetting: мусор в хранилище давал NaN, и рекорд больше не обновлялся.
+  const [bestStreak, setBestStreak] = useState(
+    () => Math.floor(readNumberSetting(STORAGE_KEYS.earBestStreak, { fallback: 0, min: 0, max: 1_000_000 }))
+  );
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [question, setQuestion] = useState<QuestionState | null>(null);
@@ -232,7 +234,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       setStreak(newStreak);
       if (newStreak > bestStreak) {
         setBestStreak(newStreak);
-        localStorage.setItem('nr_ear_best_streak', newStreak.toString());
+        writeSetting(STORAGE_KEYS.earBestStreak, String(newStreak));
       }
       // Победный звук (пентатоника вверх)
       safeSetTimeout(() => {

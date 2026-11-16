@@ -4,7 +4,7 @@ import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings } from './domain
 import type { NotationSystem } from './domain/notes';
 import type { TabId } from './domain/deepLink';
 import { parseTabFromHash, resolveSharedTuning } from './domain/deepLink';
-import { readEnumSetting, readNumberSetting } from './domain/storage';
+import { STORAGE_KEYS, readEnumSetting, readNumberSetting, readSetting, writeSetting } from './domain/storage';
 import { TunerScreen } from './features/tuner/TunerScreen';
 import { FretboardScreen } from './features/fretboard/FretboardScreen';
 import { ChordCheckScreen } from './features/chord-check/ChordCheckScreen';
@@ -12,6 +12,7 @@ import { MetronomeScreen } from './features/metronome/MetronomeScreen';
 import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
 import { GitHubMark } from './ui/GitHubMark';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import type { LucideIcon } from 'lucide-react';
 import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
 
@@ -44,7 +45,7 @@ function resolveInitialTuning(): Tuning {
   const shared = resolveSharedTuning(initialHash, all);
   if (shared) return shared;
 
-  const savedId = localStorage.getItem('gt_tuning');
+  const savedId = readSetting(STORAGE_KEYS.tuning);
   if (savedId) {
     const found = all.find(t => t.id === savedId);
     if (found) return found;
@@ -72,17 +73,17 @@ export const App: React.FC = () => {
 
   // Границы совпадают с теми, что предлагает окно настроек: чужое или устаревшее
   // значение из хранилища не должно уводить расчёт частот в NaN или в бессмыслицу.
-  const [a4, setA4] = useState<number>(() => readNumberSetting('gt_a4', { fallback: 440, min: 415, max: 466 }));
+  const [a4, setA4] = useState<number>(() => readNumberSetting(STORAGE_KEYS.a4, { fallback: 440, min: 415, max: 466 }));
 
   const [notation, setNotation] = useState<NotationSystem>(
-    () => readEnumSetting('gt_notation', NOTATION_SYSTEMS, 'english')
+    () => readEnumSetting(STORAGE_KEYS.notation, NOTATION_SYSTEMS, 'english')
   );
 
   const [inTuneThreshold, setInTuneThreshold] = useState<number>(
-    () => readNumberSetting('gt_threshold', { fallback: 5, min: 1, max: 25 })
+    () => readNumberSetting(STORAGE_KEYS.threshold, { fallback: 5, min: 1, max: 25 })
   );
 
-  const [theme, setTheme] = useState<'night' | 'day'>(() => readEnumSetting('gt_theme', THEMES, 'night'));
+  const [theme, setTheme] = useState<'night' | 'day'>(() => readEnumSetting(STORAGE_KEYS.theme, THEMES, 'night'));
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lockedStringIndex, setLockedStringIndex] = useState<number | null>(null);
@@ -90,13 +91,13 @@ export const App: React.FC = () => {
   // Синхронизация темы в DOM
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('gt_theme', theme);
+    writeSetting(STORAGE_KEYS.theme, theme);
   }, [theme]);
 
   useEffect(() => {
     // Строй из ссылки живёт только в этой сессии: перезаписав им gt_tuning, мы бы
     // потеряли сохранённый выбор получателя (восстановить его было бы неоткуда).
-    if (!currentTuning.isEphemeral) localStorage.setItem('gt_tuning', currentTuning.id);
+    if (!currentTuning.isEphemeral) writeSetting(STORAGE_KEYS.tuning, currentTuning.id);
   }, [currentTuning]);
 
   // Вкладку держим в адресе, чтобы ссылку можно было скопировать прямо из браузера.
@@ -107,15 +108,15 @@ export const App: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    localStorage.setItem('gt_a4', String(a4));
+    writeSetting(STORAGE_KEYS.a4, String(a4));
   }, [a4]);
 
   useEffect(() => {
-    localStorage.setItem('gt_notation', notation);
+    writeSetting(STORAGE_KEYS.notation, notation);
   }, [notation]);
 
   useEffect(() => {
-    localStorage.setItem('gt_threshold', String(inTuneThreshold));
+    writeSetting(STORAGE_KEYS.threshold, String(inTuneThreshold));
   }, [inTuneThreshold]);
 
   const handleGoTuneString = (stringIndex: number) => {
@@ -210,48 +211,56 @@ export const App: React.FC = () => {
           alignItems: 'center'
         }}
       >
-        {activeTab === 'tuner' && (
-          <TunerScreen
-            tuning={currentTuning}
-            availableTunings={availableTunings}
-            onTuningChange={setCurrentTuning}
-            a4={a4}
-            notation={notation}
-            inTuneThreshold={inTuneThreshold}
-            lockedStringIndex={lockedStringIndex}
-            onSelectString={setLockedStringIndex}
-          />
-        )}
+        {/* Сбой одной вкладки не должен оставлять пустую страницу: граница
+            показывает сообщение, а смена вкладки (key) даёт ей новую попытку. */}
+        <ErrorBoundary
+          key={activeTab}
+          onReset={activeTab === 'tuner' ? undefined : () => setActiveTab('tuner')}
+          resetLabel="Открыть тюнер"
+        >
+          {activeTab === 'tuner' && (
+            <TunerScreen
+              tuning={currentTuning}
+              availableTunings={availableTunings}
+              onTuningChange={setCurrentTuning}
+              a4={a4}
+              notation={notation}
+              inTuneThreshold={inTuneThreshold}
+              lockedStringIndex={lockedStringIndex}
+              onSelectString={setLockedStringIndex}
+            />
+          )}
 
-        {activeTab === 'fretboard' && (
-          <FretboardScreen
-            tuning={currentTuning}
-            notation={notation}
-            a4={a4}
-          />
-        )}
+          {activeTab === 'fretboard' && (
+            <FretboardScreen
+              tuning={currentTuning}
+              notation={notation}
+              a4={a4}
+            />
+          )}
 
-        {activeTab === 'chord-check' && (
-          <ChordCheckScreen
-            tuning={currentTuning}
-            notation={notation}
-            a4={a4}
-            inTuneThreshold={inTuneThreshold}
-            onGoTuneString={handleGoTuneString}
-          />
-        )}
+          {activeTab === 'chord-check' && (
+            <ChordCheckScreen
+              tuning={currentTuning}
+              notation={notation}
+              a4={a4}
+              inTuneThreshold={inTuneThreshold}
+              onGoTuneString={handleGoTuneString}
+            />
+          )}
 
-        {activeTab === 'metronome' && (
-          <MetronomeScreen />
-        )}
+          {activeTab === 'metronome' && (
+            <MetronomeScreen />
+          )}
 
-        {activeTab === 'ear-training' && (
-          <EarTrainingScreen
-            tuning={currentTuning}
-            notation={notation}
-            a4={a4}
-          />
-        )}
+          {activeTab === 'ear-training' && (
+            <EarTrainingScreen
+              tuning={currentTuning}
+              notation={notation}
+              a4={a4}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Нижний таб-бар для мобильных устройств */}
