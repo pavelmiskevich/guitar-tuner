@@ -231,6 +231,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       if (hold.justBecameStable && currentIdx !== -1) {
         setTunedStrings(prev => (prev.has(currentIdx) ? prev : new Set(prev).add(currentIdx)));
 
+        // Один раз на вход в строй: повторный вызов на каждом кадре отменял
+        // предыдущий паттерн, и телефон жужжал непрерывно.
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate([35, 50, 35]);
         }
@@ -246,6 +248,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             stableTimerRef.current = null;
           }, AUTO_ADVANCE_AFTER_STABLE_MS);
         }
+      } else if (!inTune && stableTimerRef.current) {
+        clearTimeout(stableTimerRef.current);
+        stableTimerRef.current = null;
       }
     });
 
@@ -258,6 +263,14 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   const [isPlayingSample, setIsPlayingSample] = useState(false);
   const sampleTimerRef = useRef<number | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (sampleTimerRef.current) clearTimeout(sampleTimerRef.current);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const toggleListening = async () => {
     if (isListening) {
@@ -485,7 +498,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
                     try {
                       await navigator.clipboard.writeText(micHelp.settingsUrl as string);
                       setSettingsCopied(true);
-                      window.setTimeout(() => setSettingsCopied(false), 2000);
+                      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+                      copyTimerRef.current = window.setTimeout(() => setSettingsCopied(false), 2000);
                     } catch {
                       setSettingsCopied(false);
                     }

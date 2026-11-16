@@ -26,6 +26,24 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
   const timerIdRef = useRef<number | null>(null);
   const nextNoteTimeRef = useRef<number>(0);
   const currentStepRef = useRef<number>(0);
+  const activeTimeoutsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const timeouts = activeTimeoutsRef.current;
+    return () => {
+      timeouts.forEach(id => window.clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+  const safeSetTimeout = (cb: () => void, delay: number) => {
+    const id = window.setTimeout(() => {
+      activeTimeoutsRef.current.delete(id);
+      cb();
+    }, delay);
+    activeTimeoutsRef.current.add(id);
+    return id;
+  };
 
   // Web Audio клик метронома
   const playClick = (time: number, isAccent: boolean) => {
@@ -60,7 +78,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         playClick(nextNoteTimeRef.current, isAccent);
 
         const beatForUi = currentStepRef.current % beatsPerBar;
-        setTimeout(() => {
+        safeSetTimeout(() => {
           setCurrentBeat(beatForUi);
         }, Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000));
 
@@ -86,7 +104,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         }
 
         const stepForUi = stepIdx;
-        setTimeout(() => {
+        safeSetTimeout(() => {
           setCurrentStep(stepForUi);
         }, Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000));
 

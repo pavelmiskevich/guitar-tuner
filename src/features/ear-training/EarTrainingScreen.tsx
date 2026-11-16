@@ -61,6 +61,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const [micError, setMicError] = useState<string | null>(null);
 
   const timeoutRef = useRef<number | null>(null);
+  const activeTimeoutsRef = useRef<Set<number>>(new Set());
 
   // Актуальные значения для обработчика аудиопотока: подписка живёт дольше
   // одного рендера, и замыкание на состояние давало бы устаревшие данные.
@@ -84,21 +85,39 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   useEffect(() => { notationRef.current = notation; }, [notation]);
   useEffect(() => { tuningRef.current = tuning; }, [tuning]);
 
+  const safeSetTimeout = useCallback((cb: () => void, delay: number) => {
+    const id = window.setTimeout(() => {
+      activeTimeoutsRef.current.delete(id);
+      cb();
+    }, delay);
+    activeTimeoutsRef.current.add(id);
+    return id;
+  }, []);
+
+  useEffect(() => {
+    const timeouts = activeTimeoutsRef.current;
+    return () => {
+      timeouts.forEach(id => window.clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+
   // Воспроизведение звука текущего вопроса
   const playCurrentSound = useCallback((notes: { freq: number; delay: number }[]) => {
     setIsPlayingSound(true);
     let maxDelay = 0;
     notes.forEach(({ freq, delay }) => {
       maxDelay = Math.max(maxDelay, delay);
-      setTimeout(() => {
+      safeSetTimeout(() => {
         playGuitarString(freq, 2.2);
       }, delay);
     });
 
-    setTimeout(() => {
+    safeSetTimeout(() => {
       setIsPlayingSound(false);
     }, maxDelay + 500);
-  }, []);
+  }, [safeSetTimeout]);
 
   // Генерация нового вопроса в зависимости от режима
   const generateNewQuestion = useCallback(() => {
@@ -132,7 +151,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       };
 
       setQuestion(q);
-      setTimeout(() => playCurrentSound(q.notesToPlay), 150);
+      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
     } else if (gameMode === 'string') {
       // Угадать открытую струну
       const strIdx = Math.floor(Math.random() * tuning.strings.length);
@@ -153,7 +172,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       };
 
       setQuestion(q);
-      setTimeout(() => playCurrentSound(q.notesToPlay), 150);
+      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
     } else if (gameMode === 'chord_quality') {
       // Мажор или Минор
       const isMajor = Math.random() > 0.5;
@@ -183,9 +202,9 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       };
 
       setQuestion(q);
-      setTimeout(() => playCurrentSound(q.notesToPlay), 150);
+      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
     }
-  }, [gameMode, tuning, notation, a4, playCurrentSound]);
+  }, [gameMode, tuning, notation, a4, playCurrentSound, safeSetTimeout]);
 
   // Запуск игры при смене режима
   useEffect(() => {
@@ -216,10 +235,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
         localStorage.setItem('nr_ear_best_streak', newStreak.toString());
       }
       // Победный звук (пентатоника вверх)
-      setTimeout(() => {
+      safeSetTimeout(() => {
         playGuitarString(523.25, 0.4); // C5
-        setTimeout(() => playGuitarString(659.25, 0.4), 80); // E5
-        setTimeout(() => playGuitarString(783.99, 0.8), 160); // G5
+        safeSetTimeout(() => playGuitarString(659.25, 0.4), 80); // E5
+        safeSetTimeout(() => playGuitarString(783.99, 0.8), 160); // G5
       }, 200);
     } else {
       setStreak(0);

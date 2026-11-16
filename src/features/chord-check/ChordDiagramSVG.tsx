@@ -40,6 +40,25 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
   const stringSpacing = gridWidth / (numStrings - 1);
   const fretSpacing = gridHeight / numFrets;
 
+  const activeTimeoutsRef = React.useRef<Set<number>>(new Set());
+
+  React.useEffect(() => {
+    const timeouts = activeTimeoutsRef.current;
+    return () => {
+      timeouts.forEach(id => window.clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+  const safeSetTimeout = (cb: () => void, delay: number) => {
+    const id = window.setTimeout(() => {
+      activeTimeoutsRef.current.delete(id);
+      cb();
+    }, delay);
+    activeTimeoutsRef.current.add(id);
+    return id;
+  };
+
   // Воспроизведение аккорда красивым перебором (арпеджио)
   const handlePlayChord = () => {
     let delay = 0;
@@ -47,7 +66,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
       if (fret !== 'x') {
         const note = getFretNote(strIdx, fret, tuning);
         const freq = midiToFrequency(note.midi, a4);
-        setTimeout(() => {
+        safeSetTimeout(() => {
           playGuitarString(freq, 2.5);
         }, delay);
         delay += 90;
