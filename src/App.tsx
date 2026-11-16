@@ -100,6 +100,13 @@ export const App: React.FC = () => {
     if (!currentTuning.isEphemeral) writeSetting(STORAGE_KEYS.tuning, currentTuning.id);
   }, [currentTuning]);
 
+  // Выбранная струна не должна пережить переход на строй, где её нет
+  // (гитара → бас): тюнер держал бы приоритет на несуществующем индексе.
+  const stringCount = currentTuning.strings.length;
+  useEffect(() => {
+    setLockedStringIndex((idx) => (idx !== null && idx >= stringCount ? null : idx));
+  }, [stringCount]);
+
   // Вкладку держим в адресе, чтобы ссылку можно было скопировать прямо из браузера.
   // Гриф пишет хэш сам — там в него уходит вся схема (см. FretboardScreen).
   useEffect(() => {

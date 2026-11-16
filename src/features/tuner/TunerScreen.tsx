@@ -108,6 +108,31 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     };
   }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString, showSpectrum]);
 
+  // Смена строя или эталона A4 меняет целевые ноты: прежние отметки «настроено»,
+  // последняя услышанная струна и её частоты относятся к старым целям и только
+  // вводят в заблуждение. Ноты строя входят в ключ — пользовательский строй можно
+  // пересохранить с тем же id, но другими струнами.
+  const tuningResetKey = `${tuning.id}:${tuning.strings.map(s => s.open.midi).join(',')}@${a4}`;
+  const lastResetKeyRef = useRef(tuningResetKey);
+  useEffect(() => {
+    if (lastResetKeyRef.current === tuningResetKey) return;
+    lastResetKeyRef.current = tuningResetKey;
+
+    setTunedStrings(new Set());
+    setActiveString(null);
+    setMeasuredFreq(0);
+    setTargetFreq(0);
+    setCents(0);
+    setIsStableTuned(false);
+    setIsSoundActive(false);
+    smootherRef.current.reset();
+    holdRef.current.reset();
+    if (stableTimerRef.current) {
+      clearTimeout(stableTimerRef.current);
+      stableTimerRef.current = null;
+    }
+  }, [tuningResetKey]);
+
   // Интеллектуальный подбор струны
   const findBestString = useCallback((freq: number, curTuning: Tuning, curA4: number, lockedIdx: number | null): StringSpec => {
     // Если струна выбрана вручную, проверяем, не играет ли пользователь другую струну

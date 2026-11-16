@@ -199,6 +199,40 @@ test.describe('тюнер', () => {
     await expect(page.getByTestId('tuner-note')).toHaveText('D', { timeout: 8_000 });
   });
 
+  /** Настроить 6-ю струну и дождаться тишины: чип отмечен, показания от прошлого звука остались. */
+  async function tuneSixthStringThenSilence(page: import('@playwright/test').Page) {
+    await startMic(page);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+    await expect(page.getByTestId('string-chip-6')).toHaveAttribute('data-state', 'done', { timeout: 8_000 });
+
+    await page.evaluate(() => window.__fakeMic.silence());
+    await expect(page.getByTestId('tuner-action')).toContainText('Сыграйте струну', { timeout: 5_000 });
+    await expect(page.getByTestId('string-chip-6')).toHaveAttribute('data-state', 'done');
+  }
+
+  test('смена строя сбрасывает отметки струн и прошлые показания (#3)', async ({ page }) => {
+    await tuneSixthStringThenSilence(page);
+
+    await page.getByTestId('tuning-select').selectOption('drop-d');
+
+    await expect(page.getByTestId('string-chip-6')).toHaveAttribute('data-state', 'idle');
+    await expect(page.getByTestId('tuner-note')).toHaveText('D');
+    await expect(page.getByTestId('tuner-measured')).toHaveText('—');
+    await expect(page.getByTestId('tuner-target')).toHaveText('—');
+  });
+
+  test('смена эталона A4 сбрасывает отметки струн и прошлые показания (#3)', async ({ page }) => {
+    await tuneSixthStringThenSilence(page);
+
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('settings-a4-432').click();
+    await page.getByTestId('settings-close').click();
+
+    await expect(page.getByTestId('string-chip-6')).toHaveAttribute('data-state', 'idle');
+    await expect(page.getByTestId('tuner-measured')).toHaveText('—');
+    await expect(page.getByTestId('tuner-target')).toHaveText('—');
+  });
+
   test('переключение на Drop D меняет шестую струну на D2', async ({ page }) => {
     await page.getByTestId('tuning-select').selectOption('drop-d');
     await expect(page.getByTestId('string-chip-6')).toContainText('D2');
