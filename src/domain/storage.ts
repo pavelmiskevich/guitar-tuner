@@ -46,20 +46,97 @@ export function isValidTuning(value: unknown): value is Tuning {
   });
 }
 
-export function readNumberSetting(key: string, spec: NumberSettingSpec): number {
-  if (typeof localStorage === 'undefined') return spec.fallback;
+/**
+ * Все ключи приложения в одном месте и с одним префиксом. Раньше их было три
+ * схемы (`gt_*`, `night_rehearsal_*`, `nr_*`), и при смене формата было не
+ * понять, какие записи наши.
+ */
+export const STORAGE_KEYS = {
+  tuning: 'gt_tuning',
+  a4: 'gt_a4',
+  notation: 'gt_notation',
+  threshold: 'gt_threshold',
+  theme: 'gt_theme',
+  customTunings: 'gt_custom_tunings',
+  earBestStreak: 'gt_ear_best_streak',
+  version: 'gt_storage_version'
+} as const;
+
+/** Версия формата хранилища. Поднимать вместе с новым шагом в `migrateStorage`. */
+export const STORAGE_VERSION = 1;
+
+/** Ключи до версии 1 → их новые имена. */
+const LEGACY_KEYS_V1: Record<string, string> = {
+  night_rehearsal_custom_tunings: STORAGE_KEYS.customTunings,
+  nr_ear_best_streak: STORAGE_KEYS.earBestStreak
+};
+
+/**
+ * Хранилище или null, если оно недоступно. Само обращение к `localStorage`
+ * бросает SecurityError, когда данные сайтов запрещены, — поэтому даже
+ * проверка `typeof` должна стоять внутри `try`.
+ */
+function getStorage(): Storage | null {
   try {
-    return parseNumberSetting(localStorage.getItem(key), spec);
+    return typeof localStorage === 'undefined' ? null : localStorage;
   } catch {
-    return spec.fallback;
+    return null;
   }
 }
 
-export function readEnumSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
-  if (typeof localStorage === 'undefined') return fallback;
+/** Строка из хранилища; null — если записи нет или хранилище недоступно. */
+export function readSetting(key: string): string | null {
   try {
-    return parseEnumSetting(localStorage.getItem(key), allowed, fallback);
+    return getStorage()?.getItem(key) ?? null;
   } catch {
-    return fallback;
+    return null;
+  }
+}
+
+/**
+ * Запись в хранилище. Не бросает: переполненная квота или запрет доступа не
+ * должны ронять интерфейс — настройка просто не переживёт перезагрузку.
+ * Возвращает true, если запись удалась.
+ */
+export function writeSetting(key: string, value: string): boolean {
+  const storage = getStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readNumberSetting(key: string, spec: NumberSettingSpec): number {
+  return parseNumberSetting(readSetting(key), spec);
+}
+
+export function readEnumSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  return parseEnumSetting(readSetting(key), allowed, fallback);
+}
+
+/**
+ * Приводит хранилище к текущей версии формата. Вызывается один раз до первого
+ * рендера. Старое значение переносится, только если под новым именем ничего
+ * нет, — уже записанное новой версией не затирается.
+ */
+export function migrateStorage(): void {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    const version = Number(storage.getItem(STORAGE_KEYS.version) ?? '0');
+    if (version >= STORAGE_VERSION) return;
+
+    for (const [legacy, current] of Object.entries(LEGACY_KEYS_V1)) {
+      const value = storage.getItem(legacy);
+      if (value === null) continue;
+      if (storage.getItem(current) === null) storage.setItem(current, value);
+      storage.removeItem(legacy);
+    }
+    storage.setItem(STORAGE_KEYS.version, String(STORAGE_VERSION));
+  } catch {
+    // Не удалось — попробуем при следующем запуске; старые ключи на месте.
   }
 }

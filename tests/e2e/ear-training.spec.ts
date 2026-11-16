@@ -97,7 +97,7 @@ test.describe('тренажёр слуха', () => {
     // просто наличие «1»: иначе совпадение дало бы «100%», а не сам рекорд.
     await expect(page.getByTestId('et-best')).toHaveText(/^1 \(/);
 
-    const stored = await page.evaluate(() => localStorage.getItem('nr_ear_best_streak'));
+    const stored = await page.evaluate(() => localStorage.getItem('gt_ear_best_streak'));
     expect(stored).toBe('1');
 
     await page.reload();

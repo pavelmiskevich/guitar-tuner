@@ -19,6 +19,7 @@ import {
   Check
 } from 'lucide-react';
 import { getPublicSiteUrl } from '../../domain/siteUrl';
+import { copyToClipboard } from '../../ui/clipboard';
 
 interface FretboardScreenProps {
   tuning: Tuning;
@@ -54,7 +55,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   );
   const [customFrets, setCustomFrets] = useState<(number | 'x')[]>(shared.customFrets ?? EMPTY_FRETS);
   const [lastClickedNote, setLastClickedNote] = useState<{ note: string; str: number; fret: number } | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const fretboardSvgRef = useRef<SVGSVGElement>(null);
 
   const shareState: FretboardShareState = {
@@ -96,11 +97,12 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
     return id;
   };
 
-  const handleShareLink = () => {
+  const handleShareLink = async () => {
     const url = buildShareUrl(getPublicSiteUrl(), window.location.pathname, shareState);
-    navigator.clipboard.writeText(url);
-    setCopiedLink(true);
-    safeSetTimeout(() => setCopiedLink(false), 2000);
+    const ok = await copyToClipboard(url);
+    setShareStatus(ok ? 'copied' : 'failed');
+    // При неудаче подсказка висит дольше: её надо успеть прочитать.
+    safeSetTimeout(() => setShareStatus('idle'), ok ? 2000 : 5000);
   };
 
   // Экспорт SVG (FR-FB-19)
@@ -427,7 +429,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               aria-label="Скопировать ссылку на эту схему грифа"
               style={{ padding: '6px 8px' }}
             >
-              {copiedLink ? <Check size={14} color="var(--sig-in)" /> : <Share2 size={14} />}
+              {shareStatus === 'copied' ? <Check size={14} color="var(--sig-in)" /> : <Share2 size={14} />}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -481,9 +483,14 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           «Гриф» с этой же схемой. Адрес в браузере обновляется на лету, так что ссылку можно скопировать
           и прямо из адресной строки.
         </p>
-        {copiedLink && (
+        {shareStatus === 'copied' && (
           <span data-testid="fb-share-copied" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sig-in)' }}>
             Ссылка скопирована в буфер обмена
+          </span>
+        )}
+        {shareStatus === 'failed' && (
+          <span data-testid="fb-share-failed" role="alert" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sig-off)' }}>
+            Не удалось скопировать — скопируйте ссылку из адресной строки браузера
           </span>
         )}
       </div>

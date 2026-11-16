@@ -76,7 +76,7 @@ test.describe('настройки', () => {
     await expect(page.getByTestId('settings-modal')).toContainText('Тестовый строй');
 
     const saved = await page.evaluate(() =>
-      localStorage.getItem('night_rehearsal_custom_tunings')
+      localStorage.getItem('gt_custom_tunings')
     );
     expect(saved).toContain('Тестовый строй');
   });
