@@ -259,6 +259,18 @@ export const COMMON_VOICINGS: Voicing[] = [
   }
 ];
 
+/**
+ * Аппликатуры чистых трезвучий заданного наклонения.
+ *
+ * Отбор идёт по полю `type`, а не по названию: названия локализованы и несут
+ * пояснения («A (Мажор)», «B (H)»), а подстрока «m» есть и в мажорных
+ * септаккордах — Cmaj7, Fmaj7. Септаккорды сюда не попадают намеренно:
+ * вопрос «мажор или минор» задаётся про трезвучие.
+ */
+export function getTriadVoicings(quality: 'maj' | 'min'): Voicing[] {
+  return COMMON_VOICINGS.filter(v => v.type === quality);
+}
+
 export interface ChordFormula {
   type: string;
   name: string;
