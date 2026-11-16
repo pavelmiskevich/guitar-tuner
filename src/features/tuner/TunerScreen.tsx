@@ -7,6 +7,7 @@ import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import { playGuitarString } from '../../audio/synth';
 import { getMicPermissionHelp, queryMicPermission } from '../../domain/micPermission';
+import { InTuneHold, MedianSmoother } from '../../domain/tuneStability';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
 import { DonateCard } from '../donate/DonateCard';
@@ -31,6 +32,11 @@ const SPECTRUM_MAX_HZ = 4000;
 const SPECTRUM_SILENCE_DB = -75;
 /** Показываемый динамический диапазон под пиком. */
 const SPECTRUM_RANGE_DB = 40;
+/**
+ * Пауза перед автошагом мастера после того, как струна признана настроенной.
+ * Вместе с удержанием (IN_TUNE_HOLD_MS) даёт прежние ~1.2 с от входа в допуск.
+ */
+const AUTO_ADVANCE_AFTER_STABLE_MS = 800;
 
 interface TunerScreenProps {
   tuning: Tuning;
@@ -72,6 +78,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const [spectrumBars, setSpectrumBars] = useState<number[]>(new Array(SPECTRUM_BARS).fill(0));
 
   const stableTimerRef = useRef<number | null>(null);
+  const smootherRef = useRef(new MedianSmoother());
+  const holdRef = useRef(new InTuneHold());
   const soundDecayTimerRef = useRef<number | null>(null);
   // Последний показанный уровень входа: VU-метр обновляется только на заметном
   // изменении, иначе шум в доли децибела перерисовывал весь экран на каждом кадре.
@@ -197,7 +205,10 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         onSelectString: curOnSelect
       } = latestConfigRef.current;
 
-      const freq = estimate.frequency;
+      // Медиана по последним кадрам: выброс на атаке щипка или одиночная октавная
+      // ошибка детектора не должны дёргать стрелку и переключать струну.
+      const now = performance.now();
+      const freq = smootherRef.current.push(estimate.frequency, now);
       setMeasuredFreq(freq);
 
       const currentTargetStr = findBestString(freq, curTuning, curA4, curLockedIdx);
@@ -209,33 +220,31 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       const dCents = calculateCents(freq, tFreq);
       setCents(dCents);
 
-      // Проверка удержания строя
-      if (Math.abs(dCents) <= curThreshold) {
-        setIsStableTuned(true);
-        const currentIdx = curTuning.strings.findIndex(s => s.stringNumber === currentTargetStr.stringNumber);
+      // Проверка удержания строя. Струна считается настроенной не по одному
+      // кадру в допуске, а после непрерывного удержания: иначе её засчитывал бы
+      // пролёт частоты через цель во время подтяжки.
+      const inTune = Math.abs(dCents) <= curThreshold;
+      const currentIdx = curTuning.strings.findIndex(s => s.stringNumber === currentTargetStr.stringNumber);
+      const hold = holdRef.current.update(currentIdx, inTune, now);
+      setIsStableTuned(hold.stable);
 
-        if (currentIdx !== -1) {
-          setTunedStrings(prev => new Set(prev).add(currentIdx));
-
-          // Автопереход к следующей струне в режиме мастера
-          if (curAutoAdvance && !stableTimerRef.current) {
-            stableTimerRef.current = window.setTimeout(() => {
-              if (currentIdx < curTuning.strings.length - 1) {
-                curOnSelect(currentIdx + 1);
-              }
-              stableTimerRef.current = null;
-            }, 1200);
-          }
-        }
+      if (hold.justBecameStable && currentIdx !== -1) {
+        setTunedStrings(prev => (prev.has(currentIdx) ? prev : new Set(prev).add(currentIdx)));
 
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate([35, 50, 35]);
         }
-      } else {
-        setIsStableTuned(false);
-        if (stableTimerRef.current) {
-          clearTimeout(stableTimerRef.current);
-          stableTimerRef.current = null;
+      }
+
+      if (hold.stable && currentIdx !== -1) {
+        // Автопереход к следующей струне в режиме мастера
+        if (curAutoAdvance && !stableTimerRef.current) {
+          stableTimerRef.current = window.setTimeout(() => {
+            if (currentIdx < curTuning.strings.length - 1) {
+              curOnSelect(currentIdx + 1);
+            }
+            stableTimerRef.current = null;
+          }, AUTO_ADVANCE_AFTER_STABLE_MS);
         }
       }
     });
