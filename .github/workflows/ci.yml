@@ -206,15 +206,27 @@ jobs:
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
           release="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
-          archive="/tmp/guitar-tuner-${release}.tar.gz"
           ssh_opts=(-i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
 
           test -s dist/index.html
           tar -czf dist.tar.gz -C dist .
 
-          scp "${ssh_opts[@]}" -P "$port" dist.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:$archive"
+          sha="$(sha256sum dist.tar.gz | cut -d' ' -f1)"
+
+          # Архив кладётся не в общий /tmp под предсказуемым именем, а в
+          # одноразовый каталог с правами 0700: на сервере его распаковывают
+          # с повышенными правами, и подменить файл не должен иметь возможности
+          # никто, кроме пользователя выкладки. Контрольная сумма сверяется
+          # перед распаковкой.
+          remote_dir="$(ssh "${ssh_opts[@]}" -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
+            'umask 077 && d="$(mktemp -d)" && cat > "$d/dist.tar.gz" && printf %s "$d"' < dist.tar.gz)"
+          if ! printf '%s' "$remote_dir" | grep -Eq '^/[A-Za-z0-9._/-]+$'; then
+            echo "::error::сервер вернул неожиданный путь временного каталога"
+            exit 1
+          fi
+
           ssh "${ssh_opts[@]}" -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "bash -s -- '$DEPLOY_PATH' '$archive' '$release' 5" < scripts/deploy/remote-release.sh
+            "bash -s -- '$DEPLOY_PATH' '$remote_dir/dist.tar.gz' '$release' 5 '$sha'" < scripts/deploy/remote-release.sh
 
           echo "Выпуск \`$release\` выложен на $SITE" >> "$GITHUB_STEP_SUMMARY"
 
