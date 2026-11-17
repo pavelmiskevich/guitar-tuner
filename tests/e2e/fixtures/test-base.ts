@@ -9,6 +9,8 @@ export const STORAGE_KEYS = [
   'gt_theme',
   'gt_custom_tunings',
   'gt_ear_best_streak',
+  'gt_metronome_bpm',
+  'gt_metronome_meter',
   'gt_storage_version',
   // Ключи до версии хранилища 1 — чистим, чтобы миграция не подхватила следы прошлых прогонов.
   'night_rehearsal_custom_tunings',

@@ -1,120 +1,170 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Plus, Minus, HeartHandshake, Disc3 } from 'lucide-react';
-import {
-  DRUM_PATTERNS,
-  playSynthesizedKick,
-  playSynthesizedSnare,
-  playSynthesizedHiHat
-} from '../../audio/drumSynth';
+import { DRUM_PATTERNS, playPatternStep } from '../../audio/drumSynth';
 import type { DrumPattern } from '../../audio/drumSynth';
+import {
+  DEFAULT_BPM,
+  DEFAULT_METER_ID,
+  MAX_BPM,
+  METERS,
+  METER_IDS,
+  MIN_BPM,
+  accentAt,
+  beatInterval,
+  clampBpm,
+  createBeatClock,
+  drumStepInterval,
+  findMeter,
+  lookaheadSeconds,
+  scheduleTicks
+} from '../../domain/metronome';
+import type { AccentLevel, BeatClock, Meter } from '../../domain/metronome';
+import { STORAGE_KEYS, readEnumSetting, readNumberSetting, writeSetting } from '../../domain/storage';
+import { startSchedulerTicker } from './schedulerTicker';
+import { useScreenWakeLock } from './useScreenWakeLock';
 
 interface MetronomeScreenProps {
   // Props
 }
 
+/** Задержка первой доли после старта: успеть запланировать её до того, как она прозвучит. */
+const START_DELAY_SECONDS = 0.05;
+
+/**
+ * Спад громкости при остановке. Доли запланированы наперёд (в фоне — до 1,5 с),
+ * и оборвать их по одной нельзя: глушим общий узел громкости. Мгновенный обрыв
+ * щёлкает в динамике, поэтому короткий спад.
+ */
+const STOP_FADE_SECONDS = 0.03;
+
+const CLICK_SOUND: Record<AccentLevel, { frequency: number; type: OscillatorType; gain: number }> = {
+  strong: { frequency: 1200, type: 'triangle', gain: 0.7 },
+  medium: { frequency: 1000, type: 'triangle', gain: 0.6 },
+  weak: { frequency: 800, type: 'sine', gain: 0.7 }
+};
+
+const BEAT_DOT_SIZE: Record<AccentLevel, string> = { strong: '22px', medium: '19px', weak: '16px' };
+
+const AUDIO_CONTEXT_ERROR =
+  'Не удалось включить звук: браузер не дал создать аудиоконтекст. Закройте другие вкладки со звуком или перезагрузите страницу.';
+const AUDIO_RESUME_ERROR = 'Браузер не разрешил воспроизведение звука. Нажмите «Старт» ещё раз.';
+
+/** Идентификатор кнопки размера: у x/4 он прежний (`mt-meter-4`), у 6/8 — `mt-meter-6-8`. */
+function meterTestId(meter: Meter): string {
+  return meter.unit === 4 ? `mt-meter-${meter.beats}` : `mt-meter-${meter.beats}-${meter.unit}`;
+}
+
+function readSavedBpm(): number {
+  return clampBpm(readNumberSetting(STORAGE_KEYS.metronomeBpm, { fallback: DEFAULT_BPM, min: MIN_BPM, max: MAX_BPM }));
+}
+
+function readSavedMeterId(): string {
+  return readEnumSetting(STORAGE_KEYS.metronomeMeter, METER_IDS, DEFAULT_METER_ID);
+}
+
+/** Щелчок метронома: генератор с быстрым спадом, подключённый к общему узлу громкости. */
+function playClick(ctx: AudioContext, output: AudioNode, time: number, accent: AccentLevel) {
+  const sound = CLICK_SOUND[accent];
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.frequency.setValueAtTime(sound.frequency, time);
+  osc.type = sound.type;
+
+  gain.gain.setValueAtTime(sound.gain, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+  osc.connect(gain);
+  gain.connect(output);
+
+  osc.start(time);
+  osc.stop(time + 0.06);
+}
+
+/** Гасит общий узел громкости и отключает его: запланированные наперёд доли не прозвучат. */
+function silenceOutput(ctx: AudioContext, output: GainNode) {
+  try {
+    const now = ctx.currentTime;
+    output.gain.cancelScheduledValues(now);
+    output.gain.setValueAtTime(output.gain.value, now);
+    output.gain.linearRampToValueAtTime(0, now + STOP_FADE_SECONDS);
+  } catch {
+    // Контекст уже закрыт — звучать нечему.
+  }
+  window.setTimeout(() => {
+    try {
+      output.disconnect();
+    } catch {
+      // Уже отключён.
+    }
+  }, (STOP_FADE_SECONDS + 0.05) * 1000);
+}
+
 export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
   const [activeTab, setActiveTab] = useState<'metronome' | 'drums'>('metronome');
-  const [bpm, setBpm] = useState<number>(120);
+  const [bpm, setBpm] = useState<number>(readSavedBpm);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [beatsPerBar, setBeatsPerBar] = useState<number>(4);
+  const [meterId, setMeterId] = useState<string>(readSavedMeterId);
   const [currentBeat, setCurrentBeat] = useState<number>(0);
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [selectedPattern, setSelectedPattern] = useState<DrumPattern>(DRUM_PATTERNS[0]);
   const [tapTimes, setTapTimes] = useState<number[]>([]);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  const meter = findMeter(meterId);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const timerIdRef = useRef<number | null>(null);
-  const nextNoteTimeRef = useRef<number>(0);
-  const currentStepRef = useRef<number>(0);
-  const activeTimeoutsRef = useRef<Set<number>>(new Set());
+  /** Общий узел громкости текущего запуска: всё, что играет экран, идёт через него. */
+  const outputRef = useRef<GainNode | null>(null);
+  const clockRef = useRef<BeatClock>(createBeatClock(0));
+  const uiTimeoutsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    const timeouts = activeTimeoutsRef.current;
-    return () => {
-      timeouts.forEach(id => window.clearTimeout(id));
-      timeouts.clear();
-    };
-  }, []);
+    writeSetting(STORAGE_KEYS.metronomeBpm, String(bpm));
+  }, [bpm]);
 
-  const safeSetTimeout = (cb: () => void, delay: number) => {
+  useEffect(() => {
+    writeSetting(STORAGE_KEYS.metronomeMeter, meterId);
+  }, [meterId]);
+
+  useScreenWakeLock(isPlaying);
+
+  /** Подсветка доли в момент, когда она прозвучит, а не когда запланирована. */
+  const showAt = (ctx: AudioContext, time: number, update: () => void) => {
     const id = window.setTimeout(() => {
-      activeTimeoutsRef.current.delete(id);
-      cb();
-    }, delay);
-    activeTimeoutsRef.current.add(id);
-    return id;
+      uiTimeoutsRef.current.delete(id);
+      update();
+    }, Math.max(0, (time - ctx.currentTime) * 1000));
+    uiTimeoutsRef.current.add(id);
   };
 
-  // Web Audio клик метронома
-  const playClick = (time: number, isAccent: boolean) => {
-    if (!audioCtxRef.current) return;
-    const ctx = audioCtxRef.current;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.frequency.setValueAtTime(isAccent ? 1200 : 800, time);
-    osc.type = isAccent ? 'triangle' : 'sine';
-
-    gain.gain.setValueAtTime(0.7, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(time);
-    osc.stop(time + 0.06);
-  };
-
-  // Планировщик звука для метронома и драм-машины
+  // Планировщик звука для метронома и драм-машины. Темп, размер и паттерн он
+  // берёт из последнего рендера (через schedulerRef), поэтому их смена на ходу
+  // действует со следующей доли и не перезапускает такт.
   const scheduler = () => {
-    if (!audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
-    const scheduleAheadTime = 0.1; // Планируем на 100 мс вперед
+    const output = outputRef.current;
+    if (!ctx || !output || ctx.state === 'closed') return;
 
-    while (nextNoteTimeRef.current < ctx.currentTime + scheduleAheadTime) {
-      if (activeTab === 'metronome') {
-        const isAccent = currentStepRef.current % beatsPerBar === 0;
-        playClick(nextNoteTimeRef.current, isAccent);
+    const now = ctx.currentTime;
+    const hidden = document.visibilityState === 'hidden';
+    const isMetronome = activeTab === 'metronome';
+    const { ticks, clock } = scheduleTicks(clockRef.current, {
+      now,
+      horizon: now + lookaheadSeconds(hidden),
+      interval: isMetronome ? beatInterval(bpm) : drumStepInterval(bpm, selectedPattern.stepsCount),
+      cycle: isMetronome ? meter.beats : selectedPattern.stepsCount
+    });
+    clockRef.current = clock;
 
-        const beatForUi = currentStepRef.current % beatsPerBar;
-        safeSetTimeout(() => {
-          setCurrentBeat(beatForUi);
-        }, Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000));
-
-        const secondsPerBeat = 60.0 / bpm;
-        nextNoteTimeRef.current += secondsPerBeat;
-        currentStepRef.current = (currentStepRef.current + 1) % beatsPerBar;
+    for (const { time, step } of ticks) {
+      if (isMetronome) {
+        playClick(ctx, output, time, accentAt(meter, step));
+        // Скрытую вкладку не перерисовываем: её таймеры всё равно придут пачкой.
+        if (!hidden) showAt(ctx, time, () => setCurrentBeat(step));
       } else {
-        // Драм-машина: 16-е доли (или 12-е для блюза)
-        const stepIdx = currentStepRef.current % selectedPattern.stepsCount;
-        const kickVal = selectedPattern.tracks.kick[stepIdx];
-        const snareVal = selectedPattern.tracks.snare[stepIdx];
-        const hihatVal = selectedPattern.tracks.hihat[stepIdx];
-
-        if (kickVal && kickVal > 0) {
-          playSynthesizedKick(ctx, nextNoteTimeRef.current, kickVal);
-        }
-        if (snareVal && snareVal > 0) {
-          const isBossaCrossStick = selectedPattern.id === 'bossa';
-          playSynthesizedSnare(ctx, nextNoteTimeRef.current, isBossaCrossStick, snareVal);
-        }
-        if (hihatVal && hihatVal > 0) {
-          playSynthesizedHiHat(ctx, nextNoteTimeRef.current, hihatVal === 2, 0.7);
-        }
-
-        const stepForUi = stepIdx;
-        safeSetTimeout(() => {
-          setCurrentStep(stepForUi);
-        }, Math.max(0, (nextNoteTimeRef.current - ctx.currentTime) * 1000));
-
-        // Длительность одного шага секвенсора
-        const secondsPerStep = selectedPattern.stepsCount === 12
-          ? (60.0 / bpm) / 3 // Триоли
-          : (60.0 / bpm) / 4; // 16-е доли
-
-        nextNoteTimeRef.current += secondsPerStep;
-        currentStepRef.current = (currentStepRef.current + 1) % selectedPattern.stepsCount;
+        playPatternStep(ctx, selectedPattern, step, time, output);
+        if (!hidden) showAt(ctx, time, () => setCurrentStep(step));
       }
     }
   };
@@ -122,34 +172,81 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
   const schedulerRef = useRef(scheduler);
   schedulerRef.current = scheduler;
 
+  // Запуск и остановка зависят только от isPlaying. Раньше эффект зависел ещё
+  // от темпа, размера и паттерна и на каждое их изменение начинал такт заново,
+  // а уже запланированные доли звучали поверх новых — сдвоенными ударами.
   useEffect(() => {
-    if (isPlaying) {
-      if (!audioCtxRef.current) {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        audioCtxRef.current = new AudioCtx();
-      }
-      audioCtxRef.current.resume();
+    if (!isPlaying) return;
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
 
-      nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
-      currentStepRef.current = 0;
+    const output = ctx.createGain();
+    output.connect(ctx.destination);
+    outputRef.current = output;
+    clockRef.current = createBeatClock(ctx.currentTime + START_DELAY_SECONDS);
 
-      // Планировщик берётся из ref, а не из замыкания: сам он пересоздаётся на
-      // каждый рендер, и прямая ссылка требовала бы его в зависимостях эффекта.
-      const intervalId = window.setInterval(() => schedulerRef.current(), 25);
-      timerIdRef.current = intervalId;
+    // Тикер берёт планировщик из ref, а не из замыкания: сам планировщик
+    // пересоздаётся на каждый рендер и видит свежие темп и размер.
+    const stopTicker = startSchedulerTicker(() => schedulerRef.current());
+    const uiTimeouts = uiTimeoutsRef.current;
 
-      return () => {
-        clearInterval(intervalId);
-      };
-    } else {
-      if (timerIdRef.current) {
-        clearInterval(timerIdRef.current);
-        timerIdRef.current = null;
-      }
+    return () => {
+      stopTicker();
+      outputRef.current = null;
+      silenceOutput(ctx, output);
+      uiTimeouts.forEach(id => window.clearTimeout(id));
+      uiTimeouts.clear();
       setCurrentBeat(0);
       setCurrentStep(0);
+    };
+  }, [isPlaying]);
+
+  // Контекст живёт, пока открыт экран. Экран размонтируется при уходе с вкладки
+  // «Ритм», и незакрытые контексты копились: браузеры ограничивают их число
+  // (Safari — единицами), и после лимита метроном переставал запускаться.
+  // Эффект объявлен после эффекта запуска: при размонтировании сначала гасится
+  // звук, потом закрывается контекст.
+  useEffect(() => {
+    return () => {
+      const ctx = audioCtxRef.current;
+      audioCtxRef.current = null;
+      if (ctx && ctx.state !== 'closed') ctx.close().catch(() => {});
+    };
+  }, []);
+
+  /** Контекст создаётся по нажатию «Старт»: вне жеста пользователя браузер звук не даст. */
+  const ensureAudioContext = (): AudioContext | null => {
+    const existing = audioCtxRef.current;
+    if (existing && existing.state !== 'closed') return existing;
+    try {
+      const AudioCtx = window.AudioContext
+        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) throw new Error('Web Audio API недоступен');
+      const ctx = new AudioCtx();
+      audioCtxRef.current = ctx;
+      return ctx;
+    } catch {
+      // Молча падать нельзя: кнопка просто не реагировала бы, и было бы
+      // непонятно, что делать. Говорим, что случилось и как это обойти.
+      setAudioError(AUDIO_CONTEXT_ERROR);
+      return null;
     }
-  }, [isPlaying, bpm, beatsPerBar, activeTab, selectedPattern]);
+  };
+
+  const handleToggle = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      return;
+    }
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    setAudioError(null);
+    ctx.resume().catch(() => {
+      setAudioError(AUDIO_RESUME_ERROR);
+      setIsPlaying(false);
+    });
+    setIsPlaying(true);
+  };
 
   // Функция Tap-Tempo
   const handleTap = () => {
@@ -164,14 +261,14 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
       }
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const calculatedBpm = Math.round(60000 / avgInterval);
-      if (calculatedBpm >= 40 && calculatedBpm <= 260) {
+      if (calculatedBpm >= MIN_BPM && calculatedBpm <= MAX_BPM) {
         setBpm(calculatedBpm);
       }
     }
   };
 
   const changeBpm = (delta: number) => {
-    setBpm(prev => Math.max(40, Math.min(260, prev + delta)));
+    setBpm(prev => clampBpm(prev + delta));
   };
 
   return (
@@ -278,16 +375,22 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         {/* Индикатор долей */}
         {activeTab === 'metronome' ? (
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {Array.from({ length: beatsPerBar }).map((_, i) => {
+            {Array.from({ length: meter.beats }).map((_, i) => {
               const isActive = isPlaying && currentBeat === i;
-              const isFirst = i === 0;
+              const accent = accentAt(meter, i);
+              const isFirst = accent === 'strong';
+              const size = BEAT_DOT_SIZE[accent];
               return (
                 <div
                   key={i}
                   data-testid={`mt-beat-${i}`}
+                  data-active={String(isActive)}
+                  data-accent={accent}
                   style={{
-                    width: isFirst ? '22px' : '16px',
-                    height: isFirst ? '22px' : '16px',
+                    width: size,
+                    height: size,
+                    // Вторая группа 6/8 (3+3) чуть отодвинута — группировку видно глазом.
+                    marginLeft: accent === 'medium' ? '8px' : 0,
                     borderRadius: '50%',
                     background: isActive
                       ? (isFirst ? 'var(--sig-in)' : 'var(--brand)')
@@ -388,10 +491,10 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           <input
             data-testid="mt-bpm-slider"
             type="range"
-            min={40}
-            max={260}
+            min={MIN_BPM}
+            max={MAX_BPM}
             value={bpm}
-            onChange={(e) => setBpm(Number(e.target.value))}
+            onChange={(e) => setBpm(clampBpm(Number(e.target.value)))}
             style={{
               flex: 1,
               minWidth: '60px',
@@ -425,15 +528,16 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         {activeTab === 'metronome' && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span className="eyebrow" style={{ marginRight: '4px' }}>Размер:</span>
-            {[2, 3, 4, 6].map(beats => (
+            {METERS.map(m => (
               <button
-                key={beats}
-                data-testid={`mt-meter-${beats}`}
-                className={`btn btn-sm ${beatsPerBar === beats ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setBeatsPerBar(beats)}
+                key={m.id}
+                data-testid={meterTestId(m)}
+                className={`btn btn-sm ${meterId === m.id ? 'btn-primary' : 'btn-ghost'}`}
+                aria-pressed={meterId === m.id}
+                onClick={() => setMeterId(m.id)}
                 style={{ fontWeight: 700, padding: '6px 12px' }}
               >
-                {beats}/4
+                {m.id}
               </button>
             ))}
           </div>
@@ -444,7 +548,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           <button
             data-testid="mt-toggle"
             className={`btn ${isPlaying ? 'btn-danger' : 'btn-primary'}`}
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={handleToggle}
             style={{ flex: 1, minWidth: '140px', maxWidth: '200px', padding: '14px 20px', fontSize: '17px', justifyContent: 'center' }}
           >
             {isPlaying ? (
@@ -469,6 +573,12 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             <HeartHandshake size={16} /> Tap Tempo
           </button>
         </div>
+
+        {audioError && (
+          <div data-testid="mt-audio-error" role="alert" className="banner err" style={{ width: '100%', boxSizing: 'border-box' }}>
+            {audioError}
+          </div>
+        )}
       </div>
     </div>
   );
