@@ -1,7 +1,42 @@
 import type { PitchEstimate } from './dsp';
 import { ANALYSIS_LENGTH, PitchDetector, decimate, decimationFactor } from './dsp';
 
+/**
+ * Состояния движка.
+ *
+ * `paused` — микрофон захвачен, но анализа нет: страница скрыта, система
+ * приостановила звук (звонок на iOS) или дорожка временно заглушена. От
+ * `running` отличается тем, что оценки не приходят, и интерфейс не должен
+ * утверждать «Микрофон активен».
+ */
 export type AudioEngineState = 'uninitialized' | 'requesting' | 'running' | 'paused' | 'error';
+
+/** Снимок состояния: объект меняется только при смене, его можно отдавать в useSyncExternalStore. */
+export interface AudioEngineStatus {
+  readonly state: AudioEngineState;
+  /** Последняя ошибка: отказ в доступе при запуске или обрыв уже работавшего потока. */
+  readonly error: Error | null;
+}
+
+export type StateCallback = (status: AudioEngineStatus) => void;
+
+/** Почему уже работавший микрофон перестал работать. */
+export type MicInterruptionReason = 'ended' | 'closed' | 'background';
+
+/**
+ * Обрыв работавшего потока. Отдельный класс, чтобы интерфейс отличал его от
+ * отказа в доступе при запуске: подсказка «разрешите в браузере» тут обычно
+ * не к месту — чаще вытащили гарнитуру или микрофон занял звонок.
+ */
+export class MicInterruptedError extends Error {
+  readonly reason: MicInterruptionReason;
+
+  constructor(reason: MicInterruptionReason, message: string) {
+    super(message);
+    this.name = 'MicInterruptedError';
+    this.reason = reason;
+  }
+}
 
 export type EstimateCallback = (
   estimate: PitchEstimate,
@@ -33,6 +68,53 @@ export interface AudioEngineOptions {
 const ANALYSIS_FPS = 30;
 const ANALYSIS_INTERVAL_MS = 1000 / ANALYSIS_FPS;
 
+/**
+ * Сколько держать микрофон на скрытой странице. Короткий уход — подсмотреть
+ * аккорды в другом приложении, ответить на сообщение — не должен заставлять
+ * заново включать микрофон. Но и часами держать его в фоне незачем: горит
+ * системный индикатор записи, на Android висит уведомление, тратится батарея.
+ */
+export const BACKGROUND_RELEASE_MS = 60_000;
+
+/** Сырой сигнал: обработка речи (AGC/NS/AEC) искажает тон и атаку струны. */
+const RAW_AUDIO_CONSTRAINTS: MediaStreamConstraints = {
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false
+  },
+  video: false
+};
+
+function isPageHidden(): boolean {
+  return typeof document !== 'undefined' && document.hidden === true;
+}
+
+/** Отказ пользователя или политики: повторный запрос его не исправит. */
+function isPermissionError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+}
+
+async function requestMicrophone(mediaDevices: MediaDevices): Promise<MediaStream> {
+  try {
+    return await mediaDevices.getUserMedia(RAW_AUDIO_CONSTRAINTS);
+  } catch (err) {
+    // После отказа второй запрос в части браузеров снова показывает диалог
+    // разрешения — пользователь только что ответил «нет», повторять незачем.
+    if (isPermissionError(err)) throw err;
+    // Остальное (обычно неподдержанные ограничения) — пробуем без них.
+    return mediaDevices.getUserMedia({ audio: true, video: false });
+  }
+}
+
+function releaseStream(stream: MediaStream | null): void {
+  stream?.getTracks().forEach(track => track.stop());
+}
+
+function closeContext(ctx: AudioContext | null): void {
+  if (ctx && ctx.state !== 'closed') ctx.close().catch(() => {});
+}
+
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
@@ -44,7 +126,19 @@ export class AudioEngine {
   private decimation = 1;
   /** Кадр для детектора после прореживания. */
   private analysisFrame = new Float32Array(ANALYSIS_LENGTH);
-  private state: AudioEngineState = 'uninitialized';
+  private status: AudioEngineStatus = { state: 'uninitialized', error: null };
+  private stateListeners: Set<StateCallback> = new Set();
+  /**
+   * Запуск «в полёте». Без него два вызова подряд (двойное нажатие, пока висит
+   * запрос разрешения) давали два getUserMedia, ссылка на первый поток терялась,
+   * и индикатор микрофона в браузере горел до закрытия вкладки.
+   */
+  private startPromise: Promise<void> | null = null;
+  /** Номер сеанса захвата: stop() во время запроса делает запуск устаревшим. */
+  private session = 0;
+  /** Подписки на события текущего потока и контекста — снимаются разом. */
+  private sessionEvents: AbortController | null = null;
+  private backgroundTimer: ReturnType<typeof setTimeout> | null = null;
   private animationFrameId: number | null = null;
   private timeDataArray: Float32Array;
   private freqDataArray: Float32Array;
@@ -104,119 +198,291 @@ export class AudioEngine {
     };
   }
 
-  public getState(): AudioEngineState {
-    return this.state;
+  /**
+   * Подписка на смену состояния. Раньше экраны снимали его один раз при
+   * монтировании и не узнавали ни об обрыве, ни о выключении с другого экрана.
+   */
+  public subscribeState(cb: StateCallback): () => void {
+    this.stateListeners.add(cb);
+    return () => {
+      this.stateListeners.delete(cb);
+    };
   }
 
+  public getStatus(): AudioEngineStatus {
+    return this.status;
+  }
+
+  public getState(): AudioEngineState {
+    return this.status.state;
+  }
+
+  /** Микрофон захвачен и анализ идёт. */
   public isRunning(): boolean {
-    return this.state === 'running' && this.audioContext !== null && this.mediaStream !== null;
+    return this.status.state === 'running' && this.audioContext !== null && this.mediaStream !== null;
+  }
+
+  /** Микрофон захвачен — анализ идёт или стоит на паузе. */
+  public isCapturing(): boolean {
+    const { state } = this.status;
+    return (state === 'running' || state === 'paused') && this.audioContext !== null && this.mediaStream !== null;
   }
 
   public getSampleRate(): number {
     return this.audioContext?.sampleRate || 48000;
   }
 
-  private setState(newState: AudioEngineState) {
-    this.state = newState;
-    this.onStateChange?.(newState);
+  private setStatus(state: AudioEngineState, error: Error | null = null): void {
+    if (this.status.state === state && this.status.error === error) return;
+    this.status = { state, error };
+    this.onStateChange?.(state);
+    for (const listener of this.stateListeners) {
+      try {
+        listener(this.status);
+      } catch (e) {
+        console.error('Error in audio state listener:', e);
+      }
+    }
   }
 
   private handleVisibilityChange() {
-    if (!document.hidden && this.state === 'running' && this.audioContext) {
-      if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
-      }
-      if (this.animationFrameId === null) {
-        this.startLoop();
-      }
-    }
+    this.updateActivity();
   }
 
   /**
-   * Запуск захвата микрофона со строгим отключением AGC/NS/AEC
+   * Запуск захвата микрофона со строгим отключением AGC/NS/AEC.
+   *
+   * Повторный вызов во время запроса возвращает тот же промис, а не открывает
+   * второй поток. На уже захваченном микрофоне (в том числе на паузе) — только
+   * возобновляет анализ: кнопка «Продолжить» вызывается жестом пользователя,
+   * без которого iOS не даёт снять контекст с паузы.
    */
-  public async start(): Promise<void> {
-    if (this.isRunning()) {
-      if (this.audioContext && this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
-      if (this.animationFrameId === null) {
-        this.startLoop();
-      }
-      return;
-    }
+  public start(): Promise<void> {
+    if (this.startPromise) return this.startPromise;
+    if (this.isCapturing()) return this.resumeCapture();
 
-    this.setState('requesting');
+    const attempt = this.startCapture();
+    this.startPromise = attempt;
+    const clear = () => {
+      if (this.startPromise === attempt) this.startPromise = null;
+    };
+    attempt.then(clear, clear);
+    return attempt;
+  }
+
+  private async resumeCapture(): Promise<void> {
+    const ctx = this.audioContext;
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed' && !isPageHidden()) {
+      try {
+        await ctx.resume();
+      } catch {
+        // Остаёмся на паузе — updateActivity ниже покажет это честно.
+      }
+    }
+    this.updateActivity();
+  }
+
+  private async startCapture(): Promise<void> {
+    const session = ++this.session;
+    this.setStatus('requesting');
+
+    // До присвоения полям ресурсы живут в локальных переменных: при ошибке или
+    // устаревшем запуске их освобождает сама попытка, а не stop().
+    let ctx: AudioContext | null = null;
+    let stream: MediaStream | null = null;
 
     try {
+      const mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+      if (!mediaDevices?.getUserMedia) {
+        // Так бывает на странице без HTTPS и во встроенных браузерах приложений.
+        const unsupported = new Error('Браузер не даёт доступ к микрофону на этой странице');
+        unsupported.name = 'NotSupportedError';
+        throw unsupported;
+      }
+
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!this.audioContext || this.audioContext.state === 'closed') {
-        this.audioContext = new AudioCtx({ latencyHint: 'interactive' });
-      }
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
-
-      const sampleRate = this.audioContext.sampleRate;
-      this.decimation = decimationFactor(sampleRate);
-      this.detector = new PitchDetector(sampleRate / this.decimation, ANALYSIS_LENGTH);
-
-      const constraints: MediaStreamConstraints = {
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        },
-        video: false
-      };
-
-      try {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      ctx = new AudioCtx({ latencyHint: 'interactive' });
+      // Возобновляем до запроса разрешения: пока висит диалог, жест
+      // пользователя «остывает», и Safari потом не даёт запустить звук.
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
 
-      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-      this.analyserNode = this.audioContext.createAnalyser();
+      if (session === this.session) {
+        stream = await requestMicrophone(mediaDevices);
+      }
+
+      if (session !== this.session) {
+        // Пока ждали разрешения, микрофон выключили — поток уже не нужен.
+        releaseStream(stream);
+        closeContext(ctx);
+        return;
+      }
+      if (!stream) return;
+
+      const sampleRate = ctx.sampleRate;
+      const decimation = decimationFactor(sampleRate);
+      const sourceNode = ctx.createMediaStreamSource(stream);
+      const analyserNode = ctx.createAnalyser();
       // Окно анализатора — вдвое длиннее кадра детектора (как и раньше на 48 кГц):
       // спектр для проверки аккорда и спектрограммы сохраняет разрешение, а
       // детектор берёт из временных данных последние, самые свежие отсчёты.
       // Предел Web Audio — 32768, его хватает и для 192 кГц.
-      this.analyserNode.fftSize = Math.min(32768, ANALYSIS_LENGTH * 2 * this.decimation);
-      this.timeDataArray = new Float32Array(this.analyserNode.fftSize);
-      this.freqDataArray = new Float32Array(this.analyserNode.frequencyBinCount);
-      this.analyserNode.smoothingTimeConstant = 0.05;
+      analyserNode.fftSize = Math.min(32768, ANALYSIS_LENGTH * 2 * decimation);
+      analyserNode.smoothingTimeConstant = 0.05;
+      sourceNode.connect(analyserNode);
 
-      this.sourceNode.connect(this.analyserNode);
+      this.audioContext = ctx;
+      this.mediaStream = stream;
+      this.sourceNode = sourceNode;
+      this.analyserNode = analyserNode;
+      this.decimation = decimation;
+      this.detector = new PitchDetector(sampleRate / decimation, ANALYSIS_LENGTH);
+      this.timeDataArray = new Float32Array(analyserNode.fftSize);
+      this.freqDataArray = new Float32Array(analyserNode.frequencyBinCount);
 
-      this.setState('running');
-      this.startLoop();
+      this.watchSession(session, ctx, stream);
+      this.setStatus('running');
+      this.updateActivity();
     } catch (err) {
-      this.setState('error');
+      // Раньше уже созданный контекст и полученный поток при ошибке не
+      // освобождались: контекст висел до закрытия вкладки, микрофон оставался занят.
+      if (this.audioContext === ctx) this.releaseCapture();
+      releaseStream(stream);
+      closeContext(ctx);
+
+      if (session !== this.session) return;
       const error = err instanceof Error ? err : new Error(String(err));
+      this.setStatus('error', error);
       this.onError?.(error);
       throw error;
     }
   }
 
-  private startLoop() {
+  /**
+   * Следим за обрывом потока. Без этого отозванное разрешение, вытащенная
+   * гарнитура или занятый звонком микрофон оставляли движок в `running`:
+   * интерфейс показывал «Микрофон активен», а оценки не приходили.
+   */
+  private watchSession(session: number, ctx: AudioContext, stream: MediaStream): void {
+    const events = new AbortController();
+    this.sessionEvents = events;
+    const { signal } = events;
+
+    for (const track of stream.getAudioTracks()) {
+      track.addEventListener(
+        'ended',
+        () => this.interrupt(session, 'ended', 'Поток микрофона оборвался: устройство отключено или доступ отозван'),
+        { signal }
+      );
+      // mute — источник временно не даёт звука (на iOS так бывает во время
+      // звонка): это пауза, а не обрыв, после unmute работа продолжается.
+      track.addEventListener('mute', () => this.updateActivity(), { signal });
+      track.addEventListener('unmute', () => this.updateActivity(), { signal });
+    }
+
+    ctx.addEventListener(
+      'statechange',
+      () => {
+        if (ctx.state === 'closed') {
+          this.interrupt(session, 'closed', 'Система закрыла звуковой поток');
+        } else {
+          this.updateActivity();
+        }
+      },
+      { signal }
+    );
+  }
+
+  private interrupt(session: number, reason: MicInterruptionReason, message: string): void {
+    if (session !== this.session || !this.isCapturing()) return;
+    this.releaseCapture();
+    const error = new MicInterruptedError(reason, message);
+    this.setStatus('error', error);
+    this.onError?.(error);
+  }
+
+  /**
+   * Сводит состояние захвата с обстановкой: видимость страницы, состояние
+   * контекста, заглушённость дорожки.
+   *
+   * На скрытой странице анализ не нужен: цикл останавливается, контекст
+   * приостанавливается (меньше работы для батареи), а через
+   * BACKGROUND_RELEASE_MS микрофон отпускается совсем. Вернулись раньше —
+   * всё продолжается без повторного нажатия.
+   */
+  private updateActivity(): void {
+    const ctx = this.audioContext;
+    const stream = this.mediaStream;
+    if (!ctx || !stream || !this.isCapturing()) return;
+
+    const hidden = isPageHidden();
+    if (hidden) {
+      this.scheduleBackgroundRelease();
+      if (ctx.state === 'running') ctx.suspend().catch(() => {});
+    } else {
+      this.cancelBackgroundRelease();
+      // Кроме 'suspended' Safari знает 'interrupted' — его тоже пробуем снять.
+      if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+    }
+
+    const tracks = stream.getAudioTracks();
+    const muted = tracks.length > 0 && tracks.every(track => track.muted);
+    const active = !hidden && ctx.state === 'running' && !muted;
+
+    if (active) {
+      this.setStatus('running');
+      if (this.animationFrameId === null) this.startLoop();
+    } else {
+      this.stopLoop();
+      this.setStatus('paused');
+    }
+  }
+
+  private scheduleBackgroundRelease(): void {
+    if (this.backgroundTimer !== null) return;
+    const session = this.session;
+    this.backgroundTimer = setTimeout(() => {
+      this.backgroundTimer = null;
+      // Замороженная вкладка может выполнить таймер уже после возврата:
+      // на видимой странице микрофон не отбираем.
+      if (!isPageHidden()) return;
+      this.interrupt(session, 'background', 'Микрофон выключен: приложение долго было в фоне');
+    }, BACKGROUND_RELEASE_MS);
+  }
+
+  private cancelBackgroundRelease(): void {
+    if (this.backgroundTimer !== null) {
+      clearTimeout(this.backgroundTimer);
+      this.backgroundTimer = null;
+    }
+  }
+
+  private stopLoop(): void {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+  }
+
+  private startLoop() {
+    this.stopLoop();
 
     // После паузы или возврата на вкладку первый кадр анализируем сразу.
     this.lastAnalysisAt = 0;
 
     const tick = () => {
-      if (this.state !== 'running' || !this.analyserNode) {
+      if (this.status.state !== 'running' || !this.analyserNode) {
         this.animationFrameId = null;
         return;
       }
 
-      // Если аудио-контекст случайно перешёл в suspended — возобновляем
-      if (this.audioContext && this.audioContext.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
+      // Контекст остановился, а statechange не пришёл (так бывает в старых
+      // Safari) — сверяемся сами: пауза и попытка возобновить.
+      if (this.audioContext && this.audioContext.state !== 'running') {
+        this.animationFrameId = null;
+        this.updateActivity();
+        return;
       }
 
       const now = performance.now();
@@ -263,10 +529,14 @@ export class AudioEngine {
   }
 
   /**
-   * Получение текущего спектра частот
+   * Получение текущего спектра частот.
+   *
+   * Пока звучит собственный эталон, возвращает null, как и цикл анализа:
+   * иначе режим B проверки аккорда разбирал бы спектр синтезатора вместо гитары.
    */
   public getFrequencyData(): { data: Float32Array; sampleRate: number } | null {
-    if (!this.analyserNode || this.state !== 'running') return null;
+    if (!this.analyserNode || this.status.state !== 'running') return null;
+    if (this.isSuppressed()) return null;
     // @ts-expect-error Float32Array buffer compatibility
     this.analyserNode.getFloatFrequencyData(this.freqDataArray);
     return {
@@ -276,32 +546,40 @@ export class AudioEngine {
   }
 
   public stop(): void {
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+    // Запуск «в полёте» становится устаревшим и сам отпустит свой поток.
+    this.session++;
+    this.startPromise = null;
+    this.releaseCapture();
+    this.setStatus('uninitialized');
+  }
 
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(track => track.stop());
-      this.mediaStream = null;
-    }
+  /** Освобождает всё, что держит захват. Подписки снимаются первыми: свой stop() — не обрыв. */
+  private releaseCapture(): void {
+    this.sessionEvents?.abort();
+    this.sessionEvents = null;
+    this.cancelBackgroundRelease();
+    this.stopLoop();
 
     if (this.sourceNode) {
       this.sourceNode.disconnect();
       this.sourceNode = null;
     }
-
-    if (this.audioContext) {
-      this.audioContext.close().catch(() => {});
-      this.audioContext = null;
+    if (this.analyserNode) {
+      this.analyserNode.disconnect();
+      this.analyserNode = null;
     }
 
-    this.setState('uninitialized');
+    releaseStream(this.mediaStream);
+    this.mediaStream = null;
+
+    closeContext(this.audioContext);
+    this.audioContext = null;
   }
 
   public destroy(): void {
     this.stop();
     this.listeners.clear();
+    this.stateListeners.clear();
     if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     }
