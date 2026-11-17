@@ -36,7 +36,7 @@ test.describe('PWA', () => {
       const reg = await navigator.serviceWorker.ready;
       return reg.scope;
     });
-    expect(scope).toContain('localhost:4173');
+    expect(scope).toBe(new URL('/', page.url()).href);
   });
 
   /** Воркер установлен, файлы сборки в кэше, страница под его управлением. */

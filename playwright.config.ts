@@ -5,6 +5,13 @@ const REAL_MIC_WAV = path.resolve(import.meta.dirname, 'tests/e2e/audio/e2-open-
 
 const CHROMIUM_ARGS = ['--autoplay-policy=no-user-gesture-required'];
 
+/**
+ * Порт сервера предпросмотра. Переопределяется через E2E_PORT, чтобы два прогона
+ * из разных рабочих копий не делили один сервер: при reuseExistingServer второй
+ * прогон молча тестировал бы чужую сборку.
+ */
+const PORT = Number(process.env.E2E_PORT ?? 4173);
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -14,7 +21,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 7_000 },
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -58,8 +65,9 @@ export default defineConfig({
     // Через npm-скрипт, а не `cmd /c ...`: на Linux-раннере CI команды `cmd` нет,
     // и E2E падали с `cmd: not found` ещё до запуска браузера. Внутри npm-скрипта
     // `&&` одинаково работает и в sh, и в cmd.
-    command: 'npm run preview:e2e',
-    url: 'http://localhost:4173',
+    // Аргументы после `--` npm дописывает в конец скрипта, то есть к vite preview.
+    command: `npm run preview:e2e -- --port ${PORT}`,
+    url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
