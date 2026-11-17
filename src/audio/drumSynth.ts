@@ -74,9 +74,25 @@ export const DRUM_PATTERNS: DrumPattern[] = [
 ];
 
 /**
- * Синтез бочки (Kick)
+ * Звуки одного шага паттерна. `output` — общий узел громкости драм-машины:
+ * через него при остановке гасятся удары, уже запланированные наперёд.
  */
-export function playSynthesizedKick(ctx: AudioContext, time: number, gainValue = 1.0) {
+export function playPatternStep(ctx: AudioContext, pattern: DrumPattern, step: number, time: number, output: AudioNode = ctx.destination) {
+  const index = step % pattern.stepsCount;
+  const kick = pattern.tracks.kick[index];
+  const snare = pattern.tracks.snare[index];
+  const hihat = pattern.tracks.hihat[index];
+
+  if (kick && kick > 0) playSynthesizedKick(ctx, time, kick, output);
+  // В босса-нове малый барабан играет римшотом (cross-stick).
+  if (snare && snare > 0) playSynthesizedSnare(ctx, time, pattern.id === 'bossa', snare, output);
+  if (hihat && hihat > 0) playSynthesizedHiHat(ctx, time, hihat === 2, 0.7, output);
+}
+
+/**
+ * Синтез бочки (Kick). `output` — куда подключать звук (по умолчанию — прямо в выход).
+ */
+export function playSynthesizedKick(ctx: AudioContext, time: number, gainValue = 1.0, output: AudioNode = ctx.destination) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
@@ -88,7 +104,7 @@ export function playSynthesizedKick(ctx: AudioContext, time: number, gainValue =
   gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(output);
 
   osc.start(time);
   osc.stop(time + 0.36);
@@ -97,7 +113,7 @@ export function playSynthesizedKick(ctx: AudioContext, time: number, gainValue =
 /**
  * Синтез малого барабана (Snare)
  */
-export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossStick = false, gainValue = 1.0) {
+export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossStick = false, gainValue = 1.0, output: AudioNode = ctx.destination) {
   if (isCrossStick) {
     // Cross-stick / Rimshot
     const osc = ctx.createOscillator();
@@ -107,7 +123,7 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
     gain.gain.setValueAtTime(0.7 * gainValue, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(output);
     osc.start(time);
     osc.stop(time + 0.07);
     return;
@@ -122,7 +138,7 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
   oscGain.gain.setValueAtTime(0.5 * gainValue, time);
   oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
   osc.connect(oscGain);
-  oscGain.connect(ctx.destination);
+  oscGain.connect(output);
   osc.start(time);
   osc.stop(time + 0.16);
 
@@ -147,7 +163,7 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
 
   noise.connect(filter);
   filter.connect(noiseGain);
-  noiseGain.connect(ctx.destination);
+  noiseGain.connect(output);
 
   noise.start(time);
   noise.stop(time + 0.19);
@@ -156,7 +172,7 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
 /**
  * Синтез хай-хэта (Closed / Open Hi-Hat)
  */
-export function playSynthesizedHiHat(ctx: AudioContext, time: number, isOpen = false, gainValue = 1.0) {
+export function playSynthesizedHiHat(ctx: AudioContext, time: number, isOpen = false, gainValue = 1.0, output: AudioNode = ctx.destination) {
   const duration = isOpen ? 0.32 : 0.05;
   const bufferSize = Math.floor(ctx.sampleRate * duration);
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -179,7 +195,7 @@ export function playSynthesizedHiHat(ctx: AudioContext, time: number, isOpen = f
 
   noise.connect(filter);
   filter.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(output);
 
   noise.start(time);
   noise.stop(time + duration + 0.01);
