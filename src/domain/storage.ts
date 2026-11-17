@@ -59,6 +59,8 @@ export const STORAGE_KEYS = {
   theme: 'gt_theme',
   customTunings: 'gt_custom_tunings',
   earBestStreak: 'gt_ear_best_streak',
+  metronomeBpm: 'gt_metronome_bpm',
+  metronomeMeter: 'gt_metronome_meter',
   version: 'gt_storage_version'
 } as const;
 
