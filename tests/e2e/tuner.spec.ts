@@ -233,6 +233,30 @@ test.describe('тюнер', () => {
     await expect(page.getByTestId('tuner-target')).toHaveText('—');
   });
 
+  test('пятиструнный бас: определяет струну B0 (#1)', async ({ page }) => {
+    await page.getByTestId('tuning-select').selectOption('bass-5');
+    await startMic(page);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('B0'));
+
+    await expect(page.getByTestId('tuner-target')).toContainText('30.9 Гц', { timeout: 8_000 });
+    await expect(page.getByTestId('tuner-note')).toHaveText('B');
+    await expect(page.getByTestId('tuner-action')).toContainText('В СТРОЕ');
+  });
+
+  test('четырёхструнный бас: видит E1, спущенную на 60 центов (#1)', async ({ page }) => {
+    await page.getByTestId('tuning-select').selectOption('bass-4');
+    await startMic(page);
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), centsOff('E1', -60));
+
+    await expect(async () => {
+      const action = await page.getByTestId('tuner-action').innerText();
+      expect(action).toContain('ПОДТЯНУТЬ');
+      const cents = Number(/\(([-+]?\d+)¢\)/.exec(action)?.[1]);
+      expect(Math.abs(cents + 60)).toBeLessThanOrEqual(2);
+    }).toPass({ timeout: 8_000 });
+    await expect(page.getByTestId('tuner-target')).toContainText('41.2 Гц');
+  });
+
   test('переключение на Drop D меняет шестую струну на D2', async ({ page }) => {
     await page.getByTestId('tuning-select').selectOption('drop-d');
     await expect(page.getByTestId('string-chip-6')).toContainText('D2');

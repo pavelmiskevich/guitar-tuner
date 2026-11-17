@@ -1,5 +1,5 @@
 import type { PitchEstimate } from './dsp';
-import { PitchDetector } from './dsp';
+import { ANALYSIS_LENGTH, PitchDetector, decimate, decimationFactor } from './dsp';
 
 export type AudioEngineState = 'uninitialized' | 'requesting' | 'running' | 'paused' | 'error';
 
@@ -10,9 +10,16 @@ export type EstimateCallback = (
   sampleRate?: number
 ) => void;
 
+/** Диапазон поиска основного тона, Гц. */
+export interface PitchRange {
+  minFreq: number;
+  maxFreq: number;
+}
+
+/** До выбора строя — прежние границы детектора. */
+const DEFAULT_PITCH_RANGE: PitchRange = { minFreq: 40, maxFreq: 1400 };
+
 export interface AudioEngineOptions {
-  sampleRate?: number;
-  bufferSize?: number;
   onEstimate?: EstimateCallback;
   onError?: (err: Error) => void;
   onStateChange?: (state: AudioEngineState) => void;
@@ -32,7 +39,11 @@ export class AudioEngine {
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private analyserNode: AnalyserNode | null = null;
   private detector: PitchDetector;
-  private bufferSize: number;
+  private pitchRange: PitchRange = DEFAULT_PITCH_RANGE;
+  /** Во сколько раз прореживается вход: при 96/192 кГц кадр остаётся ~85 мс. */
+  private decimation = 1;
+  /** Кадр для детектора после прореживания. */
+  private analysisFrame = new Float32Array(ANALYSIS_LENGTH);
   private state: AudioEngineState = 'uninitialized';
   private animationFrameId: number | null = null;
   private timeDataArray: Float32Array;
@@ -46,10 +57,9 @@ export class AudioEngine {
   private onStateChange?: (state: AudioEngineState) => void;
 
   constructor(options: AudioEngineOptions = {}) {
-    this.bufferSize = options.bufferSize || 4096;
-    this.timeDataArray = new Float32Array(this.bufferSize);
-    this.freqDataArray = new Float32Array(this.bufferSize);
-    this.detector = new PitchDetector(48000, this.bufferSize);
+    this.timeDataArray = new Float32Array(ANALYSIS_LENGTH * 2);
+    this.freqDataArray = new Float32Array(ANALYSIS_LENGTH);
+    this.detector = new PitchDetector(48000, ANALYSIS_LENGTH);
 
     if (options.onEstimate) {
       this.listeners.add(options.onEstimate);
@@ -73,6 +83,14 @@ export class AudioEngine {
    */
   public suppressFor(ms: number): void {
     this.suppressUntil = Math.max(this.suppressUntil, performance.now() + ms);
+  }
+
+  /**
+   * Где искать основной тон. Задаётся по текущему строю (см. pitchSearchRange):
+   * постоянная граница 40 Гц отрезала B0 пятиструнного баса и спущенную E1.
+   */
+  public setPitchRange(range: PitchRange): void {
+    this.pitchRange = range;
   }
 
   public isSuppressed(): boolean {
@@ -139,7 +157,9 @@ export class AudioEngine {
         await this.audioContext.resume();
       }
 
-      this.detector = new PitchDetector(this.audioContext.sampleRate, this.bufferSize);
+      const sampleRate = this.audioContext.sampleRate;
+      this.decimation = decimationFactor(sampleRate);
+      this.detector = new PitchDetector(sampleRate / this.decimation, ANALYSIS_LENGTH);
 
       const constraints: MediaStreamConstraints = {
         audio: {
@@ -158,7 +178,13 @@ export class AudioEngine {
 
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
       this.analyserNode = this.audioContext.createAnalyser();
-      this.analyserNode.fftSize = this.bufferSize * 2;
+      // Окно анализатора — вдвое длиннее кадра детектора (как и раньше на 48 кГц):
+      // спектр для проверки аккорда и спектрограммы сохраняет разрешение, а
+      // детектор берёт из временных данных последние, самые свежие отсчёты.
+      // Предел Web Audio — 32768, его хватает и для 192 кГц.
+      this.analyserNode.fftSize = Math.min(32768, ANALYSIS_LENGTH * 2 * this.decimation);
+      this.timeDataArray = new Float32Array(this.analyserNode.fftSize);
+      this.freqDataArray = new Float32Array(this.analyserNode.frequencyBinCount);
       this.analyserNode.smoothingTimeConstant = 0.05;
 
       this.sourceNode.connect(this.analyserNode);
@@ -211,12 +237,20 @@ export class AudioEngine {
         return;
       }
 
-      const estimate = this.detector.detectPitch(this.timeDataArray);
+      // Раньше детектору отдавался массив вдвое короче окна анализатора, и
+      // getFloatTimeDomainData заполнял его самыми старыми отсчётами — показания
+      // запаздывали на лишние ~85 мс. decimate берёт последние отсчёты окна.
+      decimate(this.timeDataArray, this.decimation, this.analysisFrame);
+      const estimate = this.detector.detectPitch(
+        this.analysisFrame,
+        this.pitchRange.minFreq,
+        this.pitchRange.maxFreq
+      );
       const sampleRate = this.audioContext?.sampleRate || 48000;
 
       for (const listener of this.listeners) {
         try {
-          listener(estimate, this.timeDataArray, this.freqDataArray, sampleRate);
+          listener(estimate, this.analysisFrame, this.freqDataArray, sampleRate);
         } catch (e) {
           console.error('Error in audio estimate listener:', e);
         }

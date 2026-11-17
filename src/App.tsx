@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Tuning } from './domain/tunings';
-import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings } from './domain/tunings';
+import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings, pitchSearchRange } from './domain/tunings';
+import { sharedAudioEngine } from './audio/audioEngine';
 import type { NotationSystem } from './domain/notes';
 import type { TabId } from './domain/deepLink';
 import { parseTabFromHash, resolveSharedTuning } from './domain/deepLink';
@@ -99,6 +100,12 @@ export const App: React.FC = () => {
     // потеряли сохранённый выбор получателя (восстановить его было бы неоткуда).
     if (!currentTuning.isEphemeral) writeSetting(STORAGE_KEYS.tuning, currentTuning.id);
   }, [currentTuning]);
+
+  // Детектор ищет основной тон в диапазоне текущего строя: для баса граница
+  // опускается ниже 40 Гц, иначе B0 и спущенная E1 не определяются (#1).
+  useEffect(() => {
+    sharedAudioEngine.setPitchRange(pitchSearchRange(currentTuning, a4));
+  }, [currentTuning, a4]);
 
   // Выбранная струна не должна пережить переход на строй, где её нет
   // (гитара → бас): тюнер держал бы приоритет на несуществующем индексе.

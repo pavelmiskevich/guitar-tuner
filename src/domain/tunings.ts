@@ -219,3 +219,26 @@ export function deleteCustomTuning(tuningId: string): boolean {
   const current = loadSavedCustomTunings().filter(t => t.id !== tuningId);
   return writeSetting(STORAGE_KEYS.customTunings, JSON.stringify(current));
 }
+
+/** Запас ниже самой низкой струны: её спускают и подтягивают снизу. */
+const SEARCH_MARGIN_SEMITONES = 3;
+/** Прежняя нижняя граница детектора — гитара ниже неё не опускается. */
+const DEFAULT_MIN_SEARCH_HZ = 40;
+const DEFAULT_MAX_SEARCH_HZ = 1400;
+
+/**
+ * Диапазон частот, в котором детектор ищет основной тон для данного строя.
+ *
+ * Нижняя граница — самая низкая струна минус три полутона, но не выше
+ * прежних 40 Гц: для гитары это сохраняет запас на сильно спущенную струну,
+ * а для баса опускает границу до 26 Гц (B0) и 35 Гц (E1). Постоянные 40 Гц
+ * отрезали B0 целиком и спущенную E1.
+ */
+export function pitchSearchRange(tuning: Tuning, a4: number): { minFreq: number; maxFreq: number } {
+  const lowestMidi = Math.min(...tuning.strings.map(s => s.open.midi));
+  const lowest = midiToFrequency(lowestMidi - SEARCH_MARGIN_SEMITONES, a4);
+  return {
+    minFreq: Math.min(DEFAULT_MIN_SEARCH_HZ, lowest),
+    maxFreq: DEFAULT_MAX_SEARCH_HZ
+  };
+}
