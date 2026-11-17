@@ -1,6 +1,5 @@
 /**
  * Синтезатор физического моделирования струны (Karplus-Strong Algorithm)
- * и генератор эталонного синусоидального тона для настройки на слух
  */
 
 import { sharedAudioEngine } from './audioEngine';
@@ -101,31 +100,5 @@ export function playGuitarString(freq: number, durationSec = 2.5, gainLevel = 0.
     sharedAudioEngine.suppressFor(durationSec * 1000 + SELF_PLAY_TAIL_MS);
   } catch (e) {
     console.warn('Synth audio play error:', e);
-  }
-}
-
-/**
- * Простой чистый синусоидальный тон с мягкой огибающей
- */
-export function playSineTone(freq: number, durationSec = 1.5, volume = 0.3): void {
-  try {
-    const ctx = getAudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSec);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + durationSec);
-  } catch (e) {
-    console.warn('Sine tone error:', e);
   }
 }
