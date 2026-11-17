@@ -11,6 +11,43 @@ export interface PitchEstimate {
   isClipping: boolean;
 }
 
+/**
+ * Длина кадра анализа в отсчётах после прореживания. При 44,1–48 кГц это
+ * ~85–93 мс: два с половиной периода B0 (30,87 Гц) — достаточно, чтобы
+ * найти период самой низкой басовой струны.
+ */
+export const ANALYSIS_LENGTH = 4096;
+
+/**
+ * Во сколько раз прореживать вход, чтобы частота анализа была 44,1–48 кГц.
+ *
+ * Кадр задан во времени, а не в отсчётах: на 96 и 192 кГц те же 4096 отсчётов
+ * покрывали бы 43 и 21 мс, и нижняя граница поднималась до 47 и 94 Гц (не
+ * определялась даже E2 гитары). Брать вдвое-вчетверо более длинный кадр без
+ * прореживания — квадратично дороже, а для диапазона до 1400 Гц лишняя
+ * частота дискретизации ничего не даёт.
+ */
+export function decimationFactor(sampleRate: number): number {
+  return Math.max(1, Math.floor(sampleRate / 44100));
+}
+
+/**
+ * Прореживание усреднением блоков по `factor` отсчётов. Усреднение — заодно
+ * простой фильтр нижних частот: на 96/192 кГц выше новой частоты Найквиста
+ * лежит только ультразвук, которого у струны и микрофона практически нет.
+ */
+export function decimate(input: Float32Array, factor: number, output: Float32Array): void {
+  const count = Math.min(output.length, Math.floor(input.length / factor));
+  // Берём последние отсчёты входа: они самые свежие.
+  const offset = input.length - count * factor;
+  for (let i = 0; i < count; i++) {
+    let sum = 0;
+    const start = offset + i * factor;
+    for (let k = 0; k < factor; k++) sum += input[start + k];
+    output[i] = sum / factor;
+  }
+}
+
 export class PitchDetector {
   private sampleRate: number;
   private cutoffRate: number;
@@ -76,35 +113,37 @@ export class PitchDetector {
   }
 
   /**
-   * Вычисление Normalized Square Difference Function (NSDF)
+   * Вычисление Normalized Square Difference Function (NSDF) для задержек 0..maxTau+1.
    *
-   * Знаменатель m(τ) = Σ x[i]² + Σ x[i+τ]² берётся из префикс-сумм квадратов:
-   * это O(1) на каждый τ вместо второго прохода по половине буфера, то есть
-   * внутренний цикл (~2.5 млн операций на кадр) сокращается почти вдвое.
-   * Префикс-суммы в Float64, иначе на 4096 отсчётах накапливается заметная
-   * ошибка округления и знаменатель уводит частоту.
+   * Окно суммирования — всё, что остаётся от кадра после самой большой
+   * задержки: W = len − maxTau − 1. Раньше окно и диапазон задержек были жёстко
+   * равны половине кадра, и период длиннее половины кадра не находился вовсе
+   * (B0, спущенная E1). Теперь узкий диапазон (гитара) даёт длинное окно и
+   * меньше работы, широкий (бас) — более короткое окно, но период в него влезает.
+   *
+   * Знаменатель m(τ) = Σ x[i]² + Σ x[i+τ]² берётся из префикс-сумм квадратов —
+   * O(1) на каждую задержку. Префикс-суммы в Float64, иначе на тысячах
+   * отсчётов накапливается ошибка округления и знаменатель уводит частоту.
    */
-  private computeNSDF(buffer: Float32Array, len: number): void {
-    const halfLen = Math.floor(len / 2);
+  private computeNSDF(buffer: Float32Array, len: number, maxTau: number): void {
+    const window = len - maxTau - 1;
     const prefix = this.squarePrefix;
 
     prefix[0] = 0;
     for (let i = 0; i < len; i++) {
       prefix[i + 1] = prefix[i] + buffer[i] * buffer[i];
     }
-    const headEnergy = prefix[halfLen];
+    const headEnergy = prefix[window];
 
-    for (let tau = 0; tau < halfLen; tau++) {
+    for (let tau = 0; tau <= maxTau + 1; tau++) {
       let acf = 0;
-      for (let i = 0; i < halfLen; i++) {
+      for (let i = 0; i < window; i++) {
         acf += buffer[i] * buffer[i + tau];
       }
 
-      const divisorM = headEnergy + (prefix[tau + halfLen] - prefix[tau]);
+      const divisorM = headEnergy + (prefix[tau + window] - prefix[tau]);
       this.nsdfBuffer[tau] = divisorM > 1e-9 ? (2 * acf) / divisorM : 0;
     }
-    // Хвост может остаться от буфера большей длины, а его читают как next/gamma.
-    this.nsdfBuffer[halfLen] = 0;
   }
 
   /**
@@ -121,10 +160,16 @@ export class PitchDetector {
     const len = buffer.length;
     this.ensureCapacity(len);
     this.preprocess(buffer, this.preprocessed, len);
-    this.computeNSDF(this.preprocessed, len);
 
     const minTau = Math.max(2, Math.floor(this.sampleRate / maxFreq));
-    const maxTau = Math.min(Math.floor(len / 2) - 1, Math.floor(this.sampleRate / minFreq));
+    // Период должен целиком помещаться в окно суммирования (W ≥ maxTau), иначе
+    // NSDF на больших задержках считается по обрывку и врёт. Поэтому задержка
+    // ограничена примерно половиной кадра — для 4096 отсчётов на 48 кГц это ~23 Гц.
+    const maxTau = Math.min(Math.floor((len - 2) / 2), Math.ceil(this.sampleRate / minFreq) + 1);
+    if (maxTau <= minTau) {
+      return { frequency: 0, clarity: 0, rms: rmsDb, isSilent: false, isClipping };
+    }
+    this.computeNSDF(this.preprocessed, len, maxTau);
 
     const peaks = this.peakTaus;
     this.peakCount = 0;
