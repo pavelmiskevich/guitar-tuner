@@ -1,3 +1,4 @@
+import { test as rawTest } from '@playwright/test';
 import { expect, test } from './fixtures/test-base';
 
 test.describe('PWA', () => {
@@ -38,11 +39,16 @@ test.describe('PWA', () => {
     expect(scope).toContain('localhost:4173');
   });
 
-  test('приложение открывается офлайн', async ({ page, context }) => {
-    await page.goto('/');
+  /** Воркер установлен, файлы сборки в кэше, страница под его управлением. */
+  async function waitForServiceWorker(page: import('@playwright/test').Page) {
     await page.evaluate(() => navigator.serviceWorker.ready);
-    // Прогрев кэша: даём SW обработать запросы основной сборки.
-    await page.reload();
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  }
+
+  test('открывается офлайн сразу после первого визита (#9)', async ({ page, context }) => {
+    // Без прогревочной перезагрузки: раньше офлайн работал, только если до
+    // отключения сети страницу открывали второй раз, и тест это маскировал.
+    await page.goto('/');
     await page.evaluate(() => navigator.serviceWorker.ready);
 
     await context.setOffline(true);
@@ -52,5 +58,48 @@ test.describe('PWA', () => {
     await expect(page.getByTestId('mic-toggle')).toBeVisible();
 
     await context.setOffline(false);
+  });
+
+  // Без стража консоли: браузер сам пишет в неё ERR_INTERNET_DISCONNECTED на
+  // этот запрос — здесь это ожидаемый результат, а не ошибка страницы.
+  rawTest('офлайн не подменяет недоступный ресурс на index.html (#9)', async ({ page, context }) => {
+    await page.goto('/');
+    await waitForServiceWorker(page);
+
+    await context.setOffline(true);
+    const result = await page.evaluate(async () => {
+      try {
+        const res = await fetch('./assets/no-such-file.js');
+        return `ответ ${res.status} ${res.headers.get('content-type')}`;
+      } catch {
+        return 'сетевая ошибка';
+      }
+    });
+    await context.setOffline(false);
+
+    expect(result).toBe('сетевая ошибка');
+  });
+
+  test('держит один кэш, названный по хэшу сборки, и удаляет старые (#9)', async ({ page }) => {
+    // Кэш от прежней версии воркера, у которой имя было константой.
+    await page.addInitScript(() => {
+      void caches.open('night-rehearsal-v2');
+    });
+    await page.goto('/');
+    await waitForServiceWorker(page);
+
+    const { keys, cached } = await page.evaluate(async () => {
+      const keys = await caches.keys();
+      const cache = await caches.open(keys[0]);
+      const cached = (await cache.keys()).map((r) => new URL(r.url).pathname);
+      return { keys, cached };
+    });
+
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^gt-precache-[0-9a-f]{12}$/);
+    expect(cached).toContain('/index.html');
+    expect(cached).toContain('/manifest.json');
+    expect(cached.some((p) => /^\/assets\/index-.+\.js$/.test(p))).toBe(true);
+    expect(cached.some((p) => p.startsWith('/fonts/'))).toBe(true);
   });
 });
