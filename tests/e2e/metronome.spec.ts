@@ -1,5 +1,6 @@
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures/test-base';
+import { waitForBeatActive } from './fixtures/beats';
 
 test.describe('метроном', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -195,7 +196,7 @@ test.describe('метроном: тайминг и жизненный цикл �
     // и на наблюдение.
     await page.getByTestId('mt-bpm-slider').fill('40');
     await page.getByTestId('mt-toggle').click();
-    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 1);
 
     await page.getByTestId('mt-plus-1').click();
     await expect(page.getByTestId('mt-bpm')).toHaveText('41');
@@ -212,7 +213,7 @@ test.describe('метроном: тайминг и жизненный цикл �
       return false;
     });
     expect(firstBeatLit).toBe(false);
-    await expect(page.getByTestId('mt-beat-2')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 2);
   });
 
   test('частая смена темпа на ходу не даёт сдвоенных щелчков', async ({ page }, testInfo) => {
@@ -221,7 +222,7 @@ test.describe('метроном: тайминг и жизненный цикл �
     await openRhythmTab(page, testInfo);
 
     await page.getByTestId('mt-toggle').click();
-    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 1);
     for (let i = 0; i < 6; i++) {
       await page.getByTestId('mt-plus-5').click();
       await page.waitForTimeout(120);
@@ -249,7 +250,7 @@ test.describe('метроном: тайминг и жизненный цикл �
       await page.getByTestId(`${prefix}-metronome`).click();
       await page.getByTestId('mt-toggle').click();
       await expect(page.getByTestId('mt-toggle')).toContainText('Стоп');
-      await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+      await waitForBeatActive(page, 1);
       await page.getByTestId(`${prefix}-fretboard`).click();
       await expect(page.getByTestId('mt-toggle')).toHaveCount(0);
     }
@@ -329,7 +330,7 @@ test.describe('метроном: работа в фоне', () => {
     await page.goto('/');
     await openRhythmTab(page, testInfo);
     await page.getByTestId('mt-toggle').click();
-    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 1);
 
     const workerLoaded = await page.evaluate(() =>
       performance.getEntriesByType('resource').some((e) => e.name.includes('schedulerTicker.worker'))
@@ -344,7 +345,7 @@ test.describe('метроном: работа в фоне', () => {
     // 240 BPM — четыре щелчка в секунду, запас наперёд хорошо виден.
     await page.getByTestId('mt-bpm-slider').fill('240');
     await page.getByTestId('mt-toggle').click();
-    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 1);
 
     const maxAhead = () =>
       page.evaluate(() => Math.max(...(window as unknown as { __oscAheads: number[] }).__oscAheads));
