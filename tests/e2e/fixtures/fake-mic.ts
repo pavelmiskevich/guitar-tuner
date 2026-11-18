@@ -7,6 +7,11 @@ export interface FakeMic {
   setLevel(dbfs: number): void;
   /** Имитация отказа в доступе: getUserMedia начинает отклоняться, как при запрете. */
   denyAccess(): void;
+  /**
+   * Обрыв со стороны источника: все выданные приложению дорожки завершаются
+   * с событием ended — как при отзыве разрешения или отключении гарнитуры.
+   */
+  endTracks(): void;
   silence(): void;
   stop(): void;
   readonly frequency: number;
@@ -38,6 +43,8 @@ export async function installFakeMic(page: Page): Promise<void> {
     const oscillators: OscillatorNode[] = [];
     let currentFreq = 82.41;
     let accessDenied = false;
+    /** Клоны, выданные приложению: их и обрываем в endTracks(). */
+    const issuedStreams: MediaStream[] = [];
 
     function ensureGraph(): MediaStream {
       if (stream && ctx) return stream;
@@ -95,6 +102,16 @@ export async function installFakeMic(page: Page): Promise<void> {
       denyAccess() {
         accessDenied = true;
       },
+      endTracks() {
+        // stop() сам событие ended не порождает (по спецификации его шлёт
+        // только источник), поэтому отправляем его вручную.
+        issuedStreams.splice(0).forEach((issued) => {
+          issued.getTracks().forEach((track) => {
+            track.stop();
+            track.dispatchEvent(new Event('ended'));
+          });
+        });
+      },
       setLevel(dbfs: number) {
         ensureGraph();
         if (!ctx || !master) return;
@@ -132,7 +149,9 @@ export async function installFakeMic(page: Page): Promise<void> {
           err.name = 'NotAllowedError';
           throw err;
         }
-        return ensureGraph().clone();
+        const issued = ensureGraph().clone();
+        issuedStreams.push(issued);
+        return issued;
       },
     });
   });
