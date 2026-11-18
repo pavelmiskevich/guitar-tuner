@@ -315,6 +315,33 @@ button {
   display: none;
 }
 
+/* Индикатор микрофона: точка на плашке экрана и в шапке. */
+.mic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--sig-in);
+  box-shadow: 0 0 8px var(--sig-in);
+  animation: mic-pulse 1.5s ease-in-out infinite;
+}
+
+/* На паузе оценки не приходят — точка не «дышит», чтобы не изображать работу. */
+.mic-dot[data-state="paused"] {
+  background: var(--sig-near);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-dot { animation: none; }
+}
+
 /* Мобильная адаптация (< 840px) */
 @media (max-width: 840px) {
   .header-inner {
@@ -354,7 +381,9 @@ button {
      в эмуляции. Фиксированное положение снимает зависимость от размеров
      устройства вовсе. Блок появляется только после ответа, когда варианты
      уже заблокированы и перекрывать нечего. */
-  .ear-screen .banner {
+  /* Баннер ошибки микрофона (.mic-alert) остаётся на месте: он появляется
+     до ответа и, прижатый к низу, закрыл бы варианты. */
+  .ear-screen .banner:not(.mic-alert) {
     position: fixed;
     left: 8px;
     right: 8px;
@@ -460,7 +489,7 @@ button {
 
   .ear-screen .panel { padding: var(--s3) var(--s4) !important; min-height: 0 !important; }
 
-  .ear-screen .banner { padding: var(--s3) !important; }
+  .ear-screen .banner:not(.mic-alert) { padding: var(--s3) !important; }
 
   /* Статистика: значения остаются читаемыми, уходит воздух вокруг них */
   .ear-screen .ear-stats { padding: 6px 12px !important; gap: 8px !important; }
@@ -475,7 +504,7 @@ button {
      На iPhone столбик стоил ~50px и вытеснял кнопку под сгиб: к видимой
      высоте Safari добавляется ещё безопасная зона снизу (34px на iPhone 12 Pro),
      которой нет в эмуляторе, поэтому запас нужен реальный. */
-  .ear-screen .banner {
+  .ear-screen .banner:not(.mic-alert) {
     flex-direction: row !important;
     align-items: center;
     gap: 8px !important;

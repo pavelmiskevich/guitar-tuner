@@ -13,7 +13,9 @@ import {
   analyzeChordStrumSpectrum
 } from '../../audio/chordAnalyzer';
 import { ChordDiagramSVG } from './ChordDiagramSVG';
-import { Mic, MicOff, ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
+import { useMicrophone } from '../../audio/useMicrophone';
+import { MicBar, MicErrorBanner } from '../../ui/MicBar';
+import { ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
 
 /** Сколько после сброса не принимать оценки высоты тона (D-4, см. ignoreEstimatesUntilRef). */
 const RESET_SETTLE_MS = 400;
@@ -35,7 +37,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 }) => {
   const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(COMMON_VOICINGS[0]); // Open strings
   const [analysisMode, setAnalysisMode] = useState<'arpeggio' | 'strum'>('arpeggio');
-  const [isListening, setIsListening] = useState(() => sharedAudioEngine.isRunning());
+  const mic = useMicrophone();
   const [isCapturingStrum, setIsCapturingStrum] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
   const [stringStatuses, setStringStatuses] = useState<StringTuningStatus[]>(() =>
@@ -62,8 +64,6 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   }, [selectedVoicing, tuning, a4]);
 
   useEffect(() => {
-    setIsListening(sharedAudioEngine.isRunning());
-
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
       if (analysisMode !== 'arpeggio') return;
       if (performance.now() < ignoreEstimatesUntilRef.current) return;
@@ -84,33 +84,26 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
     };
   }, [analysisMode, selectedVoicing, tuning, inTuneThreshold, a4]);
 
-  const toggleListening = async () => {
-    if (isListening) {
-      sharedAudioEngine.stop();
-      setIsListening(false);
-      setIsCapturingStrum(false);
-    } else {
-      try {
-        await sharedAudioEngine.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error(e);
-      }
+  // Микрофон выключили (здесь, из шапки) или поток оборвался посреди захвата
+  // удара: дожидаться конца полосы незачем — спектра всё равно не будет.
+  useEffect(() => {
+    if (mic.isOn) return;
+    if (captureTimerRef.current) {
+      clearInterval(captureTimerRef.current);
+      captureTimerRef.current = null;
     }
-  };
+    setIsCapturingStrum(false);
+  }, [mic.isOn]);
 
   /**
    * Запуск 1.2с спектрального захвата для полифонического анализа (Режим B)
    */
   const handleStartStrumCapture = async () => {
     if (!sharedAudioEngine.isRunning()) {
-      try {
-        await sharedAudioEngine.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error(e);
-        return;
-      }
+      // Раньше отказ в доступе уходил только в console.error, и кнопка просто
+      // «не нажималась». Теперь причину показывает MicErrorBanner.
+      await mic.start();
+      if (!sharedAudioEngine.isRunning()) return;
     }
 
     setIsCapturingStrum(true);
@@ -209,68 +202,18 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 
       {/* Верхний блок микрофона: крупная кнопка ДО включения, минимизированный статус ПОСЛЕ */}
       {analysisMode === 'arpeggio' ? (
-        !isListening ? (
-          <button
-            className="btn btn-primary"
-            data-testid="cc-mic-toggle"
-            onClick={toggleListening}
-            style={{
-              width: '100%',
-              padding: '14px 20px',
-              fontSize: '16px',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
-            }}
-          >
-            <Mic size={20} /> Включить микрофон (Перебор)
-          </button>
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 16px',
-              background: 'var(--ink-900)',
-              border: '1px solid var(--ink-700)',
-              borderRadius: 'var(--r-pill)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--sig-in)',
-                  boxShadow: '0 0 8px var(--sig-in)',
-                  animation: 'pulse 1.5s infinite'
-                }}
-              />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
-                Слушаю перебор струн...
-              </span>
-            </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              data-testid="cc-mic-toggle"
-              onClick={toggleListening}
-              style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--ink-300)', borderColor: 'var(--ink-700)' }}
-            >
-              <MicOff size={14} /> Выкл
-            </button>
-          </div>
-        )
+        <MicBar
+          mic={mic}
+          startLabel="Включить микрофон (Перебор)"
+          activeLabel="Слушаю перебор струн..."
+          testIds={{ start: 'cc-mic-toggle', stop: 'cc-mic-toggle' }}
+        />
       ) : (
         <button
           className="btn btn-primary"
           data-testid="cc-strum-start"
           onClick={handleStartStrumCapture}
-          disabled={isCapturingStrum}
+          disabled={isCapturingStrum || mic.isRequesting}
           style={{
             width: '100%',
             padding: '14px 20px',
@@ -286,6 +229,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
           <Play size={18} /> {isCapturingStrum ? `Слушаю струны (${captureProgress}%)...` : 'Ударьте по всем струнам'}
         </button>
       )}
+
+      <MicErrorBanner mic={mic} />
 
       {/* Быстрый выбор аккорда */}
       <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--s4)' }}>
