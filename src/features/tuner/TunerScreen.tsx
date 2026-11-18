@@ -6,15 +6,14 @@ import { midiToFrequency, calculateCents, formatNoteName } from '../../domain/no
 import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import { playGuitarString } from '../../audio/synth';
-import { getMicPermissionHelp, queryMicPermission } from '../../domain/micPermission';
+import { useMicrophone } from '../../audio/useMicrophone';
+import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { InTuneHold, MedianSmoother } from '../../domain/tuneStability';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
 import { DonateCard } from '../donate/DonateCard';
 import {
   Volume2,
-  Mic,
-  MicOff,
   CheckCircle2,
   RotateCcw,
   RotateCw,
@@ -59,7 +58,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   lockedStringIndex,
   onSelectString
 }) => {
-  const [isListening, setIsListening] = useState(() => sharedAudioEngine.isRunning());
+  const mic = useMicrophone();
+  // На паузе микрофон захвачен, но оценок нет: показания просто не обновляются.
+  const isListening = mic.isOn;
   const [measuredFreq, setMeasuredFreq] = useState(0);
   const [targetFreq, setTargetFreq] = useState(0);
   const [cents, setCents] = useState(0);
@@ -68,10 +69,6 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const [isStableTuned, setIsStableTuned] = useState(false);
   const [inputLevelDb, setInputLevelDb] = useState(-100);
   const [isClipping, setIsClipping] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [micBlocked, setMicBlocked] = useState(false);
-  const [settingsCopied, setSettingsCopied] = useState(false);
-  const micHelp = getMicPermissionHelp();
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [tunedStrings, setTunedStrings] = useState<Set<number>>(new Set());
   const [showSpectrum, setShowSpectrum] = useState(false);
@@ -153,9 +150,6 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   // Подписка на глобальный AudioEngine
   useEffect(() => {
-    // Синхронизируем начальное состояние микрофона
-    setIsListening(sharedAudioEngine.isRunning());
-
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate, _timeBuf, freqBuf, sampleRate) => {
       // Порог в 1 дБ: на глаз шкала не меняется, а ререндеров становится в разы меньше.
       if (Math.abs(estimate.rms - shownLevelDbRef.current) >= 1) {
@@ -288,37 +282,21 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   const [isPlayingSample, setIsPlayingSample] = useState(false);
   const sampleTimerRef = useRef<number | null>(null);
-  const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (sampleTimerRef.current) clearTimeout(sampleTimerRef.current);
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
   }, []);
 
-  const toggleListening = async () => {
-    if (isListening) {
-      sharedAudioEngine.stop();
-      setIsListening(false);
-      setIsSoundActive(false);
-      setIsStableTuned(false);
-      setMeasuredFreq(0);
-    } else {
-      setErrorMessage(null);
-      try {
-        await sharedAudioEngine.start();
-        setIsListening(true);
-      } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Ошибка доступа к микрофону');
-        setIsListening(false);
-        // Отличаем «запрещено навсегда» от «пользователь закрыл запрос»:
-        // в первом случае повторное нажатие ничего не даст без настроек браузера.
-        const state = await queryMicPermission();
-        setMicBlocked(state === 'denied');
-      }
-    }
-  };
+  // Микрофон выключили — здесь, с другого экрана или из шапки — или поток
+  // оборвался: последние показания больше не относятся к звуку, гасим их.
+  useEffect(() => {
+    if (isListening) return;
+    setIsSoundActive(false);
+    setIsStableTuned(false);
+    setMeasuredFreq(0);
+  }, [isListening]);
 
   const handlePlayReference = (str: StringSpec) => {
     const f = midiToFrequency(str.open.midi, a4);
@@ -405,142 +383,25 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       </div>
 
       {/* Верхний блок микрофона: крупная кнопка ДО включения, компактная плашка ПОСЛЕ включения */}
-      {!isListening ? (
-        <button
-          className="btn btn-primary"
-          onClick={toggleListening}
-          data-testid="mic-toggle"
-          style={{
-            width: '100%',
-            padding: '16px 24px',
-            fontSize: '17px',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
-          }}
-        >
-          <Mic size={22} /> Включить микрофон
-        </button>
-      ) : (
-        <div
-          data-testid="mic-status"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 16px',
-            background: 'var(--ink-900)',
-            border: '1px solid var(--ink-700)',
-            borderRadius: 'var(--r-pill)',
-            gap: '12px'
-          }}
-        >
-          {/* Индикатор работы микрофона */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
+      <MicBar mic={mic} testIds={{ start: 'mic-toggle', status: 'mic-status' }}>
+        {/* Компактный VU-индикатор входного уровня */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
+          <div style={{ flex: 1, height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+            <div
               style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                background: 'var(--sig-in)',
-                boxShadow: '0 0 8px var(--sig-in)',
-                animation: 'pulse 1.5s infinite'
+                width: `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`,
+                height: '100%',
+                background: isClipping ? 'var(--sig-off)' : inputLevelDb > -25 ? 'var(--sig-in)' : 'var(--brand)',
+                transition: 'width 60ms linear'
               }}
             />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
-              Микрофон активен
-            </span>
           </div>
-
-          {/* Компактный VU-индикатор входного уровня */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
-            <div style={{ flex: 1, height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
-              <div
-                style={{
-                  width: `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`,
-                  height: '100%',
-                  background: isClipping ? 'var(--sig-off)' : inputLevelDb > -25 ? 'var(--sig-in)' : 'var(--brand)',
-                  transition: 'width 60ms linear'
-                }}
-              />
-            </div>
-            {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700, fontSize: '10px' }}>MAX!</span>}
-          </div>
-
-          {/* Минимизированная кнопка выключения */}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={toggleListening}
-            style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--ink-300)', borderColor: 'var(--ink-700)' }}
-            title="Остановить микрофон"
-          >
-            <MicOff size={14} /> Выкл
-          </button>
+          {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700, fontSize: '10px' }}>MAX!</span>}
         </div>
-      )}
+      </MicBar>
 
-      {/* Ошибки микрофона */}
-      {errorMessage && (
-        <div className="banner err" data-testid="mic-error">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <b>Нет доступа к микрофону</b>
-            <span>
-              {micBlocked
-                ? 'Доступ запрещён для этого сайта — повторное нажатие кнопки не поможет, разрешение снимается только в браузере.'
-                : `${errorMessage}. Разрешите доступ, когда браузер спросит.`}
-            </span>
-
-            <span data-testid="mic-help-quick">
-              <b>Быстрее всего:</b> {micHelp.quickStep}
-            </span>
-
-            <span style={{ color: 'var(--ink-300)' }}>
-              Или через настройки: {micHelp.settingsPath}
-            </span>
-
-            {micHelp.settingsUrl && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <code
-                  data-testid="mic-settings-url"
-                  style={{
-                    background: 'var(--ink-900)',
-                    border: '1px solid var(--ink-700)',
-                    borderRadius: 'var(--r-sm)',
-                    padding: '4px 8px',
-                    fontFamily: 'var(--font-num)',
-                    fontSize: '12px'
-                  }}
-                >
-                  {micHelp.settingsUrl}
-                </code>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  data-testid="mic-copy-settings"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(micHelp.settingsUrl as string);
-                      setSettingsCopied(true);
-                      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
-                      copyTimerRef.current = window.setTimeout(() => setSettingsCopied(false), 2000);
-                    } catch {
-                      setSettingsCopied(false);
-                    }
-                  }}
-                >
-                  {settingsCopied ? 'Скопировано ✓' : 'Скопировать адрес'}
-                </button>
-                <span style={{ fontSize: '11px', color: 'var(--ink-300)' }}>
-                  Вставьте в адресную строку новой вкладки — по ссылке браузер такие
-                  адреса не открывает.
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Ошибки микрофона: отказ в доступе, занятое устройство, обрыв потока */}
+      <MicErrorBanner mic={mic} />
 
       {/* Интерактивные чипы струн (ровная сетка на всю ширину без полосы прокрутки) */}
       <div

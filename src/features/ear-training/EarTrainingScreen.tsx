@@ -7,6 +7,8 @@ import type { PitchEstimate } from '../../audio/dsp';
 import { getFretNote } from '../../domain/fretboard';
 import { getTriadVoicings } from '../../domain/chords';
 import { playGuitarString } from '../../audio/synth';
+import { useMicrophone } from '../../audio/useMicrophone';
+import { MicErrorBanner } from '../../ui/MicBar';
 import {
   Volume2,
   Trophy,
@@ -60,7 +62,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const [question, setQuestion] = useState<QuestionState | null>(null);
   const [isPlayingSound, setIsPlayingSound] = useState(false);
   const [answerMode, setAnswerMode] = useState<AnswerMode>('buttons');
-  const [micError, setMicError] = useState<string | null>(null);
+  const mic = useMicrophone();
+  // Ошибку микрофона показываем, только если её вызвал этот экран: тому, кто
+  // отвечает кнопками, чужой обрыв на тюнере не интересен.
+  const [guitarRequested, setGuitarRequested] = useState(false);
 
   const timeoutRef = useRef<number | null>(null);
   const activeTimeoutsRef = useRef<Set<number>>(new Set());
@@ -306,14 +311,15 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   useEffect(() => { handleSelectRef.current = handleSelectOption; });
 
   const enableGuitarAnswers = async () => {
-    setMicError(null);
-    try {
-      await sharedAudioEngine.start();
-      setAnswerMode('guitar');
-    } catch (e) {
-      setMicError(e instanceof Error ? e.message : 'Нет доступа к микрофону');
-    }
+    setGuitarRequested(true);
+    if (await mic.start()) setAnswerMode('guitar');
   };
+
+  // Микрофон выключили из шапки или поток оборвался: ответ игрой больше
+  // невозможен, и подсказка «Сыграйте ноту» вводила бы в заблуждение.
+  useEffect(() => {
+    if (!mic.isOn) setAnswerMode('buttons');
+  }, [mic.isOn]);
 
   const handleNext = () => {
     generateNewQuestion();
@@ -451,18 +457,15 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               Игрой на гитаре
             </button>
           </div>
-          {answerMode === 'guitar' && !micError && (
+          {answerMode === 'guitar' && mic.isOn && (
             <span data-testid="et-guitar-hint" style={{ color: 'var(--sig-in)' }}>
               {gameMode === 'string' ? 'Сыграйте открытую струну' : 'Сыграйте услышанную ноту'}
             </span>
           )}
-          {micError && (
-            <span data-testid="et-mic-error" style={{ color: 'var(--sig-off)' }}>
-              Нет доступа к микрофону
-            </span>
-          )}
         </div>
       )}
+
+      {gameMode !== 'chord_quality' && guitarRequested && <MicErrorBanner mic={mic} testId="et-mic-error" />}
 
       {/* Центральная карточка вопроса с большой кнопкой прослушивания */}
       <div
