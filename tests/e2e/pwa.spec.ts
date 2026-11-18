@@ -1,5 +1,6 @@
 import { test as rawTest } from '@playwright/test';
 import { expect, test } from './fixtures/test-base';
+import { waitForBeatActive } from './fixtures/beats';
 
 test.describe('PWA', () => {
   test('манифест доступен и содержит обязательные поля', async ({ page, request }) => {
@@ -72,7 +73,7 @@ test.describe('PWA', () => {
     const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-metronome`).click();
     await page.getByTestId('mt-toggle').click();
-    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+    await waitForBeatActive(page, 1);
 
     const worker = await page.evaluate(() =>
       performance
