@@ -22,6 +22,11 @@ export default defineConfig({
   expect: { timeout: 7_000 },
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Приложение при первом запуске берёт тему из системы (#10). По умолчанию
+    // Playwright эмулирует светлую систему; тёмная — основная тема приложения,
+    // и с ней проверка «выбранная дневная тема переживает перезагрузку»
+    // остаётся содержательной. Светлую систему тест темы задаёт сам.
+    colorScheme: 'dark',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
