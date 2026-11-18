@@ -52,23 +52,21 @@ test.describe('метроном', () => {
     }
     await expect(page.getByTestId('mt-bpm')).toHaveText('150');
 
+    // Пять нажатий с интервалом ровно 500 мс — это 120 BPM. Часы страницы
+    // подменены: реальные интервалы между click() под параллельной нагрузкой
+    // гуляют от 300 до 1200 мс (замер: на main тест падал так же), и проверка
+    // зависела бы от загрузки машины, а не от расчёта темпа.
+    // install() лишь подменяет часы, и они продолжают идти в реальном темпе;
+    // pauseAt останавливает их, дальше время двигает только runFor.
+    await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 60_000));
     const tap = page.getByTestId('mt-tap');
-    // Пять нажатий с интервалом 500 мс — это 120 BPM.
-    // click() сам по себе занимает заметное время (проверка actionability,
-    // диспатч события) — от него зависит фактический интервал между тапами
-    // с точки зрения приложения. Поэтому ждём не фиксированные 500 мс, а
-    // компенсируем длительность самого клика, чтобы реальный интервал между
-    // событиями tap был максимально близок к 500 мс — это часть измерения,
-    // а не ожидание утверждения.
     for (let i = 0; i < 5; i++) {
-      const clickStart = Date.now();
       await tap.click();
-      const clickLatency = Date.now() - clickStart;
-      if (i < 4) await page.waitForTimeout(Math.max(0, 500 - clickLatency));
+      if (i < 4) await page.clock.runFor(500);
     }
 
-    const bpm = Number(await page.getByTestId('mt-bpm').innerText());
-    expect(Math.abs(bpm - 120)).toBeLessThanOrEqual(12); // допуск 10%
+    await expect(page.getByTestId('mt-bpm')).toHaveText('120');
   });
 
   test('секвенсор драм-машины идёт в темпе', async ({ page }) => {
