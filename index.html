@@ -6,6 +6,23 @@
     <link rel="manifest" href="./manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0B0A1C" />
+    <script>
+      // Тема — до загрузки бандла, иначе дневная тема на мгновение показывается
+      // ночной. Логика та же, что в initialTheme() в src/App.tsx: сохранённый
+      // выбор, а при первом запуске — настройка системы.
+      try {
+        var theme = localStorage.getItem('gt_theme');
+        if (theme !== 'day' && theme !== 'night') {
+          theme = matchMedia('(prefers-color-scheme: light)').matches ? 'day' : 'night';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'day') {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#FFFFFF');
+        }
+      } catch (e) {
+        // Хранилище недоступно — останется ночная тема до старта приложения.
+      }
+    </script>
     <meta name="description" content="Высокоточный гитарный тюнер через микрофон с анализом аккордов и интерактивным грифом. Дизайн «Ночная репетиция»." />
     <title>Гитарный тюнер и интерактивный гриф · Ночная репетиция</title>
     <!-- Шрифты лежат рядом с приложением (см. src/ui/fonts.css): внешний CDN
