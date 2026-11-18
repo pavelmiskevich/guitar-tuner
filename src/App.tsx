@@ -14,6 +14,7 @@ import { EarTrainingScreen } from './features/ear-training/EarTrainingScreen';
 import { SettingsModal } from './features/settings/SettingsModal';
 import { GitHubMark } from './ui/GitHubMark';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+import { MicIndicator } from './ui/MicIndicator';
 import type { LucideIcon } from 'lucide-react';
 import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react';
 
@@ -180,8 +181,9 @@ export const App: React.FC = () => {
             ))}
           </nav>
 
-          {/* Правая колонка: Кнопка настроек */}
+          {/* Правая колонка: индикатор микрофона, GitHub, настройки */}
           <div className="header-right">
+            <MicIndicator />
             <a
               id="github-link"
               className="btn btn-ghost btn-sm"

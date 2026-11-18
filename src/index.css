@@ -342,6 +342,29 @@ button {
   .mic-dot { animation: none; }
 }
 
+.header-mic {
+  padding: 6px 10px;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--sig-in) 45%, var(--ink-700));
+}
+
+.header-mic .mic-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.header-mic-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* На телефоне хватает точки и значка: подпись вытеснила бы название приложения. */
+@media (max-width: 840px) {
+  .header-mic-label {
+    display: none;
+  }
+}
+
 /* Мобильная адаптация (< 840px) */
 @media (max-width: 840px) {
   .header-inner {
