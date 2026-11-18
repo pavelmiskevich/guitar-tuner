@@ -60,6 +60,30 @@ test.describe('PWA', () => {
     await context.setOffline(false);
   });
 
+  test('метроном играет офлайн: скрипт его воркера берётся из кэша (#7)', async ({ page, context }, testInfo) => {
+    // Тикер метронома — отдельный файл сборки (Web Worker). Его запрос идёт уже
+    // после загрузки страницы, по нажатию «Старт»; если бы он не попал в
+    // предкэш, офлайн метроном молча перешёл бы на таймер страницы.
+    await page.goto('/');
+    await waitForServiceWorker(page);
+
+    await context.setOffline(true);
+    await page.reload();
+    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    await page.getByTestId(`${prefix}-metronome`).click();
+    await page.getByTestId('mt-toggle').click();
+    await expect(page.getByTestId('mt-beat-1')).toHaveAttribute('data-active', 'true');
+
+    const worker = await page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .find((e) => e.name.includes('schedulerTicker.worker')) as PerformanceResourceTiming | undefined
+    );
+    expect(worker, 'скрипт воркера метронома не загружался').toBeTruthy();
+
+    await context.setOffline(false);
+  });
+
   // Без стража консоли: браузер сам пишет в неё ERR_INTERNET_DISCONNECTED на
   // этот запрос — здесь это ожидаемый результат, а не ошибка страницы.
   rawTest('офлайн не подменяет недоступный ресурс на index.html (#9)', async ({ page, context }) => {
