@@ -20,6 +20,19 @@ import { Activity, Layers, Music, Timer, Sparkles, Settings } from 'lucide-react
 
 const NOTATION_SYSTEMS = ['english', 'german', 'solfege'] as const;
 const THEMES = ['night', 'day'] as const;
+type Theme = (typeof THEMES)[number];
+
+/**
+ * Тема при первом запуске — по настройке системы, дальше — выбор пользователя.
+ * Раньше всегда стартовала «Ночь», даже на телефоне со светлой темой.
+ * Та же логика продублирована в index.html: там тема ставится до загрузки
+ * бандла, чтобы дневная тема не мигала ночной.
+ */
+function initialTheme(): Theme {
+  const prefersLight =
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  return readEnumSetting(STORAGE_KEYS.theme, THEMES, prefersLight ? 'day' : 'night');
+}
 
 /**
  * Единый источник правды для навигации: десктопная панель, мобильный таб-бар и
@@ -85,7 +98,7 @@ export const App: React.FC = () => {
     () => readNumberSetting(STORAGE_KEYS.threshold, { fallback: 5, min: 1, max: 25 })
   );
 
-  const [theme, setTheme] = useState<'night' | 'day'>(() => readEnumSetting(STORAGE_KEYS.theme, THEMES, 'night'));
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lockedStringIndex, setLockedStringIndex] = useState<number | null>(null);
@@ -94,6 +107,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     writeSetting(STORAGE_KEYS.theme, theme);
+    // Строка состояния на Android и в установленном PWA красится по theme-color:
+    // без этого в теме «День» над белой страницей висела тёмная полоса.
+    const background = getComputedStyle(document.documentElement).getPropertyValue('--ink-950').trim();
+    if (background) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background);
   }, [theme]);
 
   useEffect(() => {
