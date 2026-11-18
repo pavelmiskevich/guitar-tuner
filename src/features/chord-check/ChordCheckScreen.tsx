@@ -169,8 +169,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             className="btn btn-sm"
             data-testid="cc-mode-arpeggio"
             style={{
-              background: analysisMode === 'arpeggio' ? 'var(--brand)' : 'transparent',
-              color: analysisMode === 'arpeggio' ? '#fff' : 'var(--ink-300)',
+              background: analysisMode === 'arpeggio' ? 'var(--brand-strong)' : 'transparent',
+              color: analysisMode === 'arpeggio' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 12px'
             }}
@@ -185,8 +185,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             className="btn btn-sm"
             data-testid="cc-mode-strum"
             style={{
-              background: analysisMode === 'strum' ? 'var(--brand)' : 'transparent',
-              color: analysisMode === 'strum' ? '#fff' : 'var(--ink-300)',
+              background: analysisMode === 'strum' ? 'var(--brand-strong)' : 'transparent',
+              color: analysisMode === 'strum' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 12px'
             }}
@@ -223,7 +223,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
+            boxShadow: '0 4px 20px var(--shadow-brand)'
           }}
         >
           <Play size={18} /> {isCapturingStrum ? `Слушаю струны (${captureProgress}%)...` : 'Ударьте по всем струнам'}
@@ -309,7 +309,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             const isMuted = fret === 'x';
             const isSounding = lastMatchedIndex === idx;
 
-            let badgeColor = 'var(--ink-500)';
+            let badgeColor = 'var(--ink-300)';
             let badgeText = 'Ожидание';
 
             if (isMuted) {
@@ -325,7 +325,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
               badgeColor = 'var(--sig-off)';
               badgeText = `Высоко (+${status.cents.toFixed(1)}¢)`;
             } else if (status?.status === 'not-played') {
-              badgeColor = 'var(--ink-500)';
+              badgeColor = 'var(--ink-300)';
               badgeText = 'Не прозвучала';
             }
 

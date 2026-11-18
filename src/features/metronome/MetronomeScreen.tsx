@@ -286,8 +286,8 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             data-testid="mt-tab-metronome"
             className="btn btn-sm"
             style={{
-              background: activeTab === 'metronome' ? 'var(--brand)' : 'transparent',
-              color: activeTab === 'metronome' ? '#fff' : 'var(--ink-300)',
+              background: activeTab === 'metronome' ? 'var(--brand-strong)' : 'transparent',
+              color: activeTab === 'metronome' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 14px'
             }}
@@ -302,8 +302,8 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
             data-testid="mt-tab-drums"
             className="btn btn-sm"
             style={{
-              background: activeTab === 'drums' ? 'var(--brand)' : 'transparent',
-              color: activeTab === 'drums' ? '#fff' : 'var(--ink-300)',
+              background: activeTab === 'drums' ? 'var(--brand-strong)' : 'transparent',
+              color: activeTab === 'drums' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 14px',
               display: 'flex',
@@ -395,7 +395,8 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
                     background: isActive
                       ? (isFirst ? 'var(--sig-in)' : 'var(--brand)')
                       : 'var(--ink-800)',
-                    border: `2px solid ${isActive ? '#fff' : 'var(--ink-700)'}`,
+                    // Обводка активной доли — цветом основного текста: белая пропадала на белой странице.
+                    border: `2px solid ${isActive ? 'var(--ink-050)' : 'var(--ink-700)'}`,
                     boxShadow: isActive ? `0 0 16px ${isFirst ? 'var(--sig-in)' : 'var(--brand)'}` : 'none',
                     transition: 'all 60ms ease'
                   }}

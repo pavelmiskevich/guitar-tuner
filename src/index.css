@@ -104,12 +104,13 @@ button {
 
 .btn-primary {
   background: var(--brand-strong);
-  color: #ffffff;
+  color: var(--on-brand);
   border: 1px solid transparent;
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--brand-strong) 88%, white);
+  /* Темнее, а не светлее: осветление опускало контраст белого текста ниже 4.5. */
+  background: color-mix(in srgb, var(--brand-strong) 88%, black);
 }
 
 .btn-ghost {
@@ -457,7 +458,7 @@ button {
 
 .tuner-note-interactive:hover {
   transform: scale(1.05);
-  background: rgba(110, 86, 248, 0.1);
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
 }
 
 .tuner-note-interactive:active {
@@ -465,14 +466,14 @@ button {
 }
 
 @keyframes pulseNoteGlow {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(110, 86, 248, 0.6); }
-  50% { transform: scale(1.04); box-shadow: 0 0 25px 8px rgba(110, 86, 248, 0.35); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(110, 86, 248, 0); }
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 60%, transparent); }
+  50% { transform: scale(1.04); box-shadow: 0 0 25px 8px color-mix(in srgb, var(--brand) 35%, transparent); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }
 
 .tuner-note-playing {
   animation: pulseNoteGlow 1.2s ease-in-out;
-  background: rgba(110, 86, 248, 0.18) !important;
+  background: color-mix(in srgb, var(--brand) 18%, transparent) !important;
   border: 1px solid var(--brand) !important;
 }
 

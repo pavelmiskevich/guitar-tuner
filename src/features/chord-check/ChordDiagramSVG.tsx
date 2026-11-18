@@ -251,7 +251,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
                 <text
                   x={padX + gridWidth + 10}
                   y={y - fretSpacing / 2 + 4}
-                  fill="var(--ink-400)"
+                  fill="var(--ink-300)"
                   fontSize="11"
                   fontFamily="var(--font-num)"
                   fontWeight="700"
@@ -381,7 +381,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               x={x}
               y={padTop + gridHeight + 18}
               textAnchor="middle"
-              fill="var(--ink-400)"
+              fill="var(--ink-300)"
               fontSize="11"
               fontFamily="var(--font-num)"
               fontWeight="700"

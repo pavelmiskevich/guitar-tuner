@@ -11,6 +11,8 @@ export interface HighlightedNote {
   label?: string;
   isRoot?: boolean;
   color?: string;
+  /** Цвет подписи; задаётся вместе с заливкой color, иначе — основной текст темы. */
+  textColor?: string;
 }
 
 interface FretboardSVGProps {
@@ -97,7 +99,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
           width: '100%',
           minWidth: orientation === 'horizontal' ? '700px' : '320px',
           height: 'auto',
-          background: 'linear-gradient(180deg, #1C1938 0%, #120F28 100%)',
+          background: 'linear-gradient(180deg, var(--board-bg-top) 0%, var(--board-bg-bottom) 100%)',
           borderRadius: 'var(--r-md)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           border: '1px solid var(--ink-700)',
@@ -169,7 +171,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
               x={midX}
               y={height - 4}
               textAnchor="middle"
-              fill="var(--ink-400)"
+              fill="var(--board-label)"
               fontSize="11"
               fontFamily="var(--font-num)"
               fontWeight="700"
@@ -360,7 +362,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
                       cx={midX}
                       cy={y}
                       r={isLiveSounding ? 13 : 11}
-                      fill={isLiveSounding ? 'var(--sig-in)' : isRoot ? 'var(--brand)' : hl?.color || 'var(--ink-800)'}
+                      fill={isLiveSounding ? 'var(--sig-in)' : isRoot ? 'var(--brand-strong)' : hl?.color || 'var(--ink-800)'}
                       stroke={isLiveSounding ? '#FFFFFF' : isRoot ? '#FFFFFF' : 'var(--ink-300)'}
                       strokeWidth="1.5"
                     />
@@ -369,7 +371,9 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
                       x={midX}
                       y={y + 3.5}
                       textAnchor="middle"
-                      fill={isLiveSounding || isRoot ? '#FFFFFF' : 'var(--ink-050)'}
+                      // Белый текст на ночном --sig-in (бирюза) давал контраст ~1.4 — у звучащей
+                      // ноты свой цвет текста, тёмный ночью и белый днём.
+                      fill={isLiveSounding ? 'var(--on-sig-in)' : isRoot ? 'var(--on-brand)' : hl?.textColor || 'var(--ink-050)'}
                       fontSize="10"
                       fontFamily="var(--font-ui)"
                       fontWeight="700"
