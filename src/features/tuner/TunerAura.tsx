@@ -16,18 +16,18 @@ export const TunerAura: React.FC<TunerAuraProps> = ({
   const isNear = isActive && !isInTune && absCents <= 15;
   const isOff = isActive && absCents > 15;
 
-  let auraColor = 'rgba(78, 72, 148, 0.15)'; // idle indigo
+  let auraColor = 'color-mix(in srgb, var(--sig-idle) 15%, transparent)'; // idle indigo
   let intensity = 0.4;
 
   if (isActive) {
     if (isInTune) {
-      auraColor = 'rgba(59, 232, 176, 0.45)'; // emerald
+      auraColor = 'color-mix(in srgb, var(--sig-in) 45%, transparent)'; // emerald
       intensity = 0.8;
     } else if (isNear) {
-      auraColor = 'rgba(255, 200, 87, 0.35)'; // amber
+      auraColor = 'color-mix(in srgb, var(--sig-near) 35%, transparent)'; // amber
       intensity = 0.6;
     } else if (isOff) {
-      auraColor = 'rgba(255, 77, 141, 0.40)'; // magenta
+      auraColor = 'color-mix(in srgb, var(--sig-off) 40%, transparent)'; // magenta
       intensity = 0.7;
     }
   }
@@ -42,7 +42,7 @@ export const TunerAura: React.FC<TunerAuraProps> = ({
         height: '320px',
         transform: 'translate(-50%, -50%)',
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${auraColor} 0%, rgba(11, 10, 28, 0) 70%)`,
+        background: `radial-gradient(circle, ${auraColor} 0%, transparent 70%)`,
         filter: 'blur(30px)',
         pointerEvents: 'none',
         opacity: intensity,

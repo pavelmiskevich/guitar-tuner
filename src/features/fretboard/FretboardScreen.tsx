@@ -136,7 +136,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             fret: f,
             label: match.degree,
             isRoot: match.isRoot,
-            color: match.isRoot ? 'var(--brand)' : 'var(--ink-800)'
+            color: match.isRoot ? 'var(--brand-strong)' : 'var(--ink-800)'
           });
         }
       }
@@ -151,7 +151,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           fret,
           label: formatNoteName(pitch.name, notation),
           isRoot,
-          color: isRoot ? 'var(--brand)' : 'var(--ink-800)'
+          color: isRoot ? 'var(--brand-strong)' : 'var(--ink-800)'
         });
       }
     });
@@ -164,7 +164,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           stringIndex: strIdx,
           fret,
           label: formatNoteName(pitch.name, notation),
-          color: 'var(--brand)'
+          color: 'var(--brand-strong)',
+          textColor: 'var(--on-brand)'
         });
       }
     });
@@ -206,8 +207,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             className="btn btn-sm"
             data-testid="fb-mode-explore"
             style={{
-              background: viewMode === 'explore' ? 'var(--brand)' : 'transparent',
-              color: viewMode === 'explore' ? '#fff' : 'var(--ink-300)',
+              background: viewMode === 'explore' ? 'var(--brand-strong)' : 'transparent',
+              color: viewMode === 'explore' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)'
             }}
             onClick={() => setViewMode('explore')}
@@ -218,8 +219,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             className="btn btn-sm"
             data-testid="fb-mode-scales"
             style={{
-              background: viewMode === 'scales' ? 'var(--brand)' : 'transparent',
-              color: viewMode === 'scales' ? '#fff' : 'var(--ink-300)',
+              background: viewMode === 'scales' ? 'var(--brand-strong)' : 'transparent',
+              color: viewMode === 'scales' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)'
             }}
             onClick={() => setViewMode('scales')}
@@ -230,8 +231,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             className="btn btn-sm"
             data-testid="fb-mode-chords"
             style={{
-              background: viewMode === 'chords' ? 'var(--brand)' : 'transparent',
-              color: viewMode === 'chords' ? '#fff' : 'var(--ink-300)',
+              background: viewMode === 'chords' ? 'var(--brand-strong)' : 'transparent',
+              color: viewMode === 'chords' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)'
             }}
             onClick={() => setViewMode('chords')}

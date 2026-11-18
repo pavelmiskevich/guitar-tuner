@@ -98,7 +98,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(11, 10, 28, 0.75)',
+        background: 'var(--backdrop)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -335,7 +335,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           updated[i].note = e.target.value as NoteName;
                           setCustomNotes(updated);
                         }}
-                        style={{ background: 'var(--ink-900)', color: '#fff', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
+                        style={{ background: 'var(--ink-900)', color: 'var(--ink-050)', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
                       >
                         {NOTE_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
@@ -346,7 +346,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           updated[i].octave = Number(e.target.value);
                           setCustomNotes(updated);
                         }}
-                        style={{ background: 'var(--ink-900)', color: '#fff', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
+                        style={{ background: 'var(--ink-900)', color: 'var(--ink-050)', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
                       >
                         {[1, 2, 3, 4, 5].map(o => <option key={o} value={o}>{o}</option>)}
                       </select>

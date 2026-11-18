@@ -326,7 +326,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   // Определение команды действия тюнера (FR-TN-18)
   let actionCommandText = 'Сыграйте струну';
-  let actionCommandColor = 'var(--ink-400)';
+  let actionCommandColor = 'var(--ink-300)';
   let ActionIcon = Music;
 
   if (isListening && measuredFreq > 0 && isSoundActive) {
@@ -598,15 +598,15 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               position: 'absolute',
               right: '-14px',
               top: '8px',
-              background: isPlayingSample ? 'var(--brand)' : 'var(--ink-800)',
-              color: isPlayingSample ? '#FFFFFF' : 'var(--ink-300)',
+              background: isPlayingSample ? 'var(--brand-strong)' : 'var(--ink-800)',
+              color: isPlayingSample ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: '50%',
               width: '24px',
               height: '24px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              boxShadow: '0 2px 8px var(--shadow-soft)',
               transition: 'all 150ms ease'
             }}
           >
@@ -629,7 +629,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             gap: '5px',
             borderRadius: 'var(--r-pill)',
             border: isPlayingSample ? '1px solid var(--brand)' : '1px dashed var(--ink-700)',
-            background: isPlayingSample ? 'rgba(110, 86, 248, 0.15)' : 'transparent'
+            background: isPlayingSample ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'transparent'
           }}
           title="Воспроизвести эталонный гитарный звук"
         >

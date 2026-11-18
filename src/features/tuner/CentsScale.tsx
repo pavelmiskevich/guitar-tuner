@@ -66,11 +66,11 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
         }}
       >
         <span>−50¢</span>
-        <span style={{ color: 'var(--ink-500)' }}>−20</span>
-        <span style={{ color: 'var(--ink-500)' }}>−10</span>
+        <span style={{ color: 'var(--ink-300)' }}>−20</span>
+        <span style={{ color: 'var(--ink-300)' }}>−10</span>
         <span style={{ color: isInTune ? 'var(--sig-in)' : 'var(--ink-100)', fontWeight: 700 }}>0¢</span>
-        <span style={{ color: 'var(--ink-500)' }}>+10</span>
-        <span style={{ color: 'var(--ink-500)' }}>+20</span>
+        <span style={{ color: 'var(--ink-300)' }}>+10</span>
+        <span style={{ color: 'var(--ink-300)' }}>+20</span>
         <span>+50¢</span>
       </div>
 
@@ -94,9 +94,9 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
             left: `${centsToPercent(-inTuneThreshold)}%`,
             width: `${centsToPercent(inTuneThreshold) - centsToPercent(-inTuneThreshold)}%`,
             height: '100%',
-            background: 'rgba(59, 232, 176, 0.12)',
-            borderLeft: '1px solid rgba(59, 232, 176, 0.3)',
-            borderRight: '1px solid rgba(59, 232, 176, 0.3)'
+            background: 'color-mix(in srgb, var(--sig-in) 12%, transparent)',
+            borderLeft: '1px solid color-mix(in srgb, var(--sig-in) 30%, transparent)',
+            borderRight: '1px solid color-mix(in srgb, var(--sig-in) 30%, transparent)'
           }}
         />
 
@@ -161,7 +161,7 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
       >
         <span
           style={{
-            color: cents < -inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-500)',
+            color: cents < -inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-300)',
             display: 'flex',
             alignItems: 'center',
             gap: '4px'
@@ -187,7 +187,7 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
 
         <span
           style={{
-            color: cents > inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-500)',
+            color: cents > inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-300)',
             display: 'flex',
             alignItems: 'center',
             gap: '4px'

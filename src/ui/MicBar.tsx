@@ -54,7 +54,7 @@ export const MicBar: React.FC<MicBarProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           gap: '10px',
-          boxShadow: '0 4px 20px rgba(110, 86, 248, 0.4)'
+          boxShadow: '0 4px 20px var(--shadow-brand)'
         }}
       >
         <Mic size={22} /> {mic.isRequesting ? 'Ждём разрешения на микрофон…' : startLabel}

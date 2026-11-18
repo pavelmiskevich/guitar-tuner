@@ -27,7 +27,9 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
       className="panel"
       style={{
         width: '100%',
-        background: 'linear-gradient(135deg, rgba(110, 86, 248, 0.08) 0%, rgba(20, 17, 44, 0.95) 100%)',
+        // Раньше градиент уходил в тёмный индиго rgba(20, 17, 44): в теме «День»
+        // текст --ink-050 (там он тёмный) оказывался на тёмном фоне.
+        background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, var(--ink-800)) 0%, var(--ink-800) 100%)',
         border: '1px solid color-mix(in srgb, var(--brand) 30%, var(--ink-700))',
         borderRadius: 'var(--r-lg)',
         padding: '18px 20px',
@@ -36,7 +38,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
         gap: '14px',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 6px 24px rgba(0,0,0,0.25)'
+        boxShadow: '0 6px 24px var(--shadow-soft)'
       }}
     >
       {/* Декоративная подсветка */}
@@ -62,12 +64,12 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
             width: '40px',
             height: '40px',
             borderRadius: 'var(--r-md)',
-            background: 'linear-gradient(135deg, var(--brand) 0%, #9B82FC 100%)',
+            background: 'linear-gradient(135deg, var(--brand-strong) 0%, var(--brand) 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#FFFFFF',
-            boxShadow: '0 3px 10px rgba(110, 86, 248, 0.3)',
+            color: 'var(--on-brand)',
+            boxShadow: '0 3px 10px var(--shadow-brand)',
             flexShrink: 0
           }}
         >
@@ -114,7 +116,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
             border: '1px solid var(--ink-600)',
             padding: '8px',
             borderRadius: 'var(--r-md)',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            boxShadow: '0 4px 14px var(--shadow-soft)',
             transition: 'all 150ms ease',
             cursor: 'pointer',
             flexShrink: 0
@@ -122,12 +124,12 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'scale(1.04)';
             e.currentTarget.style.borderColor = 'var(--brand)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(110, 86, 248, 0.4)';
+            e.currentTarget.style.boxShadow = '0 6px 20px var(--shadow-brand)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'scale(1)';
             e.currentTarget.style.borderColor = 'var(--ink-600)';
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
+            e.currentTarget.style.boxShadow = '0 4px 14px var(--shadow-soft)';
           }}
         >
           {!imgError ? (
@@ -201,7 +203,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
               gap: '6px',
               textDecoration: 'none',
               marginTop: '4px',
-              boxShadow: '0 4px 14px rgba(110, 86, 248, 0.35)'
+              boxShadow: '0 4px 14px var(--shadow-brand)'
             }}
           >
             <Heart size={15} /> Отправить чаевые <ExternalLink size={13} />
@@ -211,7 +213,7 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
 
       {/* Нижняя строка: поделиться ссылкой */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--ink-400)' }}>
+        <span style={{ fontSize: '11px', color: 'var(--ink-300)' }}>
           Или поделитесь ссылкой на тюнер с друзьями:
         </span>
         <button

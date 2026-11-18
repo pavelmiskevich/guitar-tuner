@@ -341,8 +341,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <button
             className="btn btn-sm"
             style={{
-              background: gameMode === 'note' ? 'var(--brand)' : 'transparent',
-              color: gameMode === 'note' ? '#fff' : 'var(--ink-300)',
+              background: gameMode === 'note' ? 'var(--brand-strong)' : 'transparent',
+              color: gameMode === 'note' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 12px'
             }}
@@ -354,8 +354,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <button
             className="btn btn-sm"
             style={{
-              background: gameMode === 'string' ? 'var(--brand)' : 'transparent',
-              color: gameMode === 'string' ? '#fff' : 'var(--ink-300)',
+              background: gameMode === 'string' ? 'var(--brand-strong)' : 'transparent',
+              color: gameMode === 'string' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 12px'
             }}
@@ -367,8 +367,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           <button
             className="btn btn-sm"
             style={{
-              background: gameMode === 'chord_quality' ? 'var(--brand)' : 'transparent',
-              color: gameMode === 'chord_quality' ? '#fff' : 'var(--ink-300)',
+              background: gameMode === 'chord_quality' ? 'var(--brand-strong)' : 'transparent',
+              color: gameMode === 'chord_quality' ? 'var(--on-brand)' : 'var(--ink-300)',
               borderRadius: 'var(--r-pill)',
               padding: '6px 12px'
             }}
@@ -434,7 +434,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               aria-pressed={answerMode === 'buttons'}
               style={{
                 background: answerMode === 'buttons' ? 'var(--brand-strong)' : 'transparent',
-                color: answerMode === 'buttons' ? '#fff' : 'var(--ink-300)',
+                color: answerMode === 'buttons' ? 'var(--on-brand)' : 'var(--ink-300)',
                 borderRadius: 'var(--r-pill)',
                 padding: '6px 12px'
               }}
@@ -448,7 +448,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               aria-pressed={answerMode === 'guitar'}
               style={{
                 background: answerMode === 'guitar' ? 'var(--brand-strong)' : 'transparent',
-                color: answerMode === 'guitar' ? '#fff' : 'var(--ink-300)',
+                color: answerMode === 'guitar' ? 'var(--on-brand)' : 'var(--ink-300)',
                 borderRadius: 'var(--r-pill)',
                 padding: '6px 12px'
               }}
@@ -475,7 +475,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 'var(--s5) var(--s4)',
+          padding: 'var(--s6) var(--s4)',
           textAlign: 'center',
           gap: '10px',
           minHeight: '150px',
@@ -499,7 +499,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: isPlayingSound ? '0 0 25px var(--brand)' : '0 4px 16px rgba(110, 86, 248, 0.4)',
+            boxShadow: isPlayingSound ? '0 0 25px var(--brand)' : '0 4px 16px var(--shadow-brand)',
             transform: isPlayingSound ? 'scale(1.08)' : 'scale(1)',
             transition: 'all 150ms ease'
           }}
