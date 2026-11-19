@@ -70,7 +70,7 @@ test.describe('метроном', () => {
     await expect(page.getByTestId('mt-bpm')).toHaveText('120');
   });
 
-  test('секвенсор драм-машины идёт в темпе', async ({ page }) => {
+  test('секвенсор драм-машины идёт в темпе', { tag: '@audio-clock' }, async ({ page }) => {
     await page.getByTestId('mt-tab-drums').click();
     await page.getByTestId('mt-pattern-rock').click();
 
@@ -188,7 +188,7 @@ const readContextStats = (page: Page) =>
   page.evaluate(() => ({ ...(window as unknown as { __mtCtx: ContextStats }).__mtCtx }));
 
 test.describe('метроном: тайминг и жизненный цикл звука', () => {
-  test('смена темпа во время игры не сбрасывает такт на первую долю', async ({ page }, testInfo) => {
+  test('смена темпа во время игры не сбрасывает такт на первую долю', { tag: '@audio-clock' }, async ({ page }, testInfo) => {
     await page.goto('/');
     await openRhythmTab(page, testInfo);
 
@@ -216,7 +216,7 @@ test.describe('метроном: тайминг и жизненный цикл �
     await waitForBeatActive(page, 2);
   });
 
-  test('частая смена темпа на ходу не даёт сдвоенных щелчков', async ({ page }, testInfo) => {
+  test('частая смена темпа на ходу не даёт сдвоенных щелчков', { tag: '@audio-clock' }, async ({ page }, testInfo) => {
     await page.addInitScript(recordOscillatorStarts);
     await page.goto('/');
     await openRhythmTab(page, testInfo);
@@ -239,7 +239,7 @@ test.describe('метроном: тайминг и жизненный цикл �
     expect(Math.min(...gaps)).toBeGreaterThan(0.3);
   });
 
-  test('уход с вкладки и возврат не копит AudioContext и не ломает запуск', async ({ page }, testInfo) => {
+  test('уход с вкладки и возврат не копит AudioContext и не ломает запуск', { tag: '@audio-clock' }, async ({ page }, testInfo) => {
     // Предел 2, как у браузеров с жёстким ограничением: без закрытия контекстов
     // третий заход на вкладку уже не смог бы запустить звук.
     await page.addInitScript(trackMetronomeAudioContexts, 2);
@@ -326,7 +326,7 @@ const readWakeLockStats = (page: Page) =>
   page.evaluate(() => ({ ...(window as unknown as { __wakeLock: WakeLockStats }).__wakeLock }));
 
 test.describe('метроном: работа в фоне', () => {
-  test('планировщик тикает из Web Worker, а не таймером страницы', async ({ page }, testInfo) => {
+  test('планировщик тикает из Web Worker, а не таймером страницы', { tag: '@audio-clock' }, async ({ page }, testInfo) => {
     await page.goto('/');
     await openRhythmTab(page, testInfo);
     await page.getByTestId('mt-toggle').click();
@@ -338,7 +338,7 @@ test.describe('метроном: работа в фоне', () => {
     expect(workerLoaded).toBe(true);
   });
 
-  test('в скрытой вкладке доли планируются с запасом больше секунды', async ({ page }, testInfo) => {
+  test('в скрытой вкладке доли планируются с запасом больше секунды', { tag: '@audio-clock' }, async ({ page }, testInfo) => {
     await page.addInitScript(recordOscillatorStarts);
     await page.goto('/');
     await openRhythmTab(page, testInfo);
