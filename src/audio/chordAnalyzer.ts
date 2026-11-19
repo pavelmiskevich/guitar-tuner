@@ -9,7 +9,11 @@ export interface StringTuningStatus {
   targetFreq: number;
   measuredFreq: number;
   cents: number;
-  status: 'pending' | 'in-tune' | 'low' | 'high' | 'muted' | 'not-played' | 'undetermined';
+  /**
+   * unmeasured — вторая струна октавного хора 12-струнной: звучит вместе с
+   * парой, и монофонический детектор её отдельно не слышит (#27).
+   */
+  status: 'pending' | 'in-tune' | 'low' | 'high' | 'muted' | 'not-played' | 'undetermined' | 'unmeasured';
   confidence: 'high' | 'medium' | 'none';
   usedPartials?: number;
 }
@@ -25,6 +29,48 @@ export interface ChordAnalysisResult {
 export interface SpectralPeak {
   frequency: number;
   magnitude: number;
+}
+
+/**
+ * Октавные пары хоров 12-струнной (E2/E3, A2/A3, D3/D4, G3/G4) в аккорде:
+ * индекс струны → индекс её пары. Обе струны хора дёргаются одним движением,
+ * поэтому в «Переборе» детектор слышит только одну из них (#27). Унисонные
+ * хоры сюда не входят — их засчитывает одна услышанная нота.
+ */
+export function octavePartners(voicing: Voicing, tuning: Tuning): Map<number, number> {
+  const partners = new Map<number, number>();
+  if (tuning.instrument !== 'guitar12' || tuning.strings.length !== 12) return partners;
+  const expected = getVoicingExpectedPitches(voicing, tuning);
+  for (let a = 0; a < 12; a += 2) {
+    const low = expected[a];
+    const high = expected[a + 1];
+    if (low && high && Math.abs(low.midi - high.midi) === 12) {
+      partners.set(a, a + 1);
+      partners.set(a + 1, a);
+    }
+  }
+  return partners;
+}
+
+export interface ChordProgress {
+  /** Струны, которые можно измерить: звучат и не являются второй струной октавной пары. */
+  measurable: number;
+  tuned: number;
+  /** Вторые струны октавных пар, которые «Перебор» отдельно не слышит (#27). */
+  unmeasured: number;
+  complete: boolean;
+}
+
+/**
+ * Собран ли аккорд. Вторую струну октавной пары требовать нельзя: детектор её
+ * не слышит, и «аккорд собран» на 12-струнной не появился бы никогда (#27).
+ */
+export function chordProgress(statuses: StringTuningStatus[]): ChordProgress {
+  const sounding = statuses.filter(s => s.status !== 'muted');
+  const unmeasured = sounding.filter(s => s.status === 'unmeasured').length;
+  const measurable = sounding.length - unmeasured;
+  const tuned = sounding.filter(s => s.status === 'in-tune').length;
+  return { measurable, tuned, unmeasured, complete: measurable > 0 && tuned === measurable };
 }
 
 /**
@@ -84,6 +130,15 @@ export function evaluateArpeggioNote(
         usedPartials: 1
       };
     });
+
+    // Вторая струна октавного хора прозвучала вместе с услышанной, но её
+    // высоту детектор не измерил. Засчитывать ей чужой замер нельзя — она
+    // могла быть расстроена, — а «Ожидание» выглядело как зависшая проверка.
+    const partner = octavePartners(voicing, tuning).get(bestMatchIndex);
+    const partnerStatus = partner !== undefined ? updated[partner] : undefined;
+    if (partner !== undefined && partnerStatus?.status === 'pending') {
+      updated[partner] = { ...partnerStatus, status: 'unmeasured' };
+    }
   }
 
   return { updatedStatuses: updated, matchedIndex: bestMatchIndex };

@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures/test-base';
+import { noteFrequency } from './fixtures/notes';
 
 /**
  * Аккорды для строёв, отличных от шестиструнного стандартного (#5).
@@ -61,6 +62,27 @@ test.describe('аккорды для разных инструментов', () 
     const diagram = page.getByTestId('chord-diagram');
     await expect(diagram.getByText('12', { exact: true })).toHaveCount(0);
     await expect(page.getByTestId('cc-string-12')).toContainText('Глушится');
+  });
+
+  test('на 12-струнной вторая струна октавной пары помечена «Отдельно не измеряется» (#27)', async ({ page }) => {
+    await openChordCheck(page, '12-string-std');
+    await expect(page.getByTestId('cc-octave-hint')).toBeVisible();
+
+    await page.getByTestId('cc-mic-toggle').click();
+    await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
+
+    // Струна 12 — E2, струна 11 — E3 того же хора.
+    await expect(page.getByTestId('cc-status-12')).toContainText('В строе', { timeout: 10_000 });
+    await expect(page.getByTestId('cc-status-11')).toHaveText('Отдельно не измеряется');
+    // Унисонные хоры пометку не получают — их засчитывает одна нота.
+    await expect(page.getByTestId('cc-status-3')).toContainText('Ожидание');
+    await expect(page.getByTestId('cc-tune-11')).toBeVisible();
+  });
+
+  test('в режиме «Удар» подсказки про октавные пары нет', async ({ page }) => {
+    await openChordCheck(page, '12-string-std');
+    await page.getByTestId('cc-mode-strum').click();
+    await expect(page.getByTestId('cc-octave-hint')).toHaveCount(0);
   });
 
   test('на грифе в режиме аккордов у баса — пояснение вместо чужих аппликатур', async ({ page }) => {

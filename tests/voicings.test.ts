@@ -15,7 +15,7 @@ import { CHORD_FORMULAS } from '../src/domain/chords';
 import { NOTE_NAMES } from '../src/domain/notes';
 import { TUNING_PRESETS, DEFAULT_TUNING } from '../src/domain/tunings';
 import type { Tuning } from '../src/domain/tunings';
-import { evaluateArpeggioNote, initChordStatuses } from '../src/audio/chordAnalyzer';
+import { chordProgress, evaluateArpeggioNote, initChordStatuses, octavePartners } from '../src/audio/chordAnalyzer';
 import { midiToFrequency } from '../src/domain/notes';
 
 const byId = (id: string): Tuning => {
@@ -171,10 +171,76 @@ describe('Перебор на 12-струнной: струны в унисон 
     const { updatedStatuses } = evaluateArpeggioNote(midiToFrequency(59), open, tuning, statuses);
     expect(updatedStatuses[8].status).toBe('in-tune');
     expect(updatedStatuses[9].status).toBe('in-tune');
-    // Октавная пара E2/E3 различима: E2 не засчитывает E3.
+    // Октавная пара E2/E3: E2 не засчитывается струне E3 — её не измеряли (#27).
     const afterE2 = evaluateArpeggioNote(midiToFrequency(40), open, tuning, statuses).updatedStatuses;
     expect(afterE2[0].status).toBe('in-tune');
-    expect(afterE2[1].status).toBe('pending');
+    expect(afterE2[1].status).toBe('unmeasured');
+  });
+});
+
+describe('Перебор на 12-струнной: октавные пары (#27)', () => {
+  const tuning = byId('12-string-std');
+  const open = getVoicingsForTuning(tuning)[0];
+
+  it('находит октавные пары хоров, унисонные не считает', () => {
+    const partners = octavePartners(open, tuning);
+    // E2/E3, A2/A3, D3/D4, G3/G4 — индексы 0-1, 2-3, 4-5, 6-7.
+    expect([...partners.entries()].sort((a, b) => a[0] - b[0])).toEqual([
+      [0, 1], [1, 0], [2, 3], [3, 2], [4, 5], [5, 4], [6, 7], [7, 6]
+    ]);
+    // У шестиструнной пар нет.
+    expect(octavePartners(getVoicingsForTuning(DEFAULT_TUNING)[0], DEFAULT_TUNING).size).toBe(0);
+  });
+
+  it('заглушённый хор не даёт пары', () => {
+    const am = getVoicingsForTuning(tuning).find(v => v.id === 'am-open')!;
+    // У Am глушится нижний хор E2/E3.
+    expect(octavePartners(am, tuning).has(0)).toBe(false);
+    expect(octavePartners(am, tuning).has(1)).toBe(false);
+  });
+
+  it('услышанная верхняя струна помечает нижнюю, а не наоборот', () => {
+    const statuses = initChordStatuses(open, tuning);
+    const afterE3 = evaluateArpeggioNote(midiToFrequency(52), open, tuning, statuses).updatedStatuses;
+    expect(afterE3[1].status).toBe('in-tune');
+    expect(afterE3[0].status).toBe('unmeasured');
+  });
+
+  it('замер не затирает уже измеренную струну пары', () => {
+    const statuses = initChordStatuses(open, tuning);
+    // Сначала детектор поймал E3 расстроенной на 20 центов вверх, затем E2.
+    const sharpE3 = midiToFrequency(52) * Math.pow(2, 20 / 1200);
+    const afterE3 = evaluateArpeggioNote(sharpE3, open, tuning, statuses).updatedStatuses;
+    const afterBoth = evaluateArpeggioNote(midiToFrequency(40), open, tuning, afterE3).updatedStatuses;
+    expect(afterBoth[0].status).toBe('in-tune');
+    expect(afterBoth[1].status).toBe('high');
+  });
+
+  it('аккорд собран без вторых струн октавных пар', () => {
+    let statuses = initChordStatuses(open, tuning);
+    // По одной ноте на хор: E2, A2, D3, G3, B3, E4.
+    for (const midi of [40, 45, 50, 55, 59, 64]) {
+      expect(chordProgress(statuses).complete).toBe(false);
+      statuses = evaluateArpeggioNote(midiToFrequency(midi), open, tuning, statuses).updatedStatuses;
+    }
+    expect(chordProgress(statuses)).toEqual({ measurable: 8, tuned: 8, unmeasured: 4, complete: true });
+  });
+
+  it('расстроенная измеренная струна не даёт собрать аккорд', () => {
+    let statuses = initChordStatuses(open, tuning);
+    for (const midi of [40, 45, 50, 55, 59]) {
+      statuses = evaluateArpeggioNote(midiToFrequency(midi), open, tuning, statuses).updatedStatuses;
+    }
+    statuses = evaluateArpeggioNote(midiToFrequency(64) * Math.pow(2, -20 / 1200), open, tuning, statuses).updatedStatuses;
+    expect(chordProgress(statuses).complete).toBe(false);
+  });
+
+  it('прямой замер снимает пометку «не измеряется»', () => {
+    const statuses = initChordStatuses(open, tuning);
+    const afterE2 = evaluateArpeggioNote(midiToFrequency(40), open, tuning, statuses).updatedStatuses;
+    const afterE3 = evaluateArpeggioNote(midiToFrequency(52), open, tuning, afterE2).updatedStatuses;
+    expect(afterE3[1].status).toBe('in-tune');
+    expect(afterE3[0].status).toBe('in-tune');
   });
 });
 
