@@ -55,21 +55,28 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
 
       # При попадании в кэш сам браузер уже есть, но системные библиотеки —
-      # нет: они живут вне кэшируемого каталога.
+      # нет: они живут вне кэшируемого каталога. Chromium обходится тем, что
+      # стоит в образе ubuntu-latest, а WebKit без своих библиотек не
+      # запускается вовсе.
       #
-      # Шаг вспомогательный: в образе ubuntu-latest нужные библиотеки, как
-      # правило, уже стоят, а apt на раннере периодически зависает намертво и
-      # съедает весь лимит задачи — прогон отменялся, ничего не
-      # проверив. Поэтому ограничиваем шаг по времени и не считаем его падение
-      # фатальным: реальную нехватку библиотек всё равно поймает шаг E2E,
-      # который без них просто не запустит браузер.
-      - name: Системные зависимости браузера
+      # apt на раннере бывает медленным или зависает. Раньше шаг ограничивался
+      # пятью минутами и не считался фатальным — и при медленном зеркале WebKit
+      # падал на всех 68 тестах с невнятным «browser has been closed». Теперь
+      # две попытки по шесть минут, а неудача роняет шаг с понятной причиной.
+      - name: Системные зависимости браузеров
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 5
-        continue-on-error: true
+        timeout-minutes: 14
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: npx playwright install-deps chromium firefox webkit
+        run: |
+          for attempt in 1 2; do
+            if timeout 360 npx playwright install-deps chromium firefox webkit; then
+              exit 0
+            fi
+            echo "::warning::установка системных библиотек браузеров, попытка $attempt не удалась"
+          done
+          echo "::error::не удалось поставить системные библиотеки браузеров — WebKit без них не запустится"
+          exit 1
 
       - name: Проверка типов тестов
         run: npm run typecheck
