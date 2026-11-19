@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { serviceWorkerPlugin } from './pwa/swPlugin.ts'
@@ -24,12 +24,21 @@ function buildInfo(): { version: string; commit: string } {
 
 const { version, commit } = buildInfo()
 
+/**
+ * QR-код доната в репозитории не хранится и попадает в сборку из секрета CI.
+ * Без него карточка сразу показывает запасной значок, а не запрашивает
+ * несуществующий файл: в офлайне такой запрос падал с ошибкой, и сборки без
+ * секрета (Dependabot, форки, чистый клон) не проходили тесты офлайна.
+ */
+const hasDonateQr = existsSync(new URL('./public/qrCode.png', import.meta.url))
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), serviceWorkerPlugin()],
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __APP_COMMIT__: JSON.stringify(commit),
+    __HAS_DONATE_QR__: JSON.stringify(hasDonateQr),
   },
   test: {
     // .claude/ — служебные рабочие деревья агентов: в них свои копии тестов,
