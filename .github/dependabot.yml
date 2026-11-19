@@ -13,7 +13,16 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore(deps)
+    ignore:
+      # Мажорная версия типов Node меняется вручную, вместе с версией Node
+      # в CI, а не каждый раз, когда выходит новая.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
     groups:
+      # vitest и его пакеты обязаны совпадать по версии: по отдельности
+      # обновление не ставится (npm ERESOLVE).
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
       npm-minor:
         update-types: [minor, patch]
 
