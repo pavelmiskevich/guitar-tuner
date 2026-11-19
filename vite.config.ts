@@ -7,6 +7,8 @@ import { serviceWorkerPlugin } from './pwa/swPlugin.ts'
 export default defineConfig({
   plugins: [react(), serviceWorkerPlugin()],
   test: {
-    exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**'],
+    // .claude/ — служебные рабочие деревья агентов: в них свои копии тестов,
+    // включая E2E, которые vitest пытался бы запустить.
+    exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**', '.claude/**'],
   },
 })
