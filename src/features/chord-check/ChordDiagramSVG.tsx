@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Voicing } from '../../domain/chords';
+import { voicingCourseSize } from '../../domain/chords';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToFrequency } from '../../domain/notes';
@@ -20,10 +21,16 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
   notation = 'english',
   a4 = 440
 }) => {
-  const numStrings = 6;
   const numFrets = 5;
 
-  const frets = voicing.frets;
+  // Схема рисуется по числу струн строя (#5). У 12-струнной — по хорам:
+  // двенадцать линий на ширине схемы слиплись бы в полосу, а лад на обеих
+  // струнах хора одинаковый.
+  const courseSize = voicingCourseSize(tuning);
+  const frets = voicing.frets.filter((_, i) => i % courseSize === 0);
+  const stringIndexOf = (sIdx: number) => sIdx * courseSize;
+  const numStrings = Math.max(2, frets.length);
+  const isUkulele = tuning.instrument === 'ukulele';
   const numericFrets = frets.filter((f): f is number => typeof f === 'number' && f > 0);
   const minFret = numericFrets.length > 0 ? Math.min(...numericFrets) : 1;
   const maxFret = numericFrets.length > 0 ? Math.max(...numericFrets) : 4;
@@ -39,6 +46,8 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
   const gridHeight = 160;
   const stringSpacing = gridWidth / (numStrings - 1);
   const fretSpacing = gridHeight / numFrets;
+  // На 7 струнах точки по 12 px соседних струн уже касались бы друг друга.
+  const dotRadius = Math.min(12, stringSpacing / 2 - 1);
 
   const activeTimeoutsRef = React.useRef<Set<number>>(new Set());
 
@@ -62,7 +71,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
   // Воспроизведение аккорда красивым перебором (арпеджио)
   const handlePlayChord = () => {
     let delay = 0;
-    frets.forEach((fret, strIdx) => {
+    voicing.frets.forEach((fret, strIdx) => {
       if (fret !== 'x') {
         const note = getFretNote(strIdx, fret, tuning);
         const freq = midiToFrequency(note.midi, a4);
@@ -92,6 +101,11 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           <span style={{ fontWeight: 800, fontSize: '17px', color: 'var(--ink-050)' }}>
             {voicing.name}
           </span>
+          {voicing.shape && (
+            <span data-testid="chord-shape" style={{ display: 'block', fontSize: '11px', color: 'var(--ink-300)' }}>
+              форма {voicing.shape}
+            </span>
+          )}
         </div>
         <button
           className="btn btn-ghost btn-sm"
@@ -267,8 +281,9 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
         {/* Струны (6-я слева толстая в оплетке, 1-я справа стальная тонкая) */}
         {Array.from({ length: numStrings }).map((_, sIdx) => {
           const x = padX + sIdx * stringSpacing;
-          const isWound = sIdx < 3; // 6, 5, 4 струны в оплетке
-          const strokeW = Math.max(1.4, 3.8 - sIdx * 0.45);
+          // Нижняя половина струн гитары и баса — в оплётке; у укулеле оплётки нет.
+          const isWound = !isUkulele && sIdx < numStrings / 2;
+          const strokeW = Math.max(1.4, 3.8 - sIdx * (2.4 / Math.max(1, numStrings - 1)));
 
           return (
             <g key={`str-${sIdx}`}>
@@ -343,7 +358,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           const x = padX + sIdx * stringSpacing;
           const y = padTop + (relFret - 0.5) * fretSpacing;
 
-          const note = getFretNote(sIdx, fret, tuning);
+          const note = getFretNote(stringIndexOf(sIdx), fret, tuning);
           const noteName = formatNoteName(note.name, notation);
 
           return (
@@ -351,7 +366,7 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
               <circle
                 cx={x}
                 cy={y}
-                r="12"
+                r={dotRadius}
                 fill="url(#diagramDot)"
                 stroke="#FFFFFF"
                 strokeWidth="2"
@@ -371,10 +386,10 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           );
         })}
 
-        {/* Номера струн снизу (6 ... 1) */}
+        {/* Номера струн (у 12-струнной — хоров) снизу, от самой низкой */}
         {Array.from({ length: numStrings }).map((_, sIdx) => {
           const x = padX + sIdx * stringSpacing;
-          const strNum = 6 - sIdx;
+          const strNum = numStrings - sIdx;
           return (
             <text
               key={`bottom-${sIdx}`}

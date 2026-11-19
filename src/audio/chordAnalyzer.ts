@@ -68,16 +68,22 @@ export function evaluateArpeggioNote(
     if (cents < -inTuneThresholdCents) status = 'low';
     else if (cents > inTuneThresholdCents) status = 'high';
 
-    updated[bestMatchIndex] = {
-      stringIndex: bestMatchIndex,
-      targetMidi: targetPitch.midi,
-      targetFreq,
-      measuredFreq,
-      cents,
-      status,
-      confidence: 'high',
-      usedPartials: 1
-    };
+    // Струны в унисон (хоры 12-струнной: B3-B3, E4-E4) по звуку неразличимы.
+    // Раньше совпадение доставалось только первой, вторая навсегда оставалась
+    // в «Ожидании», и аккорд не мог стать завершённым (#5).
+    expected.forEach((pitch, idx) => {
+      if (!pitch || pitch.midi !== targetPitch.midi) return;
+      updated[idx] = {
+        stringIndex: idx,
+        targetMidi: targetPitch.midi,
+        targetFreq,
+        measuredFreq,
+        cents,
+        status,
+        confidence: 'high',
+        usedPartials: 1
+      };
+    });
   }
 
   return { updatedStatuses: updated, matchedIndex: bestMatchIndex };
@@ -167,8 +173,18 @@ export function analyzeChordStrumSpectrum(
 
   const models: StringModel[] = [];
 
+  // Струна в унисон с уже смоделированной не получает своей модели: все её
+  // партиалы совпали бы с партиалами пары, были бы отброшены как коллизии,
+  // и обе струны навсегда остались бы «Не прозвучала». Её статус копируется.
+  const unisonOf = new Map<number, number>();
+
   expectedPitches.forEach((pitch, idx) => {
     if (!pitch) return;
+    const twin = models.find(m => m.targetMidi === pitch.midi);
+    if (twin) {
+      unisonOf.set(idx, twin.stringIdx);
+      return;
+    }
     const strSpec = tuning.strings[idx];
     const b = strSpec?.inharmonicityB || (1e-4 * Math.pow(0.85, idx));
     const targetFreq = midiToFrequency(pitch.midi, a4);
@@ -204,7 +220,7 @@ export function analyzeChordStrumSpectrum(
 
   // 3. Сопоставление с измеренными спектральными пиками и оценка отклонения
   const statuses: StringTuningStatus[] = tuning.strings.map((_, idx) => {
-    const model = models.find(m => m.stringIdx === idx);
+    const model = models.find(m => m.stringIdx === (unisonOf.get(idx) ?? idx));
     if (!model) {
       return {
         stringIndex: idx,
