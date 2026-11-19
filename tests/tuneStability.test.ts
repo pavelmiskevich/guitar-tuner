@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { InTuneHold, MedianSmoother, IN_TUNE_HOLD_MS, MAX_FRAME_GAP_MS } from '../src/domain/tuneStability';
+import {
+  InTuneHold,
+  MedianSmoother,
+  SteadyPitchGate,
+  IN_TUNE_HOLD_MS,
+  MAX_FRAME_GAP_MS,
+  STEADY_HOLD_MS,
+  STEADY_TOLERANCE_CENTS
+} from '../src/domain/tuneStability';
 
 const FRAME = 33;
 
@@ -111,5 +119,80 @@ describe('InTuneHold', () => {
       stable = h.update(0, true, t).stable;
     }
     expect(stable).toBe(true);
+  });
+});
+
+describe('SteadyPitchGate (#29)', () => {
+  const FRAME = 33; // ~30 кадров в секунду
+  const cents = (f: number, c: number) => f * Math.pow(2, c / 1200);
+
+  /** Подаёт ровный тон и возвращает последний выход ворот и момент первого открытия. */
+  function feed(gate: SteadyPitchGate, freq: number | ((i: number) => number), from: number, frames: number) {
+    let out: number | null = null;
+    let firstOpenAt: number | null = null;
+    for (let i = 0; i < frames; i++) {
+      const t = from + i * FRAME;
+      out = gate.push(typeof freq === 'number' ? freq : freq(i), t);
+      if (out !== null && firstOpenAt === null) firstOpenAt = t;
+    }
+    return { out, firstOpenAt, end: from + frames * FRAME };
+  }
+
+  it('пропускает ровный тон только после удержания', () => {
+    const gate = new SteadyPitchGate();
+    const { out, firstOpenAt } = feed(gate, 110, 0, 20);
+    expect(firstOpenAt).not.toBeNull();
+    expect(firstOpenAt!).toBeGreaterThanOrEqual(STEADY_HOLD_MS);
+    expect(out).toBeCloseTo(110, 6);
+  });
+
+  it('не пропускает переходные кадры на смене ноты', () => {
+    const gate = new SteadyPitchGate();
+    const a = feed(gate, 110, 0, 20);
+    // Три кадра смеси двух нот, затем новая нота. Наружу не выходит ни одно
+    // переходное значение: ворота закрыты или ещё отдают точную старую ноту.
+    const mixed = [112, 125, 140];
+    for (let i = 0; i < mixed.length; i++) {
+      const out = gate.push(mixed[i], a.end + i * FRAME);
+      if (out !== null) expect(out).toBeCloseTo(110, 6);
+    }
+    const b = feed(gate, 146.83, a.end + mixed.length * FRAME, 20);
+    expect(b.out).toBeCloseTo(146.83, 6);
+    expect(b.firstOpenAt! - a.end).toBeGreaterThanOrEqual(STEADY_HOLD_MS);
+  });
+
+  it('не пропускает дрейф затухания', () => {
+    const gate = new SteadyPitchGate();
+    const a = feed(gate, 110, 0, 20);
+    // Затухание: тон уползает вверх на 2¢ за кадр — до +16¢.
+    const tail = feed(gate, i => cents(110, 2 * (i + 1)), a.end, 8);
+    // Ворота либо закрыты, либо отдают значение в пределах допуска от ровного тона.
+    if (tail.out !== null) {
+      expect(Math.abs(1200 * Math.log2(tail.out / 110))).toBeLessThanOrEqual(STEADY_TOLERANCE_CENTS);
+    }
+    for (let i = 3; i < 8; i++) {
+      // Дальше половины затухания ворота уже закрыты.
+      expect(gate.push(cents(110, 2 * (i + 9)), tail.end + i * FRAME)).toBeNull();
+    }
+  });
+
+  it('одиночный выброс октавы не закрывает ворота', () => {
+    const gate = new SteadyPitchGate();
+    const a = feed(gate, 110, 0, 20);
+    expect(gate.push(220, a.end)).toBeCloseTo(110, 6);
+    expect(gate.push(110, a.end + FRAME)).toBeCloseTo(110, 6);
+  });
+
+  it('пауза начинает отсчёт заново', () => {
+    const gate = new SteadyPitchGate();
+    const a = feed(gate, 110, 0, 20);
+    expect(gate.push(110, a.end + MAX_FRAME_GAP_MS + 50)).toBeNull();
+  });
+
+  it('reset закрывает ворота', () => {
+    const gate = new SteadyPitchGate();
+    const a = feed(gate, 110, 0, 20);
+    gate.reset();
+    expect(gate.push(110, a.end)).toBeNull();
   });
 });

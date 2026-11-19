@@ -101,3 +101,37 @@ test.describe('проверка аккорда', () => {
     }
   });
 });
+
+test.describe('проверка аккорда: перебор подряд (#29)', () => {
+  const OPEN_STRINGS: [string, number][] = [['E2', 6], ['A2', 5], ['D3', 4], ['G3', 3], ['B3', 2], ['E4', 1]];
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    await page.goto('/');
+    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    await page.getByTestId(`${prefix}-chord-check`).click();
+    await page.getByTestId('cc-mic-toggle').click();
+  });
+
+  for (const withPauses of [false, true]) {
+    test(`настроенные струны не портятся переходами${withPauses ? ' и затуханием' : ''}`, async ({ page }) => {
+      for (const [note, stringNumber] of OPEN_STRINGS) {
+        await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency(note));
+        await expect(page.getByTestId(`cc-status-${stringNumber}`)).toContainText('В строе', { timeout: 10_000 });
+        if (withPauses) {
+          await page.evaluate(() => window.__fakeMic.silence());
+          await page.waitForTimeout(400);
+        }
+      }
+      if (!withPauses) {
+        await page.evaluate(() => window.__fakeMic.silence());
+        await page.waitForTimeout(400);
+      }
+
+      // Сигнал был точно в строе — ни одна струна не должна уйти в «Высоко»/«Низко».
+      for (const [, stringNumber] of OPEN_STRINGS) {
+        await expect(page.getByTestId(`cc-status-${stringNumber}`)).toContainText('В строе');
+      }
+      await expect(page.getByText('Аккорд звучит безупречно!')).toBeVisible();
+    });
+  }
+});
