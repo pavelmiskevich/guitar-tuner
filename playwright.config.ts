@@ -24,6 +24,13 @@ const HOST = '127.0.0.1';
  * Firefox и WebKit (#15). Анализ звука — в Chromium: фейковый микрофон держится
  * на тонкостях Web Audio, а WebKit под Windows микрофона не даёт вовсе. Тесты
  * внутри этих спек, которым микрофон всё же нужен, помечены тегом @mic.
+ *
+ * Ещё два тега — ограничения тестовых браузеров на раннере, а не приложения:
+ * - @audio-clock: тест ждёт, что доли метронома идут по часам AudioContext.
+ *   Firefox на Linux-раннере без звуковой карты часы не двигает — доля не
+ *   уходит дальше первой; на машине со звуком те же тесты проходят.
+ * - @sw-offline: перезагрузка в офлайне через service worker. WebKit
+ *   Playwright падает на ней с «WebKit encountered an internal error».
  */
 const NO_MIC_SPECS = /(smoke|navigation|fretboard|metronome|theme|settings|pwa|resilience)\.spec\.ts/;
 
@@ -67,7 +74,7 @@ export default defineConfig({
     {
       name: 'firefox-desktop',
       testMatch: NO_MIC_SPECS,
-      grepInvert: /@mic/,
+      grepInvert: /@mic|@audio-clock/,
       use: {
         ...devices['Desktop Firefox'],
         viewport: { width: 1440, height: 900 },
@@ -76,7 +83,7 @@ export default defineConfig({
     {
       name: 'webkit-mobile',
       testMatch: NO_MIC_SPECS,
-      grepInvert: /@mic/,
+      grepInvert: /@mic|@sw-offline/,
       use: {
         ...devices['iPhone 15'],
       },
