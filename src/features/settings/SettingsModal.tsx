@@ -9,6 +9,7 @@ import {
   createStringsFromMidi
 } from '../../domain/tunings';
 import { X, Sun, Moon, Sliders, Plus, Trash2, Check } from 'lucide-react';
+import { APP_COMMIT, APP_VERSION } from '../../buildInfo';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -406,6 +407,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <button className="btn btn-primary" onClick={onClose} data-testid="settings-close" style={{ marginTop: '8px' }}>
           Сохранить и закрыть
         </button>
+
+        <p
+          data-testid="settings-version"
+          style={{ margin: 0, textAlign: 'center', fontSize: 'var(--fs-caption)', color: 'var(--ink-300)' }}
+        >
+          Версия {APP_VERSION} · сборка {APP_COMMIT}
+        </p>
       </div>
     </div>
   );
