@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy, QrCode } from 'lucide-react';
 import { getPublicSiteUrl } from '../../domain/siteUrl';
 import { copyToClipboard } from '../../ui/clipboard';
+import { HAS_DONATE_QR } from '../../buildInfo';
 
 interface DonateCardProps {
   // Props
@@ -9,7 +10,9 @@ interface DonateCardProps {
 
 export const DonateCard: React.FC<DonateCardProps> = () => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const [imgError, setImgError] = useState(false);
+  // Без QR-кода в сборке картинку не запрашиваем вовсе: в офлайне запрос
+  // несуществующего файла падал с ошибкой. Запасной значок — сразу.
+  const [imgError, setImgError] = useState(!HAS_DONATE_QR);
 
   const donationUrl = 'https://pay.cloudtips.ru/p/05d48070';
 
