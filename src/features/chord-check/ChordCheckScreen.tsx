@@ -9,7 +9,9 @@ import type { StringTuningStatus } from '../../audio/chordAnalyzer';
 import {
   initChordStatuses,
   evaluateArpeggioNote,
-  analyzeChordStrumSpectrum
+  analyzeChordStrumSpectrum,
+  chordProgress,
+  octavePartners
 } from '../../audio/chordAnalyzer';
 import { ChordDiagramSVG } from './ChordDiagramSVG';
 import { useMicrophone } from '../../audio/useMicrophone';
@@ -154,9 +156,11 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
     setIsCapturingStrum(false);
   };
 
-  const soundingStrings = stringStatuses.filter(s => s.status !== 'muted');
-  const tunedStringsCount = soundingStrings.filter(s => s.status === 'in-tune').length;
-  const isChordComplete = soundingStrings.length > 0 && tunedStringsCount === soundingStrings.length;
+  const { complete: isChordComplete, unmeasured: unmeasuredCount } = chordProgress(stringStatuses);
+  const hasOctavePairs = useMemo(
+    () => octavePartners(selectedVoicing, tuning).size > 0,
+    [selectedVoicing, tuning]
+  );
 
   return (
     <div style={{ width: '100%', maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
@@ -270,6 +274,12 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             Аппликатуры пересчитаны под строй: название — то, что звучит на самом деле.
           </span>
         )}
+        {hasOctavePairs && analysisMode === 'arpeggio' && (
+          <span data-testid="cc-octave-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+            Струны октавной пары (E2/E3, A2/A3, D3/D4, G3/G4) звучат вместе, и в переборе слышна одна из них.
+            Вторую проверьте в тюнере, придержав соседнюю.
+          </span>
+        )}
       </div>
 
       {/* Индикатор захвата удара (Режим B) */}
@@ -302,6 +312,11 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             <div>
               <b>Аккорд звучит безупречно!</b>
               <span>Все звучащие струны аккорда {selectedVoicing.name} идеально настроены (погрешность ≤ ±{inTuneThreshold}¢).</span>
+              {unmeasuredCount > 0 && (
+                <span data-testid="cc-unmeasured-note">
+                  {' '}Вторые струны октавных пар ({unmeasuredCount}) отдельно не измерялись — проверьте их в тюнере.
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -343,6 +358,9 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             } else if (status?.status === 'not-played') {
               badgeColor = 'var(--ink-300)';
               badgeText = 'Не прозвучала';
+            } else if (status?.status === 'unmeasured') {
+              badgeColor = 'var(--ink-300)';
+              badgeText = 'Отдельно не измеряется';
             }
 
             const targetPitch = status && status.targetMidi > 0 ? midiToPitch(status.targetMidi) : str.open;
