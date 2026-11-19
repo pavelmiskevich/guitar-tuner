@@ -1,0 +1,31 @@
+# Обновления зависимостей (#15).
+#
+# Минорные и патч-версии приходят одним PR в неделю на экосистему, чтобы не
+# разбирать десяток мелких. Мажорные — отдельными PR: они ломают API, и каждое
+# такое обновление лучше проверять само по себе.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  # Действия в CI закреплены по SHA коммита; Dependabot обновляет и SHA, и
+  # комментарий с версией рядом с ним.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore(ci)
+    groups:
+      actions-minor:
+        update-types: [minor, patch]
