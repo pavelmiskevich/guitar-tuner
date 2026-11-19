@@ -197,4 +197,63 @@ test.describe('гриф', () => {
     expect(svg.length).toBeGreaterThan(2000);
     expect(svg).not.toContain('viewBox="0 0 24 24"');
   });
+
+  test('экспортированный SVG самостоятелен: без переменных темы, с фоном и заголовком (#13)', async ({ page }) => {
+    await page.getByTestId('fb-mode-scales').click();
+    await page.getByTestId('fb-root').selectOption('G');
+    await page.getByTestId('fb-scale').selectOption('dorian');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('fb-export').click();
+    const download = await downloadPromise;
+
+    // Имя говорит, что внутри: тоника, гамма и строй.
+    expect(download.suggestedFilename()).toBe('fretboard-g-dorian-standard-e.svg');
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const svg = Buffer.concat(chunks).toString('utf8');
+
+    // Вне страницы var(--…) недействительны — элементы рисовались бы чёрным.
+    expect(svg).not.toContain('var(');
+    expect(svg).toContain('<title>');
+    expect(svg).toContain('Standard E');
+    expect(svg).toContain('export-background');
+
+    // Файл разбирается как SVG и рисуется: проверяем в чистой странице без стилей приложения.
+    const rendered = await page.evaluate((markup) => {
+      const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+      return {
+        error: doc.querySelector('parsererror') !== null,
+        root: doc.documentElement.nodeName
+      };
+    }, svg);
+    expect(rendered).toEqual({ error: false, root: 'svg' });
+  });
+
+  test('обратный поиск аккорда учитывает каподастр (#13)', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=explore&root=A&frets=x.0.2.2.1.0&capo=2');
+    await page.reload();
+
+    // Ноты на точках считаются с капо — и название аккорда тоже.
+    await expect(page.getByTestId('fb-detected-chord')).toHaveText('Распознан: Bm');
+  });
+
+  test('ссылка, вставленная в уже открытую вкладку, применяется без перезагрузки (#13)', async ({ page }) => {
+    // Маркер в window переживает только переход по хэшу, но не перезагрузку.
+    await page.evaluate(() => { (window as unknown as { __noReload: boolean }).__noReload = true; });
+
+    await page.evaluate(() => { window.location.hash = 'tab=fretboard&mode=scales&root=D&scale=blues&capo=3'; });
+
+    await expect(page.getByTestId('fb-root')).toHaveValue('D');
+    await expect(page.getByTestId('fb-scale')).toHaveValue('blues');
+    await expect(page.getByTestId('fb-capo')).toHaveValue('3');
+    expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true);
+  });
+
+  test('ссылка на другой строй в открытой вкладке меняет строй (#13)', async ({ page }) => {
+    await page.evaluate(() => { window.location.hash = 'tab=fretboard&mode=scales&root=A&scale=blues&tuning=drop-c'; });
+    await expect(page.getByTestId('header-subtitle')).toContainText('Drop C');
+  });
 });

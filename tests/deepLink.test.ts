@@ -5,6 +5,7 @@ import {
   parseTabFromHash,
   resolveSharedTuning,
   buildShareUrl,
+  urlWithHash,
   type FretboardShareState
 } from '../src/domain/deepLink';
 import { DEFAULT_TUNING, TUNING_PRESETS, createStringsFromMidi } from '../src/domain/tunings';
@@ -212,10 +213,28 @@ describe('Deep link: вкладка и строй', () => {
   });
 
   it('восстанавливает пользовательский строй из списка струн', () => {
-    const resolved = resolveSharedTuning('#tuning=my-tuning&strings=38.45.50.55.59.62&inst=guitar', TUNING_PRESETS);
+    const resolved = resolveSharedTuning('#tuning=my-tuning&strings=37.45.50.55.59.64&inst=guitar', TUNING_PRESETS);
     expect(resolved).not.toBeNull();
-    expect(resolved!.strings.map(s => s.open.midi)).toEqual([38, 45, 50, 55, 59, 62]);
+    expect(resolved!.strings.map(s => s.open.midi)).toEqual([37, 45, 50, 55, 59, 64]);
     expect(resolved!.isCustom).toBe(true);
+    expect(resolved!.isEphemeral).toBe(true);
+  });
+
+  it('не берёт id строя из ссылки: собирает свой по струнам', () => {
+    const resolved = resolveSharedTuning('#tuning=<script>&strings=37.45.50.55.59.64&inst=guitar', TUNING_PRESETS);
+    expect(resolved!.id).toBe('shared-guitar-37-45-50-55-59-64');
+  });
+
+  it('струны, совпадающие с пресетом, дают сам пресет', () => {
+    const resolved = resolveSharedTuning('#tuning=custom-1&strings=38.45.50.55.59.62&inst=guitar', TUNING_PRESETS);
+    expect(resolved?.id).toBe('double-drop-d');
+  });
+
+  it('совпавший id чужого строя не подменяет струны отправителя', () => {
+    const mine = { ...customTuning, id: 'custom-1' };
+    const resolved = resolveSharedTuning('#tuning=custom-1&strings=37.45.50.55.59.64', [...TUNING_PRESETS, mine]);
+    expect(resolved).not.toBe(mine);
+    expect(resolved!.strings.map(s => s.open.midi)).toEqual([37, 45, 50, 55, 59, 64]);
   });
 
   it('предпочитает уже сохранённый строй восстановлению из струн', () => {
@@ -230,6 +249,17 @@ describe('Deep link: вкладка и строй', () => {
     expect(resolveSharedTuning('#root=A', TUNING_PRESETS)).toBeNull();
     expect(resolveSharedTuning('#tuning=unknown', TUNING_PRESETS)).toBeNull();
     expect(resolveSharedTuning('#tuning=unknown&strings=40.999', TUNING_PRESETS)).toBeNull();
+  });
+});
+
+describe('Deep link: адрес с хэшем', () => {
+  it('сохраняет путь и query-строку', () => {
+    expect(urlWithHash({ pathname: '/app/', search: '?utm_source=tg' }, 'tab=metronome'))
+      .toBe('/app/?utm_source=tg#tab=metronome');
+  });
+
+  it('без хэша не оставляет висящую решётку', () => {
+    expect(urlWithHash({ pathname: '/', search: '' }, '')).toBe('/');
   });
 });
 

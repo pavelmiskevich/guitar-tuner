@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NoteName, NotationSystem } from '../../domain/notes';
 import { NOTE_NAMES, formatNoteName } from '../../domain/notes';
 import { SCALES, getScaleNotes } from '../../domain/scales';
 import type { FretboardShareState } from '../../domain/deepLink';
-import { buildShareUrl, decodeFretboardHash, encodeFretboardHash } from '../../domain/deepLink';
-import type { Voicing } from '../../domain/chords';
-import { COMMON_VOICINGS, detectChordFromFrets } from '../../domain/chords';
+import { buildShareUrl, decodeFretboardHash, encodeFretboardHash, urlWithHash } from '../../domain/deepLink';
+import { detectChordFromFrets, getVoicingsForTuning, voicingLibraryKind } from '../../domain/chords';
 import { getFretNote } from '../../domain/fretboard';
 import type { HighlightedNote } from './FretboardSVG';
 import { FretboardSVG } from './FretboardSVG';
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getPublicSiteUrl } from '../../domain/siteUrl';
 import { copyToClipboard } from '../../ui/clipboard';
+import { buildStandaloneSvg, downloadText, safeFileName } from '../../ui/exportSvg';
 
 interface FretboardScreenProps {
   tuning: Tuning;
@@ -29,7 +29,17 @@ interface FretboardScreenProps {
 
 type ViewMode = 'explore' | 'scales' | 'chords';
 
-const EMPTY_FRETS: (number | 'x')[] = ['x', 'x', 'x', 'x', 'x', 'x'];
+const DEFAULT_VOICING_ID = 'am-open';
+
+/** Все струны заглушены — по числу струн строя, а не шесть (#5). */
+function emptyFrets(count: number): (number | 'x')[] {
+  return Array.from({ length: count }, () => 'x');
+}
+
+/** Набор ладов под число струн строя: из ссылки мог прийти другой размер. */
+function fitFrets(frets: (number | 'x')[], count: number): (number | 'x')[] {
+  return Array.from({ length: count }, (_, i) => frets[i] ?? 'x');
+}
 
 export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   tuning,
@@ -44,16 +54,25 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>(shared.mode ?? 'explore');
   const [selectedRoot, setSelectedRoot] = useState<NoteName>(shared.root ?? 'A');
   const [selectedScaleId, setSelectedScaleId] = useState<string>(shared.scaleId ?? 'pentatonic-minor');
-  const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(
-    () => COMMON_VOICINGS.find(v => v.id === shared.voicingId) ?? COMMON_VOICINGS[1] // Am
-  );
+  // Хранится id, а сама аппликатура берётся из пересчитанной под строй
+  // библиотеки: при смене строя схема сразу показывает верные лады.
+  const [selectedVoicingId, setSelectedVoicingId] = useState<string>(shared.voicingId ?? DEFAULT_VOICING_ID);
+  const voicings = useMemo(() => getVoicingsForTuning(tuning), [tuning]);
+  const hasChordLibrary = voicingLibraryKind(tuning) !== null;
+  const selectedVoicing =
+    voicings.find(v => v.id === selectedVoicingId) ??
+    voicings.find(v => v.id === DEFAULT_VOICING_ID) ??
+    voicings[1] ??
+    voicings[0];
   const [capo, setCapo] = useState<number | null>(shared.capo ?? null);
   const [leftHanded, setLeftHanded] = useState(shared.leftHanded ?? false);
   const [labelMode, setLabelMode] = useState<'note' | 'degree'>(shared.labelMode ?? 'note');
   const [fretRange, setFretRange] = useState<{ from: number; to: number }>(
     shared.fretRange ?? { from: 0, to: 15 }
   );
-  const [customFrets, setCustomFrets] = useState<(number | 'x')[]>(shared.customFrets ?? EMPTY_FRETS);
+  const stringCount = tuning.strings.length;
+  const [rawCustomFrets, setCustomFrets] = useState<(number | 'x')[]>(() => shared.customFrets ?? emptyFrets(stringCount));
+  const customFrets = fitFrets(rawCustomFrets, stringCount);
   const [lastClickedNote, setLastClickedNote] = useState<{ note: string; str: number; fret: number } | null>(null);
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const fretboardSvgRef = useRef<SVGSVGElement>(null);
@@ -76,7 +95,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   // Схема всегда отражена в адресной строке — ссылку можно скопировать и из браузера.
   // replaceState, а не push: перебор гамм не должен забивать историю навигации.
   useEffect(() => {
-    window.history.replaceState(null, '', `${window.location.pathname}#${shareHash}`);
+    window.history.replaceState(null, '', urlWithHash(window.location, shareHash));
   }, [shareHash]);
 
   const activeTimeoutsRef = useRef<Set<number>>(new Set());
@@ -105,19 +124,37 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
     safeSetTimeout(() => setShareStatus('idle'), ok ? 2000 : 5000);
   };
 
-  // Экспорт SVG (FR-FB-19)
+  const detectedChord = viewMode === 'explore' ? detectChordFromFrets(customFrets, tuning, capo) : '';
+
+  /** Что изображено: гамма с тоникой, аккорд или распознанный набор нот. */
+  const subject =
+    viewMode === 'scales'
+      ? `${formatNoteName(selectedRoot, notation)} ${SCALES.find(s => s.id === selectedScaleId)?.name ?? ''}`.trim()
+      : viewMode === 'chords'
+        ? selectedVoicing.name
+        : detectedChord || 'Свои ноты';
+
+  // Экспорт SVG (FR-FB-19): файл самостоятельный — с цветами, фоном и
+  // заголовком, а имя говорит, что внутри (#13).
   const handleExportSVG = () => {
     const svgEl = fretboardSvgRef.current;
     if (!svgEl) return;
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `fretboard-${viewMode}-${selectedRoot}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const capoLabel = capo !== null ? `капо ${capo}` : '';
+    const title = [subject, tuning.name, capoLabel].filter(Boolean).join(' · ');
+    const svg = buildStandaloneSvg(svgEl, {
+      title,
+      background: { top: 'var(--board-bg-top)', bottom: 'var(--board-bg-bottom)' },
+      // Гриф тёмный в обеих темах (--board-* не переопределяются днём),
+      // поэтому заголовок всегда светлый.
+      titleColor: '#EDEBFF'
+    });
+    const fileName = safeFileName([
+      'fretboard',
+      viewMode === 'scales' ? `${selectedRoot}-${selectedScaleId}` : viewMode === 'chords' ? selectedVoicing.name.split(' (')[0] : detectedChord || 'custom',
+      tuning.id,
+      capo !== null ? `capo${capo}` : ''
+    ]);
+    downloadText(svg, `${fileName}.svg`, 'image/svg+xml;charset=utf-8');
   };
 
   // Вычисление подсвеченных нот в зависимости от режима
@@ -142,10 +179,12 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
       }
     });
   } else if (viewMode === 'chords') {
+    // С каподастром форма звучит выше — тоника сдвигается вместе с ней.
+    const rootIndex = (NOTE_NAMES.indexOf(selectedVoicing.root) + (capo ?? 0)) % 12;
     selectedVoicing.frets.forEach((fret, strIdx) => {
       if (fret !== 'x') {
         const pitch = getFretNote(strIdx, fret, tuning, capo);
-        const isRoot = pitch.name === selectedVoicing.root;
+        const isRoot = selectedVoicing.type !== 'open' && pitch.name === NOTE_NAMES[rootIndex];
         highlightedNotes.push({
           stringIndex: strIdx,
           fret,
@@ -189,8 +228,6 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
       setCustomFrets(nextFrets);
     }
   };
-
-  const detectedChord = viewMode === 'explore' ? detectChordFromFrets(customFrets, tuning) : '';
 
   return (
     <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
@@ -315,10 +352,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
                 value={selectedVoicing.id}
                 data-testid="fb-voicing"
                 aria-label="Аппликатура аккорда"
-                onChange={(e) => {
-                  const found = COMMON_VOICINGS.find(v => v.id === e.target.value);
-                  if (found) setSelectedVoicing(found);
-                }}
+                onChange={(e) => setSelectedVoicingId(e.target.value)}
                 style={{
                   background: 'var(--ink-800)',
                   color: 'var(--ink-050)',
@@ -329,11 +363,18 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
                   fontSize: '15px'
                 }}
               >
-                {COMMON_VOICINGS.map(v => (
-                  <option key={v.id} value={v.id}>{v.name} ({v.frets.map(f => f === 'x' ? 'x' : f).join(' ')})</option>
+                {voicings.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}{v.shape ? ` — форма ${v.shape}` : ''} ({v.frets.join(' ')})
+                  </option>
                 ))}
               </select>
             </div>
+            {!hasChordLibrary && (
+              <span data-testid="fb-no-chords" style={{ fontSize: '12px', color: 'var(--ink-300)', maxWidth: '320px' }}>
+                Для этого строя библиотеки аккордов нет — доступны только открытые струны.
+              </span>
+            )}
           </div>
         )}
 
@@ -351,7 +392,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             {customFrets.some(f => f !== 'x') && (
               <button
                 className="btn btn-ghost btn-sm"
-                onClick={() => setCustomFrets(['x', 'x', 'x', 'x', 'x', 'x'])}
+                onClick={() => setCustomFrets(emptyFrets(stringCount))}
               >
                 Очистить
               </button>

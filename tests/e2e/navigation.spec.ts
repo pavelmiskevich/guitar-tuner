@@ -70,4 +70,36 @@ test.describe('навигация', () => {
     // sharedAudioEngine — синглтон вне React: микрофон обязан остаться включённым.
     await expect(page.getByTestId('mic-status')).toBeVisible();
   });
+
+  test('«Назад» и «Вперёд» переключают вкладки и возвращают схему грифа (#13)', async ({ page }, testInfo) => {
+    await page.goto('/');
+    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+
+    await page.getByTestId(`${prefix}-fretboard`).click();
+    await page.getByTestId('fb-mode-scales').click();
+    await page.getByTestId('fb-root').selectOption('G');
+    await page.getByTestId(`${prefix}-metronome`).click();
+    await expect(page.getByTestId('header-subtitle')).toContainText('Ритм');
+
+    await page.goBack();
+    await expect(page.getByTestId('header-subtitle')).toContainText('Гриф');
+    await expect(page.getByTestId('fb-root')).toHaveValue('G');
+
+    await page.goBack();
+    await expect(page.getByTestId('header-subtitle')).toContainText('Тюнер');
+
+    await page.goForward();
+    await expect(page.getByTestId('header-subtitle')).toContainText('Гриф');
+  });
+
+  test('смена вкладки не теряет query-строку адреса (#13)', async ({ page }, testInfo) => {
+    await page.goto('/?utm_source=test');
+    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+
+    await page.getByTestId(`${prefix}-metronome`).click();
+    await expect(page).toHaveURL(/\?utm_source=test#tab=metronome$/);
+
+    await page.getByTestId(`${prefix}-fretboard`).click();
+    await expect(page).toHaveURL(/\?utm_source=test#tab=fretboard/);
+  });
 });
