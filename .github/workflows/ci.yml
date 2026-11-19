@@ -15,7 +15,7 @@ jobs:
   check:
     name: Тесты, линтер, сборка
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     # Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон проверок.
     # Группа задана на задаче, а не на всём workflow: иначе новый пуш обрывал бы
@@ -25,9 +25,9 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -35,25 +35,31 @@ jobs:
       - name: Установка зависимостей
         run: npm ci
 
-      # Браузер кэшируется по версии Playwright из lock-файла: пока версия
-      # не менялась, повторная загрузка ~130 МБ не нужна.
-      - name: Кэш браузера Playwright
+      # Набор браузеров определяется версией Playwright, а не всем lock-файлом:
+      # иначе обновление любой зависимости заново качало бы сотни мегабайт.
+      - name: Версия Playwright
+        id: playwright-version
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Кэш браузеров Playwright
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-chromium-firefox-webkit
 
-      - name: Установка Chromium
+      # Firefox и WebKit гоняют спеки интерфейса без микрофона (#15): WebKit —
+      # ближайшее к Safari на iOS, под который в коде есть отдельные ветки.
+      - name: Установка браузеров
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
 
       # При попадании в кэш сам браузер уже есть, но системные библиотеки —
       # нет: они живут вне кэшируемого каталога.
       #
       # Шаг вспомогательный: в образе ubuntu-latest нужные библиотеки, как
       # правило, уже стоят, а apt на раннере периодически зависает намертво и
-      # съедает весь 20-минутный лимит задачи — прогон отменялся, ничего не
+      # съедает весь лимит задачи — прогон отменялся, ничего не
       # проверив. Поэтому ограничиваем шаг по времени и не считаем его падение
       # фатальным: реальную нехватку библиотек всё равно поймает шаг E2E,
       # который без них просто не запустит браузер.
@@ -63,7 +69,7 @@ jobs:
         continue-on-error: true
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps chromium firefox webkit
 
       - name: Проверка типов тестов
         run: npm run typecheck
@@ -71,8 +77,9 @@ jobs:
       - name: Линтер
         run: npm run lint
 
-      - name: Модульные тесты
-        run: npm test
+      # Пороги покрытия заданы в vite.config.ts: просевшее покрытие роняет шаг.
+      - name: Модульные тесты и покрытие
+        run: npm run test:coverage
 
       # QR-код для карточки доната в репозитории не хранится (см. .gitignore),
       # поэтому в сборку на раннере он попадает из секрета. Без секрета шаг
@@ -92,8 +99,9 @@ jobs:
       - name: Сборка
         run: npm run build
 
-      # Поднимает production-сборку на порту 4173 и гоняет все три проекта:
-      # десктоп, мобильный и реальный захват микрофона из WAV.
+      # Поднимает production-сборку на порту 4173 и гоняет все проекты:
+      # Chromium (десктоп, мобильный, реальный захват микрофона из WAV),
+      # Firefox и WebKit (интерфейс без микрофона).
       - name: E2E-тесты
         run: npm run test:e2e
 
@@ -101,7 +109,7 @@ jobs:
       # а не собранная заново в задаче выкладки.
       - name: Сохранение сборки для выкладки
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dist
           path: dist/
@@ -110,7 +118,7 @@ jobs:
 
       - name: Отчёт Playwright при падении
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-report
           path: |
@@ -170,14 +178,14 @@ jobs:
           fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: steps.config.outputs.ready == 'true'
         with:
           sparse-checkout: scripts/deploy
 
       - name: Загрузка проверенной сборки
         if: steps.config.outputs.ready == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: dist
           path: dist

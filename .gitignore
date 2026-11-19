@@ -40,3 +40,6 @@ public/donat/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Отчёт о покрытии модульными тестами (npm run test:coverage)
+coverage/
