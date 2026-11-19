@@ -7,6 +7,14 @@
  * строя падает уже в рендере грифа — далеко от места, где появился.
  */
 import type { Tuning } from './tunings';
+import { NOTE_NAMES } from './notes';
+
+/** Допустимые инструменты строя (совпадает с InstrumentType в domain/tunings). */
+export const INSTRUMENT_TYPES = ['guitar', 'bass', 'ukulele', 'guitar7', 'guitar12'] as const;
+
+/** Диапазон MIDI открытой струны — от C0 до C8, как при разборе ссылки. */
+export const MIN_STRING_MIDI = 12;
+export const MAX_STRING_MIDI = 108;
 
 export interface NumberSettingSpec {
   fallback: number;
@@ -35,14 +43,25 @@ export function isValidTuning(value: unknown): value is Tuning {
 
   if (typeof t.id !== 'string' || t.id === '') return false;
   if (typeof t.name !== 'string') return false;
-  if (!Array.isArray(t.strings) || t.strings.length < 1) return false;
+  if (typeof t.instrument !== 'string' || !(INSTRUMENT_TYPES as readonly string[]).includes(t.instrument)) return false;
+  if (!Array.isArray(t.strings) || t.strings.length < 1 || t.strings.length > 12) return false;
 
+  // Те же границы, что при разборе строя из ссылки (domain/deepLink).
   return t.strings.every(s => {
     if (typeof s !== 'object' || s === null) return false;
     const str = s as Record<string, unknown>;
     const open = str.open as Record<string, unknown> | undefined;
     if (typeof open !== 'object' || open === null) return false;
-    return typeof open.midi === 'number' && Number.isFinite(open.midi);
+    return (
+      typeof open.midi === 'number' &&
+      Number.isInteger(open.midi) &&
+      open.midi >= MIN_STRING_MIDI &&
+      open.midi <= MAX_STRING_MIDI &&
+      typeof open.name === 'string' &&
+      (NOTE_NAMES as string[]).includes(open.name) &&
+      typeof open.octave === 'number' &&
+      Number.isFinite(open.octave)
+    );
   });
 }
 

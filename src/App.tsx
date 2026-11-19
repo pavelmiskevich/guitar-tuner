@@ -4,7 +4,7 @@ import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings, pitchSearchRang
 import { sharedAudioEngine } from './audio/audioEngine';
 import type { NotationSystem } from './domain/notes';
 import type { TabId } from './domain/deepLink';
-import { parseTabFromHash, resolveSharedTuning } from './domain/deepLink';
+import { parseTabFromHash, resolveSharedTuning, urlWithHash } from './domain/deepLink';
 import { STORAGE_KEYS, readEnumSetting, readNumberSetting, readSetting, writeSetting } from './domain/storage';
 import { TunerScreen } from './features/tuner/TunerScreen';
 import { FretboardScreen } from './features/fretboard/FretboardScreen';
@@ -52,6 +52,12 @@ const NAV_ITEMS: { id: TabId; icon: LucideIcon; label: string; short: string; ti
 
 const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
 
+/** Строй, пришедший ссылкой и у получателя не сохранённый (или null). */
+function ephemeralLinkTuning(hash: string): Tuning | null {
+  const shared = resolveSharedTuning(hash, [...TUNING_PRESETS, ...loadSavedCustomTunings()]);
+  return shared?.isEphemeral ? shared : null;
+}
+
 /** Строй из deep link имеет приоритет над сохранённым: ссылка описывает чужую схему. */
 function resolveInitialTuning(): Tuning {
   const saved = loadSavedCustomTunings();
@@ -71,20 +77,28 @@ function resolveInitialTuning(): Tuning {
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>(() => parseTabFromHash(initialHash) ?? 'tuner');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(resolveInitialTuning);
-  const [customTunings, setCustomTunings] = useState<Tuning[]>(() => {
-    const saved = loadSavedCustomTunings();
-    // Строй, пришедший ссылкой, должен быть виден в селекторах, хотя у получателя не сохранён.
-    const shared = resolveSharedTuning(initialHash, [...TUNING_PRESETS, ...saved]);
-    if (shared?.isCustom && !saved.some(t => t.id === shared.id)) return [...saved, shared];
-    return saved;
-  });
+  const [customTunings, setCustomTunings] = useState<Tuning[]>(loadSavedCustomTunings);
+  // Строй из ссылки держим отдельно от сохранённых: список сохранённых
+  // перечитывается из хранилища после создания и удаления строя, и раньше
+  // «Строй из ссылки» при этом пропадал из селектора, оставаясь активным (#13).
+  const [linkTuning, setLinkTuning] = useState<Tuning | null>(() => ephemeralLinkTuning(initialHash));
 
   // Пресеты и пользовательские строи в одном списке: селектор тюнера должен
   // показывать оба, иначе сохранённый строй нельзя выбрать повторно.
   const availableTunings = useMemo(
-    () => [...TUNING_PRESETS, ...customTunings],
-    [customTunings]
+    () => [
+      ...TUNING_PRESETS,
+      ...customTunings,
+      ...(linkTuning && !customTunings.some(t => t.id === linkTuning.id) ? [linkTuning] : [])
+    ],
+    [customTunings, linkTuning]
   );
+
+  /**
+   * Счётчик перехода по ссылке: экран грифа читает схему из хэша при
+   * монтировании, и новый ключ заставляет его прочитать её заново.
+   */
+  const [linkNavigation, setLinkNavigation] = useState(0);
 
   // Границы совпадают с теми, что предлагает окно настроек: чужое или устаревшее
   // значение из хранилища не должно уводить расчёт частот в NaN или в бессмыслицу.
@@ -132,12 +146,46 @@ export const App: React.FC = () => {
     setLockedStringIndex((idx) => (idx !== null && idx >= stringCount ? null : idx));
   }, [stringCount]);
 
-  // Вкладку держим в адресе, чтобы ссылку можно было скопировать прямо из браузера.
-  // Гриф пишет хэш сам — там в него уходит вся схема (см. FretboardScreen).
+  /**
+   * Смена вкладки пользователем — новая запись истории, чтобы работали «Назад»
+   * и «Вперёд» (раньше вкладки писались через replaceState). Запись добавляется
+   * здесь, а не в эффекте: эффекты дочерних компонентов срабатывают раньше, и
+   * гриф успел бы записать свою схему поверх записи предыдущей вкладки.
+   * Дальше гриф обновляет хэш сам — в своей записи, через replaceState.
+   */
+  const navigateTab = (tab: TabId) => {
+    if (tab === activeTab) return;
+    window.history.pushState(null, '', urlWithHash(window.location, `tab=${tab}`));
+    setActiveTab(tab);
+  };
+
+  // Ссылка, вставленная в адресную строку уже открытого приложения, и переход
+  // «Назад/Вперёд» меняют только хэш — страница не перезагружается. Раньше хэш
+  // читался один раз при загрузке, и такая ссылка ничего не делала (#13).
+  // На один переход могут прийти и popstate, и hashchange: обработка
+  // идемпотентна, повтор лишь ещё раз перечитает ту же схему.
   useEffect(() => {
-    if (activeTab === 'fretboard') return;
-    window.history.replaceState(null, '', `${window.location.pathname}#tab=${activeTab}`);
-  }, [activeTab]);
+    const applyHash = () => {
+      const hash = window.location.hash;
+      const tab = parseTabFromHash(hash) ?? 'tuner';
+      setActiveTab(tab);
+
+      const saved = loadSavedCustomTunings();
+      const shared = resolveSharedTuning(hash, [...TUNING_PRESETS, ...saved]);
+      if (shared) {
+        if (shared.isEphemeral) setLinkTuning(shared);
+        setCurrentTuning(shared);
+      }
+      if (tab === 'fretboard') setLinkNavigation(n => n + 1);
+    };
+
+    window.addEventListener('hashchange', applyHash);
+    window.addEventListener('popstate', applyHash);
+    return () => {
+      window.removeEventListener('hashchange', applyHash);
+      window.removeEventListener('popstate', applyHash);
+    };
+  }, []);
 
   useEffect(() => {
     writeSetting(STORAGE_KEYS.a4, String(a4));
@@ -153,7 +201,7 @@ export const App: React.FC = () => {
 
   const handleGoTuneString = (stringIndex: number) => {
     setLockedStringIndex(stringIndex);
-    setActiveTab('tuner');
+    navigateTab('tuner');
   };
 
   const activeTitle = NAV_ITEMS.find(item => item.id === activeTab)?.title ?? '';
@@ -190,7 +238,7 @@ export const App: React.FC = () => {
                 key={id}
                 id={`nav-desktop-${id}`}
                 className={`btn btn-sm ${activeTab === id ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setActiveTab(id)}
+                onClick={() => navigateTab(id)}
                 data-testid={`nav-desktop-${id}`}
               >
                 <Icon size={15} /> {label}
@@ -248,7 +296,7 @@ export const App: React.FC = () => {
             показывает сообщение, а смена вкладки (key) даёт ей новую попытку. */}
         <ErrorBoundary
           key={activeTab}
-          onReset={activeTab === 'tuner' ? undefined : () => setActiveTab('tuner')}
+          onReset={activeTab === 'tuner' ? undefined : () => navigateTab('tuner')}
           resetLabel="Открыть тюнер"
         >
           {activeTab === 'tuner' && (
@@ -266,6 +314,7 @@ export const App: React.FC = () => {
 
           {activeTab === 'fretboard' && (
             <FretboardScreen
+              key={linkNavigation}
               tuning={currentTuning}
               notation={notation}
               a4={a4}
@@ -302,7 +351,7 @@ export const App: React.FC = () => {
           <button
             key={id}
             id={`nav-mobile-${id}`}
-            onClick={() => setActiveTab(id)}
+            onClick={() => navigateTab(id)}
             data-testid={`nav-mobile-${id}`}
             style={{
               flex: 1,

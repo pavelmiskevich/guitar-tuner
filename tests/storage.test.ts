@@ -81,4 +81,19 @@ describe('Настройки из localStorage: строи', () => {
     expect(isValidTuning({ id: 'x', name: 'X', strings: [{ open: { midi: 'сорок' } }] })).toBe(false);
     expect(isValidTuning({ id: '', name: 'X', strings: [{ open: { midi: 40 } }] })).toBe(false);
   });
+
+  it('проверяет инструмент, имя ноты и диапазон MIDI, как разбор ссылки', () => {
+    const base = JSON.parse(JSON.stringify(DEFAULT_TUNING));
+    expect(isValidTuning({ ...base, instrument: undefined })).toBe(false);
+    expect(isValidTuning({ ...base, instrument: 'piano' })).toBe(false);
+
+    const withString = (open: unknown) => ({ ...base, strings: [{ ...base.strings[0], open }] });
+    expect(isValidTuning(withString({ midi: 40, name: 'E', octave: 2 }))).toBe(true);
+    expect(isValidTuning(withString({ midi: 40, octave: 2 }))).toBe(false);
+    expect(isValidTuning(withString({ midi: 40, name: 'H', octave: 2 }))).toBe(false);
+    expect(isValidTuning(withString({ midi: 40, name: 'E' }))).toBe(false);
+    expect(isValidTuning(withString({ midi: 5, name: 'F', octave: -1 }))).toBe(false);
+    expect(isValidTuning(withString({ midi: 120, name: 'C', octave: 9 }))).toBe(false);
+    expect(isValidTuning(withString({ midi: 40.5, name: 'E', octave: 2 }))).toBe(false);
+  });
 });

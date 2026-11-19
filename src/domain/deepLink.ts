@@ -8,9 +8,10 @@
 import type { NoteName } from './notes';
 import { NOTE_NAMES } from './notes';
 import { SCALES } from './scales';
-import { COMMON_VOICINGS } from './chords';
+import { ALL_VOICING_IDS } from './chords';
 import type { InstrumentType, Tuning } from './tunings';
 import { createStringsFromMidi } from './tunings';
+import { INSTRUMENT_TYPES, MAX_STRING_MIDI, MIN_STRING_MIDI } from './storage';
 
 export type FretboardViewMode = 'explore' | 'scales' | 'chords';
 export type LabelMode = 'note' | 'degree';
@@ -34,7 +35,6 @@ export type DecodedFretboardState = Partial<Omit<FretboardShareState, 'tuning'>>
 
 const TAB_IDS: TabId[] = ['tuner', 'fretboard', 'chord-check', 'metronome', 'ear-training'];
 const VIEW_MODES: FretboardViewMode[] = ['explore', 'scales', 'chords'];
-const INSTRUMENTS: InstrumentType[] = ['guitar', 'bass', 'ukulele', 'guitar7', 'guitar12'];
 
 export const MAX_FRET = 24;
 export const DEFAULT_FRET_RANGE = { from: 0, to: 15 };
@@ -95,7 +95,7 @@ export function decodeFretboardHash(hash: string): DecodedFretboardState {
   if (scale && SCALES.some(s => s.id === scale)) state.scaleId = scale;
 
   const voicing = params.get('voicing');
-  if (voicing && COMMON_VOICINGS.some(v => v.id === voicing)) state.voicingId = voicing;
+  if (voicing && ALL_VOICING_IDS.has(voicing)) state.voicingId = voicing;
 
   const frets = parseFrets(params.get('frets'));
   if (frets) state.customFrets = frets;
@@ -158,38 +158,54 @@ export function parseTabFromHash(hash: string): TabId | null {
   return null;
 }
 
-/**
- * Строй из ссылки: сперва ищем среди доступных получателю (пресеты + его
- * сохранённые), иначе собираем на лету из переданных струн.
- */
-export function resolveSharedTuning(hash: string, availableTunings: Tuning[]): Tuning | null {
-  const params = toParams(hash);
-  const id = params.get('tuning');
-  if (id) {
-    const known = availableTunings.find(t => t.id === id);
-    if (known) return known;
-  }
-
-  const raw = params.get('strings');
+function parseStrings(raw: string | null): number[] | null {
   if (!raw) return null;
-
   const parts = raw.split('.');
   if (parts.length < 4 || parts.length > 12) return null;
 
   const midi: number[] = [];
   for (const part of parts) {
     const note = parseIntStrict(part);
-    if (note === null || note < 12 || note > 108) return null;
+    if (note === null || note < MIN_STRING_MIDI || note > MAX_STRING_MIDI) return null;
     midi.push(note);
   }
+  return midi;
+}
+
+/** Префикс id строя, собранного из ссылки, — по нему его не спутать с сохранённым. */
+export const SHARED_TUNING_ID_PREFIX = 'shared-';
+
+/**
+ * Строй из ссылки: сперва ищем среди доступных получателю (пресеты + его
+ * сохранённые), иначе собираем на лету из переданных струн.
+ *
+ * Если ссылка несёт струны, найденный по id строй берётся только при
+ * совпадении струн: id пользовательских строёв у разных людей могут совпасть,
+ * а схема должна звучать так, как у отправителя.
+ */
+export function resolveSharedTuning(hash: string, availableTunings: Tuning[]): Tuning | null {
+  const params = toParams(hash);
+  const id = params.get('tuning');
+  const midi = parseStrings(params.get('strings'));
+
+  if (id) {
+    const known = availableTunings.find(t => t.id === id);
+    if (known && (!midi || sameStrings(known, midi))) return known;
+  }
+  if (!midi) return null;
+
+  const sameAsKnown = availableTunings.find(t => sameStrings(t, midi));
+  if (sameAsKnown) return sameAsKnown;
 
   const instRaw = params.get('inst');
-  const instrument = instRaw && (INSTRUMENTS as string[]).includes(instRaw)
+  const instrument = instRaw && (INSTRUMENT_TYPES as readonly string[]).includes(instRaw)
     ? (instRaw as InstrumentType)
     : 'guitar';
 
   return {
-    id: id || 'shared-tuning',
+    // id из ссылки не берём: это произвольная строка извне. Собираем свой —
+    // детерминированный, чтобы одна и та же ссылка давала один и тот же строй.
+    id: `${SHARED_TUNING_ID_PREFIX}${instrument}-${midi.join('-')}`,
     name: 'Строй из ссылки',
     category: 'Из ссылки',
     instrument,
@@ -197,6 +213,18 @@ export function resolveSharedTuning(hash: string, availableTunings: Tuning[]): T
     isCustom: true,
     isEphemeral: true
   };
+}
+
+function sameStrings(tuning: Tuning, midi: number[]): boolean {
+  return tuning.strings.length === midi.length && tuning.strings.every((s, i) => s.open.midi === midi[i]);
+}
+
+/**
+ * Адрес с новым хэшем без потери пути и query-строки (`?utm_source=…`):
+ * раньше replaceState собирал адрес только из pathname.
+ */
+export function urlWithHash(location: { pathname: string; search: string }, hash: string): string {
+  return `${location.pathname}${location.search}${hash ? `#${hash}` : ''}`;
 }
 
 export function buildShareUrl(baseUrl: string, pathname: string, state: FretboardShareState): string {

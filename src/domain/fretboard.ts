@@ -88,7 +88,7 @@ export function getFretNote(
   const str = tuning.strings[stringIndex];
   if (!str) return { midi: 0, name: 'C', octave: 0 };
 
-  const effectiveFret = capo !== null ? (fret === 0 ? capo : fret + capo) : fret;
-  const midi = str.open.midi + effectiveFret;
+  // Лады отсчитываются от каподастра: открытая струна звучит на его ладу.
+  const midi = str.open.midi + fret + (capo ?? 0);
   return midiToPitch(midi);
 }
