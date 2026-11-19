@@ -4,7 +4,7 @@ import { noteFrequency } from './fixtures/notes';
 test.describe('проверка аккорда', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-chord-check`).click();
   });
 
@@ -105,7 +105,7 @@ test.describe('проверка аккорда: перебор подряд (#29
 
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-chord-check`).click();
     await page.getByTestId('cc-mic-toggle').click();
   });
@@ -140,7 +140,7 @@ test.describe('проверка аккорда: удар (#4)', () => {
 
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-chord-check`).click();
     await page.getByTestId('cc-voicing-am-open').click();
     // Микрофон поднимаем в переборе и глушим: удар должен прийти после нажатия.

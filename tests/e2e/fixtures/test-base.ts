@@ -1,4 +1,5 @@
 import { test as base, expect } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 import { installFakeMic } from './fake-mic';
 
 export const STORAGE_KEYS = [
@@ -25,6 +26,33 @@ export const STORAGE_KEYS = [
  */
 export const consoleGuardTest = base.extend({
   page: async ({ page }, runTest) => {
+    // Тишина на динамиках. Безголовый Chromium звук никуда не выводит, а
+    // Firefox и WebKit играют синтезатор грифа и метроном в настоящие колонки
+    // машины, на которой идёт прогон. Выход каждого контекста подменяется
+    // усилителем с нулевой громкостью: граф и время контекста живут как
+    // обычно, слышно только тишину. Фейковый микрофон пишет в свой
+    // MediaStream, а не в destination, — его это не касается.
+    await page.addInitScript(() => {
+      const proto = (window.BaseAudioContext ?? window.AudioContext)?.prototype;
+      const original = proto && Object.getOwnPropertyDescriptor(proto, 'destination');
+      if (!proto || !original?.get) return;
+      const realDestination = original.get;
+      const muted = new WeakMap<BaseAudioContext, GainNode>();
+      Object.defineProperty(proto, 'destination', {
+        configurable: true,
+        get(this: BaseAudioContext) {
+          let node = muted.get(this);
+          if (!node) {
+            node = this.createGain();
+            node.gain.value = 0;
+            node.connect(realDestination.call(this));
+            muted.set(this, node);
+          }
+          return node;
+        },
+      });
+    });
+
     await page.addInitScript((keys: string[]) => {
       try {
         if (sessionStorage.getItem('__e2e_cleaned') === '1') return;
@@ -57,3 +85,14 @@ export const test = consoleGuardTest.extend({
 });
 
 export { expect };
+
+/**
+ * Доступ к буферу обмена для теста. Разрешения clipboard-read/clipboard-write
+ * Playwright умеет выдавать только в Chromium; в Firefox и WebKit тест
+ * пропускается, а не падает на grantPermissions.
+ */
+export async function grantClipboard(context: BrowserContext): Promise<void> {
+  const browserName = context.browser()?.browserType().name();
+  base.skip(browserName !== 'chromium', 'разрешения на буфер обмена Playwright выдаёт только в Chromium');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+}

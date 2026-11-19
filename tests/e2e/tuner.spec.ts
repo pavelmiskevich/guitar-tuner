@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures/test-base';
+import { expect, grantClipboard, test } from './fixtures/test-base';
 import { centsOff, noteFrequency } from './fixtures/notes';
 
 async function startMic(page: import('@playwright/test').Page) {
@@ -169,7 +169,7 @@ test.describe('тюнер', () => {
   });
 
   test('адрес настроек микрофона копируется в буфер', async ({ page, context }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await grantClipboard(context);
     await page.evaluate(() => window.__fakeMic.denyAccess());
     await page.getByTestId('mic-toggle').click();
 

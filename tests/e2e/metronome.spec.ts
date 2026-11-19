@@ -5,7 +5,7 @@ import { waitForBeatActive } from './fixtures/beats';
 test.describe('метроном', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-metronome`).click();
   });
 
@@ -127,7 +127,7 @@ async function openRhythmTab(page: Page, testInfo: TestInfo) {
 }
 
 function navPrefix(testInfo: TestInfo) {
-  return testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+  return testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 }
 
 /**

@@ -11,7 +11,7 @@ const TABS = [
 test.describe('навигация', () => {
   test('переключает все пять экранов', async ({ page }, testInfo) => {
     await page.goto('/');
-    const isMobile = testInfo.project.name === 'chromium-mobile';
+    const isMobile = testInfo.project.use.isMobile;
     const prefix = isMobile ? 'nav-mobile' : 'nav-desktop';
 
     for (const tab of TABS) {
@@ -22,7 +22,7 @@ test.describe('навигация', () => {
 
   test('показывает нужную панель навигации для вьюпорта', async ({ page }, testInfo) => {
     await page.goto('/');
-    const isMobile = testInfo.project.name === 'chromium-mobile';
+    const isMobile = testInfo.project.use.isMobile;
 
     await expect(page.getByTestId('nav-desktop-tuner')).toBeVisible({ visible: !isMobile });
     await expect(page.getByTestId('nav-mobile-tuner')).toBeVisible({ visible: isMobile });
@@ -30,7 +30,7 @@ test.describe('навигация', () => {
 
   test('не создаёт горизонтальный скролл ни на одном экране', async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 
     for (const tab of TABS) {
       await page.getByTestId(`${prefix}-${tab.id}`).click();
@@ -57,9 +57,9 @@ test.describe('навигация', () => {
     await expect(link).toHaveAttribute('aria-label', /GitHub/);
   });
 
-  test('микрофон переживает переключение экранов', async ({ page }, testInfo) => {
+  test('микрофон переживает переключение экранов', { tag: '@mic' }, async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 
     await page.getByTestId('mic-toggle').click();
     await expect(page.getByTestId('mic-status')).toBeVisible();
@@ -73,7 +73,7 @@ test.describe('навигация', () => {
 
   test('«Назад» и «Вперёд» переключают вкладки и возвращают схему грифа (#13)', async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 
     await page.getByTestId(`${prefix}-fretboard`).click();
     await page.getByTestId('fb-mode-scales').click();
@@ -94,7 +94,7 @@ test.describe('навигация', () => {
 
   test('смена вкладки не теряет query-строку адреса (#13)', async ({ page }, testInfo) => {
     await page.goto('/?utm_source=test');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 
     await page.getByTestId(`${prefix}-metronome`).click();
     await expect(page).toHaveURL(/\?utm_source=test#tab=metronome$/);

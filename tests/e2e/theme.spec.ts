@@ -19,7 +19,7 @@ async function settle(page: import('@playwright/test').Page) {
 
 for (const theme of ['day', 'night'] as const) {
   test(`тема «${theme === 'day' ? 'День' : 'Ночь'}»: весь текст читаем (контраст WCAG AA)`, async ({ page }, testInfo) => {
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.goto('/');
     await page.getByTestId('settings-open').click();
     await page.getByTestId(`settings-theme-${theme}`).click();

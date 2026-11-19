@@ -12,6 +12,21 @@ const CHROMIUM_ARGS = ['--autoplay-policy=no-user-gesture-required'];
  */
 const PORT = Number(process.env.E2E_PORT ?? 4173);
 
+/**
+ * Адрес IPv4, а не localhost: Node может слушать «localhost» на ::1, а Firefox
+ * ходит на 127.0.0.1 и получал NS_ERROR_CONNECTION_REFUSED. Оба адреса —
+ * безопасный контекст, так что микрофон и service worker работают одинаково.
+ */
+const HOST = '127.0.0.1';
+
+/**
+ * Спеки, которые проверяют интерфейс без звука с микрофона: их гоняем ещё и в
+ * Firefox и WebKit (#15). Анализ звука — в Chromium: фейковый микрофон держится
+ * на тонкостях Web Audio, а WebKit под Windows микрофона не даёт вовсе. Тесты
+ * внутри этих спек, которым микрофон всё же нужен, помечены тегом @mic.
+ */
+const NO_MIC_SPECS = /(smoke|navigation|fretboard|metronome|theme|settings|pwa|resilience)\.spec\.ts/;
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -21,7 +36,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 7_000 },
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: `http://${HOST}:${PORT}`,
     // Приложение при первом запуске берёт тему из системы (#10). По умолчанию
     // Playwright эмулирует светлую систему; тёмная — основная тема приложения,
     // и с ней проверка «выбранная дневная тема переживает перезагрузку»
@@ -50,6 +65,23 @@ export default defineConfig({
       },
     },
     {
+      name: 'firefox-desktop',
+      testMatch: NO_MIC_SPECS,
+      grepInvert: /@mic/,
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+    {
+      name: 'webkit-mobile',
+      testMatch: NO_MIC_SPECS,
+      grepInvert: /@mic/,
+      use: {
+        ...devices['iPhone 15'],
+      },
+    },
+    {
       name: 'chromium-realmic',
       testMatch: /smoke-realmic\.spec\.ts/,
       use: {
@@ -71,8 +103,8 @@ export default defineConfig({
     // и E2E падали с `cmd: not found` ещё до запуска браузера. Внутри npm-скрипта
     // `&&` одинаково работает и в sh, и в cmd.
     // Аргументы после `--` npm дописывает в конец скрипта, то есть к vite preview.
-    command: `npm run preview:e2e -- --port ${PORT}`,
-    url: `http://localhost:${PORT}`,
+    command: `npm run preview:e2e -- --host ${HOST} --port ${PORT}`,
+    url: `http://${HOST}:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

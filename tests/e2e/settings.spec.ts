@@ -8,6 +8,11 @@ test.describe('настройки', () => {
     await expect(page.getByTestId('settings-modal')).toBeVisible();
   });
 
+  test('показывает версию и сборку (#15)', async ({ page }) => {
+    // По открытому сайту должно быть видно, какая сборка развёрнута.
+    await expect(page.getByTestId('settings-version')).toHaveText(/^Версия \d+\.\d+\.\d+ · сборка [0-9a-f]{7}$/);
+  });
+
   test('меняет эталон A4 и показывает его в шапке', async ({ page }) => {
     await page.getByTestId('settings-a4-432').click();
     await page.getByTestId('settings-close').click();
@@ -34,7 +39,7 @@ test.describe('настройки', () => {
   // заведомо между строгим (3¢) и свободным (10¢) порогами, поэтому именно порог,
   // а не шум детектора, решает исход теста. Оба чтения — в одном снимке DOM внутри
   // toPass, как в tests/e2e/tuner.spec.ts:45-52.
-  test('строгий порог сужает зону «В СТРОЕ»', async ({ page }) => {
+  test('строгий порог сужает зону «В СТРОЕ»', { tag: '@mic' }, async ({ page }) => {
     await page.getByTestId('settings-threshold-3').click();
     await page.getByTestId('settings-close').click();
 
@@ -47,7 +52,7 @@ test.describe('настройки', () => {
     }).toPass({ timeout: 8_000 });
   });
 
-  test('свободный порог расширяет зону «В СТРОЕ»', async ({ page }) => {
+  test('свободный порог расширяет зону «В СТРОЕ»', { tag: '@mic' }, async ({ page }) => {
     await page.getByTestId('settings-threshold-10').click();
     await page.getByTestId('settings-close').click();
 

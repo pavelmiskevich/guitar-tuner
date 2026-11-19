@@ -70,7 +70,7 @@ test.describe('PWA', () => {
 
     await context.setOffline(true);
     await page.reload();
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-metronome`).click();
     await page.getByTestId('mt-toggle').click();
     await waitForBeatActive(page, 1);
