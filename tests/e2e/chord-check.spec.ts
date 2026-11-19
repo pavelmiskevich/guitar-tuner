@@ -143,10 +143,13 @@ test.describe('проверка аккорда: удар (#4)', () => {
     const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-chord-check`).click();
     await page.getByTestId('cc-voicing-am-open').click();
-    // Микрофон поднимаем в переборе и глушим: удар должен прийти после нажатия.
+    // Удар должен прийти после нажатия, поэтому микрофон молчит с самого
+    // включения. Глушить его уже включённым нельзя: под нагрузкой в первый
+    // кадр захвата успевал попасть хвост прежнего сигнала, и захват принимал
+    // его за удар — «Жду удар» не появлялось вовсе. Громкость вернёт setChord.
+    await page.evaluate(() => window.__fakeMic.setLevel(-200));
     await page.getByTestId('cc-mic-toggle').click();
     await expect(page.getByTestId('cc-mic-toggle')).toBeVisible();
-    await page.evaluate(() => window.__fakeMic.silence());
     await page.getByTestId('cc-mode-strum').click();
   });
 
