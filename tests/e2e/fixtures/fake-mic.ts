@@ -3,6 +3,11 @@ import type { Page } from '@playwright/test';
 export interface FakeMic {
   setFrequency(freq: number): void;
   setCents(note: string, cents: number, a4?: number): void;
+  /**
+   * Аккорд: несколько струн звучат разом, у каждой те же гармоники 1/h. Громкость
+   * делится поровну, суммарно — как у одной ноты. setFrequency возвращает одну ноту.
+   */
+  setChord(freqs: number[]): void;
   /** Уровень сигнала в dBFS: реальная гитара через микрофон телефона даёт около -60. */
   setLevel(dbfs: number): void;
   /** Имитация отказа в доступе: getUserMedia начинает отклоняться, как при запрете. */
@@ -39,6 +44,10 @@ export async function installFakeMic(page: Page): Promise<void> {
 
     let ctx: AudioContext | null = null;
     let master: GainNode | null = null;
+    /** Шина одной ноты: при аккорде глушится, при setFrequency включается обратно. */
+    let monoBus: GainNode | null = null;
+    let chordBus: GainNode | null = null;
+    const chordOscillators: OscillatorNode[] = [];
     let stream: MediaStream | null = null;
     const oscillators: OscillatorNode[] = [];
     let currentFreq = 82.41;
@@ -54,6 +63,8 @@ export async function installFakeMic(page: Page): Promise<void> {
       master = ctx.createGain();
       master.gain.value = LEVEL;
       master.connect(dest);
+      monoBus = ctx.createGain();
+      monoBus.connect(master);
 
       for (let h = 1; h <= HARMONICS; h++) {
         const osc = ctx.createOscillator();
@@ -62,7 +73,7 @@ export async function installFakeMic(page: Page): Promise<void> {
         const g = ctx.createGain();
         g.gain.value = 1 / h; // спад амплитуды гармоник, как у щипковой струны
         osc.connect(g);
-        g.connect(master);
+        g.connect(monoBus);
         osc.start();
         oscillators.push(osc);
       }
@@ -71,11 +82,45 @@ export async function installFakeMic(page: Page): Promise<void> {
       return stream;
     }
 
+    function stopChord(): void {
+      chordOscillators.splice(0).forEach((osc) => osc.stop());
+      chordBus?.disconnect();
+      chordBus = null;
+    }
+
+    function applyChord(freqs: number[]): void {
+      ensureGraph();
+      if (!ctx || !master || !monoBus) return;
+      stopChord();
+      const t = ctx.currentTime;
+      monoBus.gain.setValueAtTime(0, t);
+      chordBus = ctx.createGain();
+      chordBus.gain.value = 1 / Math.max(1, freqs.length);
+      chordBus.connect(master);
+      for (const freq of freqs) {
+        for (let h = 1; h <= HARMONICS; h++) {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = freq * h;
+          const g = ctx.createGain();
+          g.gain.value = 1 / h;
+          osc.connect(g);
+          g.connect(chordBus);
+          osc.start();
+          chordOscillators.push(osc);
+        }
+      }
+      master.gain.setValueAtTime(LEVEL, t);
+      void ctx.resume();
+    }
+
     function applyFrequency(freq: number): void {
       currentFreq = freq;
       ensureGraph();
-      if (!ctx || !master) return;
+      if (!ctx || !master || !monoBus) return;
+      stopChord();
       const t = ctx.currentTime;
+      monoBus.gain.setValueAtTime(1, t);
       oscillators.forEach((osc, i) => {
         osc.frequency.setValueAtTime(freq * (i + 1), t);
       });
@@ -98,6 +143,9 @@ export async function installFakeMic(page: Page): Promise<void> {
       },
       setCents(note: string, cents: number, a4 = 440) {
         applyFrequency(noteToFrequency(note, cents, a4));
+      },
+      setChord(freqs: number[]) {
+        applyChord(freqs);
       },
       denyAccess() {
         accessDenied = true;
@@ -122,11 +170,13 @@ export async function installFakeMic(page: Page): Promise<void> {
         master.gain.setValueAtTime(0, ctx.currentTime);
       },
       stop() {
+        stopChord();
         oscillators.forEach((osc) => osc.stop());
         oscillators.length = 0;
         void ctx?.close();
         ctx = null;
         master = null;
+        monoBus = null;
         stream = null;
       },
       get frequency() {

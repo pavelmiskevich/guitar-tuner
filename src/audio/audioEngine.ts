@@ -76,6 +76,13 @@ const ANALYSIS_INTERVAL_MS = 1000 / ANALYSIS_FPS;
  */
 export const BACKGROUND_RELEASE_MS = 60_000;
 
+/**
+ * Сколько отсчётов держит анализатор захвата для проверки аккорда по удару (#4):
+ * предел Web Audio, ~0,68 с на 48 кГц. Спектр по такому окну различает
+ * основные тоны соседних струн, а спектр основного анализатора (~0,17 с) — нет.
+ */
+export const CAPTURE_LENGTH = 32768;
+
 /** Сырой сигнал: обработка речи (AGC/NS/AEC) искажает тон и атаку струны. */
 const RAW_AUDIO_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
@@ -120,6 +127,8 @@ export class AudioEngine {
   private mediaStream: MediaStream | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private analyserNode: AnalyserNode | null = null;
+  private captureAnalyser: AnalyserNode | null = null;
+  private captureBuffer = new Float32Array(CAPTURE_LENGTH);
   private detector: PitchDetector;
   private pitchRange: PitchRange = DEFAULT_PITCH_RANGE;
   /** Во сколько раз прореживается вход: при 96/192 кГц кадр остаётся ~85 мс. */
@@ -331,11 +340,17 @@ export class AudioEngine {
       analyserNode.fftSize = Math.min(32768, ANALYSIS_LENGTH * 2 * decimation);
       analyserNode.smoothingTimeConstant = 0.05;
       sourceNode.connect(analyserNode);
+      // Отдельный анализатор с самым длинным окном — только для захвата удара.
+      // БПФ он не считает, пока у него не просят спектр: это просто кольцевой буфер.
+      const captureAnalyser = ctx.createAnalyser();
+      captureAnalyser.fftSize = CAPTURE_LENGTH;
+      sourceNode.connect(captureAnalyser);
 
       this.audioContext = ctx;
       this.mediaStream = stream;
       this.sourceNode = sourceNode;
       this.analyserNode = analyserNode;
+      this.captureAnalyser = captureAnalyser;
       this.decimation = decimation;
       this.detector = new PitchDetector(sampleRate / decimation, ANALYSIS_LENGTH);
       this.timeDataArray = new Float32Array(analyserNode.fftSize);
@@ -528,19 +543,22 @@ export class AudioEngine {
     this.animationFrameId = requestAnimationFrame(tick);
   }
 
+  /** Длительность окна захвата при текущей частоте дискретизации, мс. */
+  public getCaptureWindowMs(): number {
+    return (CAPTURE_LENGTH / this.getSampleRate()) * 1000;
+  }
+
   /**
-   * Получение текущего спектра частот.
-   *
-   * Пока звучит собственный эталон, возвращает null, как и цикл анализа:
-   * иначе режим B проверки аккорда разбирал бы спектр синтезатора вместо гитары.
+   * Последние CAPTURE_LENGTH отсчётов сырого сигнала — для проверки аккорда по
+   * удару (#4). Пока звучит собственный эталон, возвращает null, как и цикл
+   * анализа: иначе разбирался бы звук синтезатора вместо гитары.
    */
-  public getFrequencyData(): { data: Float32Array; sampleRate: number } | null {
-    if (!this.analyserNode || this.status.state !== 'running') return null;
+  public getRecentSamples(): { samples: Float32Array; sampleRate: number } | null {
+    if (!this.captureAnalyser || this.status.state !== 'running') return null;
     if (this.isSuppressed()) return null;
-    // @ts-expect-error Float32Array buffer compatibility
-    this.analyserNode.getFloatFrequencyData(this.freqDataArray);
+    this.captureAnalyser.getFloatTimeDomainData(this.captureBuffer);
     return {
-      data: new Float32Array(this.freqDataArray),
+      samples: new Float32Array(this.captureBuffer),
       sampleRate: this.audioContext?.sampleRate || 48000
     };
   }
@@ -567,6 +585,10 @@ export class AudioEngine {
     if (this.analyserNode) {
       this.analyserNode.disconnect();
       this.analyserNode = null;
+    }
+    if (this.captureAnalyser) {
+      this.captureAnalyser.disconnect();
+      this.captureAnalyser = null;
     }
 
     releaseStream(this.mediaStream);

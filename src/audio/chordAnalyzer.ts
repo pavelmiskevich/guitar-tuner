@@ -2,6 +2,8 @@ import type { Voicing } from '../domain/chords';
 import { getVoicingExpectedPitches } from '../domain/chords';
 import type { Tuning } from '../domain/tunings';
 import { midiToFrequency, calculateCents } from '../domain/notes';
+import { computeSpectrum, findPeakNear } from './spectrum';
+import type { Spectrum } from './spectrum';
 
 export interface StringTuningStatus {
   stringIndex: number;      // 0 = 6-я струна
@@ -10,10 +12,11 @@ export interface StringTuningStatus {
   measuredFreq: number;
   cents: number;
   /**
-   * unmeasured — вторая струна октавного хора 12-струнной: звучит вместе с
-   * парой, и монофонический детектор её отдельно не слышит (#27).
+   * unmeasured — струна звучит, но отдельно её не измерить: вторая струна
+   * октавного хора 12-струнной в «Переборе» (#27) или струна, которая в ударе
+   * дублирует другую через октаву, — все её партиалы совпадают с чужими (#4).
    */
-  status: 'pending' | 'in-tune' | 'low' | 'high' | 'muted' | 'not-played' | 'undetermined' | 'unmeasured';
+  status: 'pending' | 'in-tune' | 'low' | 'high' | 'muted' | 'not-played' | 'unmeasured';
   confidence: 'high' | 'medium' | 'none';
   usedPartials?: number;
 }
@@ -24,11 +27,6 @@ export interface ChordAnalysisResult {
   allInTune: boolean;
   activeStringIndex: number | null;
   mode: 'arpeggio' | 'strum';
-}
-
-export interface SpectralPeak {
-  frequency: number;
-  magnitude: number;
 }
 
 /**
@@ -53,17 +51,18 @@ export function octavePartners(voicing: Voicing, tuning: Tuning): Map<number, nu
 }
 
 export interface ChordProgress {
-  /** Струны, которые можно измерить: звучат и не являются второй струной октавной пары. */
+  /** Струны, которые можно измерить: звучат и не помечены «отдельно не измеряется». */
   measurable: number;
   tuned: number;
-  /** Вторые струны октавных пар, которые «Перебор» отдельно не слышит (#27). */
+  /** Звучащие струны, которые отдельно не измерить (#27, #4). */
   unmeasured: number;
   complete: boolean;
 }
 
 /**
- * Собран ли аккорд. Вторую струну октавной пары требовать нельзя: детектор её
- * не слышит, и «аккорд собран» на 12-струнной не появился бы никогда (#27).
+ * Собран ли аккорд. Струну, которую отдельно не измерить, требовать нельзя:
+ * иначе «аккорд собран» на 12-струнной и в большинстве аккордов по удару не
+ * появился бы никогда (#27, #4).
  */
 export function chordProgress(statuses: StringTuningStatus[]): ChordProgress {
   const sounding = statuses.filter(s => s.status !== 'muted');
@@ -158,81 +157,70 @@ export function calculatePartials(f0: number, inharmonicityB = 5e-5, maxHarmonic
 }
 
 /**
- * Поиск спектральных пиков в FFT буфере с параболической интерполяцией
+ * Окно поиска пика партиала и порог коллизии партиалов разных струн — одно
+ * значение. Раньше пик искался в ±70¢, а коллизией считалось ближе 30¢: партиал
+ * соседней струны в 30–70¢ не исключался и мог быть засчитан как свой (#4).
  */
-export function extractSpectralPeaks(
-  fftData: Float32Array,
-  sampleRate: number,
-  minFreq = 65,
-  maxFreq = 2000,
-  thresholdDb = -65
-): SpectralPeak[] {
-  const peaks: SpectralPeak[] = [];
-  const binCount = fftData.length;
-  const binWidth = (sampleRate / 2) / binCount;
+export const PARTIAL_WINDOW_CENTS = 50;
 
-  for (let i = 2; i < binCount - 2; i++) {
-    const val = fftData[i];
-    if (val < thresholdDb) continue;
+/** По скольким партиалам струны меряем: выше растёт ошибка модели негармоничности. */
+const MEASURED_HARMONICS = 6;
 
-    // Локальный максимум
-    if (val > fftData[i - 1] && val > fftData[i + 1]) {
-      // Параболическая суб-бин интерполяция для точной частоты
-      const alpha = fftData[i - 1];
-      const beta = fftData[i];
-      const gamma = fftData[i + 1];
+/**
+ * До какого номера учитывать чужие партиалы при поиске коллизий. Чужая струна
+ * звучит и на высоких гармониках: E2 на 10-й гармонике (824 Гц) накрывает
+ * 5-ю гармонику E3, хотя меряем E2 только до 6-й.
+ */
+const COLLISION_HARMONICS = 16;
 
-      const denom = (alpha - 2 * beta + gamma);
-      const delta = denom !== 0 ? (0.5 * (alpha - gamma)) / denom : 0;
-      const accurateBin = i + delta;
-      const freq = accurateBin * binWidth;
+interface StringModel {
+  stringIdx: number;
+  targetFreq: number;
+  targetMidi: number;
+  b: number;
+}
 
-      if (freq >= minFreq && freq <= maxFreq) {
-        peaks.push({
-          frequency: freq,
-          magnitude: beta
-        });
-      }
-    }
+function partialFrequency(f0: number, b: number, h: number): number {
+  return h * f0 * Math.sqrt(1 + b * h * h);
+}
+
+/** Взвешенная медиана: значение, на котором накопленный вес переходит половину. */
+function weightedMedian(items: { value: number; weight: number }[]): number {
+  const sorted = [...items].sort((a, b) => a.value - b.value);
+  const total = sorted.reduce((sum, it) => sum + it.weight, 0);
+  let acc = 0;
+  for (const it of sorted) {
+    acc += it.weight;
+    if (acc >= total / 2) return it.value;
   }
-
-  return peaks;
+  return sorted[sorted.length - 1].value;
 }
 
 /**
- * Полифонический анализ строя аккорда по одному удару (Режим B: Спектральный анализ)
- * Реализует требования ТЗ §5.3.3:
- * - Моделирование партиалов с негармоничностью
- * - Разрешение коллизий между струнами (исключение коллизий < 30 центов)
- * - Взвешенная медиана отклонений чистых партиалов
+ * Полифонический анализ строя аккорда по спектру удара (Режим B, ТЗ §5.3.3).
+ *
+ * - партиалы каждой струны моделируются с негармоничностью;
+ * - партиал, к которому ближе PARTIAL_WINDOW_CENTS подходит партиал другой
+ *   струны, исключается: его пик принадлежит не только этой струне;
+ * - по чистым партиалам ищутся пики, тихие пики (шум) не засчитываются;
+ * - отклонение струны — взвешенная медиана отклонений партиалов, вес — амплитуда
+ *   пика, делённая на номер гармоники;
+ * - струна без единого чистого партиала (дублирует другую через октаву)
+ *   получает «отдельно не измеряется», а не выдуманный замер.
  */
-export function analyzeChordStrumSpectrum(
-  fftData: Float32Array,
-  sampleRate: number,
+export function analyzeChordSpectrum(
+  spectrum: Spectrum,
   voicing: Voicing,
   tuning: Tuning,
   inTuneThresholdCents = 5,
   a4 = 440
 ): StringTuningStatus[] {
-  const peaks = extractSpectralPeaks(fftData, sampleRate, 65, 2200, -70);
   const expectedPitches = getVoicingExpectedPitches(voicing, tuning);
 
-  // 1. Построение партиалов для каждой звучащей струны
-  interface StringModel {
-    stringIdx: number;
-    targetFreq: number;
-    targetMidi: number;
-    b: number;
-    partials: { h: number; freq: number; isCollided: boolean }[];
-  }
-
+  // Струна в унисон с уже смоделированной не получает своей модели: по звуку
+  // они неразличимы, и её статус копируется (#5).
   const models: StringModel[] = [];
-
-  // Струна в унисон с уже смоделированной не получает своей модели: все её
-  // партиалы совпали бы с партиалами пары, были бы отброшены как коллизии,
-  // и обе струны навсегда остались бы «Не прозвучала». Её статус копируется.
   const unisonOf = new Map<number, number>();
-
   expectedPitches.forEach((pitch, idx) => {
     if (!pitch) return;
     const twin = models.find(m => m.targetMidi === pitch.midi);
@@ -240,43 +228,69 @@ export function analyzeChordStrumSpectrum(
       unisonOf.set(idx, twin.stringIdx);
       return;
     }
-    const strSpec = tuning.strings[idx];
-    const b = strSpec?.inharmonicityB || (1e-4 * Math.pow(0.85, idx));
-    const targetFreq = midiToFrequency(pitch.midi, a4);
-    const partialFreqs = calculatePartials(targetFreq, b, 8);
-
     models.push({
       stringIdx: idx,
-      targetFreq,
+      targetFreq: midiToFrequency(pitch.midi, a4),
       targetMidi: pitch.midi,
-      b,
-      partials: partialFreqs.map((f, hIdx) => ({
-        h: hIdx + 1,
-        freq: f,
-        isCollided: false
-      }))
+      b: tuning.strings[idx]?.inharmonicityB || 1e-4 * Math.pow(0.85, idx)
     });
   });
 
-  // 2. Разрешение коллизий: исключаем партиалы, расположенные ближе 30 центов к партиалам других струн
-  for (let m1 = 0; m1 < models.length; m1++) {
-    for (let m2 = m1 + 1; m2 < models.length; m2++) {
-      for (const p1 of models[m1].partials) {
-        for (const p2 of models[m2].partials) {
-          const diffCents = Math.abs(calculateCents(p1.freq, p2.freq));
-          if (diffCents < 30) {
-            p1.isCollided = true;
-            p2.isCollided = true;
-          }
-        }
-      }
-    }
-  }
+  const measure = (model: StringModel): StringTuningStatus => {
+    const base = {
+      stringIndex: model.stringIdx,
+      targetMidi: model.targetMidi,
+      targetFreq: model.targetFreq
+    };
 
-  // 3. Сопоставление с измеренными спектральными пиками и оценка отклонения
-  const statuses: StringTuningStatus[] = tuning.strings.map((_, idx) => {
-    const model = models.find(m => m.stringIdx === (unisonOf.get(idx) ?? idx));
-    if (!model) {
+    const clean: number[] = [];
+    for (let h = 1; h <= MEASURED_HARMONICS; h++) {
+      const freq = partialFrequency(model.targetFreq, model.b, h);
+      const collided = models.some(other => {
+        if (other === model) return false;
+        for (let k = 1; k <= COLLISION_HARMONICS; k++) {
+          const otherFreq = partialFrequency(other.targetFreq, other.b, k);
+          if (Math.abs(calculateCents(freq, otherFreq)) < PARTIAL_WINDOW_CENTS) return true;
+        }
+        return false;
+      });
+      if (!collided) clean.push(h);
+    }
+
+    if (clean.length === 0) {
+      return { ...base, measuredFreq: 0, cents: 0, status: 'unmeasured', confidence: 'none', usedPartials: 0 };
+    }
+
+    const deltas: { value: number; weight: number }[] = [];
+    for (const h of clean) {
+      const expected = partialFrequency(model.targetFreq, model.b, h);
+      const peak = findPeakNear(spectrum, expected, PARTIAL_WINDOW_CENTS);
+      if (!peak) continue;
+      deltas.push({ value: calculateCents(peak.frequency, expected), weight: Math.pow(10, peak.db / 20) / h });
+    }
+
+    if (deltas.length === 0) {
+      return { ...base, measuredFreq: 0, cents: 0, status: 'not-played', confidence: 'none', usedPartials: 0 };
+    }
+
+    const cents = weightedMedian(deltas);
+    const status: StringTuningStatus['status'] =
+      cents < -inTuneThresholdCents ? 'low' : cents > inTuneThresholdCents ? 'high' : 'in-tune';
+    return {
+      ...base,
+      measuredFreq: model.targetFreq * Math.pow(2, cents / 1200),
+      cents,
+      status,
+      confidence: deltas.length >= 3 ? 'high' : 'medium',
+      usedPartials: deltas.length
+    };
+  };
+
+  const measured = new Map(models.map(m => [m.stringIdx, measure(m)]));
+
+  return tuning.strings.map((_, idx) => {
+    const own = measured.get(unisonOf.get(idx) ?? idx);
+    if (!own) {
       return {
         stringIndex: idx,
         targetMidi: 0,
@@ -288,82 +302,20 @@ export function analyzeChordStrumSpectrum(
         usedPartials: 0
       };
     }
-
-    const cleanPartials = model.partials.filter(p => !p.isCollided);
-    const candidateDeltas: { cents: number; weight: number; measuredF0: number }[] = [];
-
-    for (const p of cleanPartials) {
-      // Ищем ближайший пик в окрестности +/- 70 центов
-      let bestPeak: SpectralPeak | null = null;
-      let minPeakDist = 70;
-
-      for (const peak of peaks) {
-        const dCents = calculateCents(peak.frequency, p.freq);
-        if (Math.abs(dCents) < minPeakDist) {
-          minPeakDist = Math.abs(dCents);
-          bestPeak = peak;
-        }
-      }
-
-      if (bestPeak) {
-        const deltaCents = calculateCents(bestPeak.frequency, p.freq);
-        // Вес обратно пропорционален номеру гармоники и прямо пропорционален амплитуде
-        const linearMag = Math.pow(10, bestPeak.magnitude / 20);
-        const weight = (linearMag / p.h);
-        const measuredF0 = bestPeak.frequency / (p.h * Math.sqrt(1 + model.b * p.h * p.h));
-
-        candidateDeltas.push({
-          cents: deltaCents,
-          weight,
-          measuredF0
-        });
-      }
-    }
-
-    if (candidateDeltas.length === 0) {
-      return {
-        stringIndex: idx,
-        targetMidi: model.targetMidi,
-        targetFreq: model.targetFreq,
-        measuredFreq: 0,
-        cents: 0,
-        status: 'not-played',
-        confidence: 'none',
-        usedPartials: 0
-      };
-    }
-
-    // Взвешенная медиана центов
-    candidateDeltas.sort((a, b) => a.cents - b.cents);
-    const medianCents = candidateDeltas[Math.floor(candidateDeltas.length / 2)].cents;
-    const avgMeasuredF0 = candidateDeltas.reduce((acc, c) => acc + c.measuredF0 * c.weight, 0) /
-      candidateDeltas.reduce((acc, c) => acc + c.weight, 0);
-
-    const confidence: 'high' | 'medium' | 'none' =
-      candidateDeltas.length >= 3 ? 'high' : candidateDeltas.length >= 1 ? 'medium' : 'none';
-
-    let status: StringTuningStatus['status'] = 'in-tune';
-    if (Math.abs(medianCents) <= inTuneThresholdCents) {
-      status = 'in-tune';
-    } else if (medianCents < -inTuneThresholdCents) {
-      status = 'low';
-    } else {
-      status = 'high';
-    }
-
-    return {
-      stringIndex: idx,
-      targetMidi: model.targetMidi,
-      targetFreq: model.targetFreq,
-      measuredFreq: avgMeasuredF0 || model.targetFreq,
-      cents: medianCents,
-      status,
-      confidence,
-      usedPartials: candidateDeltas.length
-    };
+    return { ...own, stringIndex: idx };
   });
+}
 
-  return statuses;
+/** Анализ удара по сырому сигналу: спектр высокого разрешения, затем analyzeChordSpectrum. */
+export function analyzeChordStrum(
+  samples: Float32Array,
+  sampleRate: number,
+  voicing: Voicing,
+  tuning: Tuning,
+  inTuneThresholdCents = 5,
+  a4 = 440
+): StringTuningStatus[] {
+  return analyzeChordSpectrum(computeSpectrum(samples, sampleRate), voicing, tuning, inTuneThresholdCents, a4);
 }
 
 /**

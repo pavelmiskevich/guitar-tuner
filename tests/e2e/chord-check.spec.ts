@@ -44,20 +44,18 @@ test.describe('проверка аккорда', () => {
     await expect(page.getByTestId('cc-status-6')).toContainText('В строе', { timeout: 10_000 });
   });
 
-  test('режим удара анализирует спектр за 1.2 секунды', async ({ page }) => {
+  test('режим удара измеряет прозвучавшую струну', async ({ page }) => {
     await page.getByTestId('cc-mode-strum').click();
 
-    // Захват сам поднимает микрофон, если он выключен.
+    // Захват сам поднимает микрофон, если он выключен. Звук уже идёт —
+    // запись начинается сразу, без ожидания удара.
     await page.getByTestId('cc-strum-start').click();
     await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency('E2'));
 
-    // Полоса прогресса заполняется 1200 мс, затем считается спектр.
     await expect(page.getByTestId('cc-strum-start')).toContainText('Ударьте по всем струнам', {
       timeout: 8_000,
     });
-
-    // Шестая струна прозвучала — её статус обязан уйти из «Ожидание».
-    await expect(page.getByTestId('cc-status-6')).not.toContainText('Ожидание');
+    await expect(page.getByTestId('cc-status-6')).toContainText('В строе');
   });
 
   test('кнопка «Настроить» уводит в тюнер на нужную струну', async ({ page }) => {
@@ -134,4 +132,77 @@ test.describe('проверка аккорда: перебор подряд (#29
       await expect(page.getByText('Аккорд звучит безупречно!')).toBeVisible();
     });
   }
+});
+
+test.describe('проверка аккорда: удар (#4)', () => {
+  // Am — x02210: A2 (5), E3 (4), A3 (3), C4 (2), E4 (1).
+  const AM = ['A2', 'E3', 'A3', 'C4', 'E4'];
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    await page.goto('/');
+    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    await page.getByTestId(`${prefix}-chord-check`).click();
+    await page.getByTestId('cc-voicing-am-open').click();
+    // Микрофон поднимаем в переборе и глушим: удар должен прийти после нажатия.
+    await page.getByTestId('cc-mic-toggle').click();
+    await expect(page.getByTestId('cc-mic-toggle')).toBeVisible();
+    await page.evaluate(() => window.__fakeMic.silence());
+    await page.getByTestId('cc-mode-strum').click();
+  });
+
+  async function strum(page: import('@playwright/test').Page, detune: Record<string, number> = {}) {
+    const freqs = AM.map((n) => noteFrequency(n) * Math.pow(2, (detune[n] ?? 0) / 1200));
+    await page.evaluate((f) => window.__fakeMic.setChord(f), freqs);
+  }
+
+  test('запись ждёт удара, а аккорд в строе засчитывается целиком', async ({ page }) => {
+    await page.getByTestId('cc-strum-start').click();
+    await expect(page.getByTestId('cc-strum-waiting')).toBeVisible();
+    await expect(page.getByTestId('cc-strum-start')).toContainText('Жду удар');
+    await page.waitForTimeout(600);
+    // Тишина — запись не началась.
+    await expect(page.getByTestId('cc-strum-waiting')).toBeVisible();
+
+    await strum(page);
+    await expect(page.getByTestId('cc-strum-start')).toContainText('Ударьте по всем струнам', { timeout: 8_000 });
+
+    for (const n of [5, 4, 2]) {
+      await expect(page.getByTestId(`cc-status-${n}`)).toContainText('В строе');
+    }
+    // A3 и E4 звучат октавой к A2 и E3 — отдельно их не измерить.
+    for (const n of [3, 1]) {
+      await expect(page.getByTestId(`cc-status-${n}`)).toHaveText('Отдельно не измеряется');
+    }
+    await expect(page.getByTestId('cc-status-6')).toContainText('Глушится');
+    await expect(page.getByText('Аккорд звучит безупречно!')).toBeVisible();
+  });
+
+  test('расстроенная на −20¢ струна видна в ударе', async ({ page }) => {
+    await page.getByTestId('cc-strum-start').click();
+    await strum(page, { C4: -20 });
+    await expect(page.getByTestId('cc-strum-start')).toContainText('Ударьте по всем струнам', { timeout: 8_000 });
+
+    await expect(page.getByTestId('cc-status-2')).toContainText('Низко');
+    await expect(page.getByTestId('cc-status-5')).toContainText('В строе');
+    await expect(page.getByText('Аккорд звучит безупречно!')).toHaveCount(0);
+  });
+
+  test('без удара захват сдаётся и подсказывает, что делать', async ({ page }) => {
+    await page.getByTestId('cc-strum-start').click();
+    await expect(page.getByTestId('cc-strum-timeout')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('cc-strum-start')).toBeEnabled();
+    for (const n of [5, 4, 2]) {
+      await expect(page.getByTestId(`cc-status-${n}`)).toContainText('Ожидание');
+    }
+  });
+
+  test('смена аккорда во время захвата не вешает кнопку', async ({ page }) => {
+    await page.getByTestId('cc-strum-start').click();
+    await expect(page.getByTestId('cc-strum-start')).toBeDisabled();
+
+    await page.getByTestId('cc-voicing-e-open').click();
+    await expect(page.getByTestId('cc-strum-start')).toBeEnabled();
+    await expect(page.getByTestId('cc-strum-start')).toContainText('Ударьте по всем струнам');
+    await expect(page.getByTestId('cc-strum-waiting')).toHaveCount(0);
+  });
 });
