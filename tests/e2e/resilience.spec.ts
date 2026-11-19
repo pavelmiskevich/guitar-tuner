@@ -24,7 +24,7 @@ test.describe('устойчивость', () => {
     await expect(page.getByTestId('mic-toggle')).toBeVisible();
     await expect(page.getByTestId('error-boundary')).toHaveCount(0);
 
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     for (const tab of TABS) {
       await page.getByTestId(`${prefix}-${tab}`).click();
       await expect(page.getByTestId('error-boundary')).toHaveCount(0);
@@ -46,7 +46,7 @@ test.describe('устойчивость', () => {
     });
     await page.reload();
 
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-ear-training`).click();
     await expect(page.getByTestId('et-best')).toHaveText(/^5 \(/);
 
@@ -62,7 +62,7 @@ test.describe('устойчивость', () => {
     await page.evaluate(() => localStorage.setItem('gt_ear_best_streak', 'мусор'));
     await page.reload();
 
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-ear-training`).click();
     await expect(page.getByTestId('et-best')).toHaveText(/^0 \(/);
   });
@@ -75,7 +75,7 @@ test.describe('устойчивость', () => {
     });
     await page.goto('/');
 
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-fretboard`).click();
     await page.getByTestId('fb-share').click();
 

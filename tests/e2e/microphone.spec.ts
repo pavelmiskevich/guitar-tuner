@@ -8,7 +8,7 @@ import { expect, test } from './fixtures/test-base';
  */
 
 function navPrefix(testInfo: TestInfo): string {
-  return testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+  return testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
 }
 
 async function openTab(page: Page, testInfo: TestInfo, tab: string): Promise<void> {

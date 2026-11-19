@@ -189,6 +189,12 @@ export async function installFakeMic(page: Page): Promise<void> {
       value: fakeMic,
     });
 
+    // WebKit под Windows, на котором Playwright гоняет локальный прогон, не даёт
+    // mediaDevices вовсе. Подменять там нечего: приложение само покажет, что
+    // микрофон недоступен, а спеки с микрофоном в этом браузере не запускаются
+    // (см. playwright.config.ts).
+    if (!navigator.mediaDevices) return;
+
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
       configurable: true,
       writable: true,

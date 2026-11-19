@@ -41,7 +41,7 @@ async function answerCorrectly(page: Page): Promise<number> {
 test.describe('тренажёр слуха', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-ear-training`).click();
   });
 
@@ -101,7 +101,7 @@ test.describe('тренажёр слуха', () => {
     expect(stored).toBe('1');
 
     await page.reload();
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-ear-training`).click();
     await expect(page.getByTestId('et-best')).toHaveText(/^1 \(/);
   });
@@ -122,7 +122,7 @@ test.describe('тренажёр слуха', () => {
   });
 
   test('кнопка следующего вопроса помещается на экран', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium-mobile', 'проверка про мобильный экран');
+    test.skip(!testInfo.project.use.isMobile, 'проверка про мобильный экран');
 
     // 390x480 — заведомо меньше любого реального телефона. Подгонка высот
     // дважды оказывалась оптимистичнее реальности: доступная высота Safari

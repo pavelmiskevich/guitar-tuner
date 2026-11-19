@@ -1,9 +1,9 @@
-import { expect, test } from './fixtures/test-base';
+import { expect, grantClipboard, test } from './fixtures/test-base';
 
 test.describe('гриф', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await page.goto('/');
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-fretboard`).click();
     await expect(page.getByTestId('fretboard-svg')).toBeVisible();
   });
@@ -79,7 +79,7 @@ test.describe('гриф', () => {
     page,
     context,
   }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await grantClipboard(context);
 
     await page.getByTestId('fb-mode-scales').click();
     await page.getByTestId('fb-root').selectOption('D');
@@ -101,7 +101,7 @@ test.describe('гриф', () => {
     // явная перезагрузка страницы, а не просто goto на URL с другим хэшем.
     await page.goto('/#mode=scales&root=D&scale=blues&capo=3');
     await page.reload();
-    const prefix = testInfo.project.name === 'chromium-mobile' ? 'nav-mobile' : 'nav-desktop';
+    const prefix = testInfo.project.use.isMobile ? 'nav-mobile' : 'nav-desktop';
     await page.getByTestId(`${prefix}-fretboard`).click();
 
     await expect(page.getByTestId('fb-root')).toHaveValue('D');
@@ -145,7 +145,7 @@ test.describe('гриф', () => {
   });
 
   test('ссылка различается для разных наборов нот на грифе', async ({ page, context }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await grantClipboard(context);
 
     await page.getByTestId('fb-mode-explore').click();
     await page.getByTestId('fb-cell-1-3').click();
