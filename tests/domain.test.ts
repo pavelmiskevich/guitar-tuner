@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { midiToFrequency, calculateCents, formatNoteName, NOTE_NAMES } from '../src/domain/notes';
-import { calculateFretPositions, getFretNote } from '../src/domain/fretboard';
+import { calculateFretPositions, getFretNote, physicalFret, fretFromCapo } from '../src/domain/fretboard';
 import { DEFAULT_TUNING } from '../src/domain/tunings';
 import { getScaleNotes } from '../src/domain/scales';
 import { COMMON_VOICINGS, detectChordFromFrets, getTriadVoicings, getVoicingExpectedPitches } from '../src/domain/chords';
@@ -59,6 +59,28 @@ describe('Domain: Fretboard Geometry: d(n) = L * (1 - 2^(-n/12))', () => {
     const noteCapo = getFretNote(0, 3, DEFAULT_TUNING, 2);
     expect(noteCapo.name).toBe('A');
     expect(noteCapo.octave).toBe(2);
+  });
+
+  it('переводит лады от каподастра в физические и обратно (#26)', () => {
+    // Без каподастра шкалы совпадают.
+    expect(physicalFret(3, null)).toBe(3);
+    expect(fretFromCapo(3, null)).toBe(3);
+
+    // Капо на 2-м ладу: «открытая» струна стоит на 2-м ладу, форма Am — x.2.4.4.3.2.
+    expect([0, 2, 2, 1, 0].map(f => physicalFret(f, 2))).toEqual([2, 4, 4, 3, 2]);
+    expect(fretFromCapo(2, 2)).toBe(0);
+    expect(fretFromCapo(5, 2)).toBe(3);
+
+    // Лады за каподастром не играются.
+    expect(fretFromCapo(0, 2)).toBeNull();
+    expect(fretFromCapo(1, 2)).toBeNull();
+  });
+
+  it('на физическом ладу с каподастром звучит та же нота, что без него (#26)', () => {
+    // 6-я струна, физический 3-й лад: G2 и с капо 2, и без него.
+    const rel = fretFromCapo(3, 2)!;
+    expect(getFretNote(0, rel, DEFAULT_TUNING, 2).name).toBe('G');
+    expect(getFretNote(0, rel, DEFAULT_TUNING, 2).octave).toBe(2);
   });
 });
 

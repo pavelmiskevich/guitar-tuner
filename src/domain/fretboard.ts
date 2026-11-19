@@ -92,3 +92,21 @@ export function getFretNote(
   const midi = str.open.midi + fret + (capo ?? 0);
   return midiToPitch(midi);
 }
+
+/*
+ * Две шкалы ладов. В состоянии экрана, в ссылке и в обратном поиске аккорда
+ * лады отсчитываются от каподастра: 0 — струна, прижатая каподастром (так
+ * записываются формы аккордов). Гриф же нарисован по физическим ладам — с
+ * номерами и инкрустацией настоящего инструмента (#26).
+ */
+
+/** Физический лад для лада, отсчитанного от каподастра. */
+export function physicalFret(fretFromCapoValue: number, capo: number | null): number {
+  return fretFromCapoValue + (capo ?? 0);
+}
+
+/** Лад от каподастра для физического лада; null — лад за каподастром, он не звучит. */
+export function fretFromCapo(physical: number, capo: number | null): number | null {
+  const fret = physical - (capo ?? 0);
+  return fret < 0 ? null : fret;
+}
