@@ -95,3 +95,57 @@ export class InTuneHold {
     this.stable = false;
   }
 }
+
+/**
+ * Сколько тон должен держаться ровно, чтобы проверка аккорда засчитала замер.
+ * Смесь двух нот на смене струны и дрейф затухания длятся меньше (#29).
+ */
+export const STEADY_HOLD_MS = 250;
+
+/** Допустимый разброс сглаженного тона за время удержания, в центах. */
+export const STEADY_TOLERANCE_CENTS = 4;
+
+/**
+ * Ворота устойчивого тона для проверки аккорда в «Переборе».
+ *
+ * Статус струны раньше перезаписывал каждый кадр детектора: переходный кадр
+ * на смене ноты попадал в соседнюю струну, а дрейф затухания уводил уже
+ * настроенную струну в «Высоко» (#29). Ворота пропускают частоту, только
+ * когда сглаженный медианой тон держится в пределах допуска всё окно
+ * удержания, и отдают медиану этого окна.
+ */
+export class SteadyPitchGate {
+  private readonly holdMs: number;
+  private readonly toleranceCents: number;
+  private readonly smoother = new MedianSmoother(5);
+  private window: { t: number; f: number }[] = [];
+  private lastAt = -Infinity;
+
+  constructor(holdMs = STEADY_HOLD_MS, toleranceCents = STEADY_TOLERANCE_CENTS) {
+    this.holdMs = holdMs;
+    this.toleranceCents = toleranceCents;
+  }
+
+  /** @returns устойчивая частота или null, пока тон не устоялся */
+  push(frequency: number, now: number): number | null {
+    if (now - this.lastAt > MAX_FRAME_GAP_MS) this.window = [];
+    this.lastAt = now;
+
+    this.window.push({ t: now, f: this.smoother.push(frequency, now) });
+    // Самый старый оставшийся кадр — первый, что не позже начала окна: по нему
+    // видно, покрывает ли окно всё время удержания.
+    while (this.window.length > 1 && this.window[1].t <= now - this.holdMs) this.window.shift();
+    if (now - this.window[0].t < this.holdMs) return null;
+
+    const sorted = this.window.map(e => e.f).sort((a, b) => a - b);
+    const spread = 1200 * Math.log2(sorted[sorted.length - 1] / sorted[0]);
+    if (spread > this.toleranceCents) return null;
+    return sorted[Math.floor((sorted.length - 1) / 2)];
+  }
+
+  reset(): void {
+    this.smoother.reset();
+    this.window = [];
+    this.lastAt = -Infinity;
+  }
+}

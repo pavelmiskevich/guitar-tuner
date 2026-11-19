@@ -14,6 +14,7 @@ import {
   octavePartners
 } from '../../audio/chordAnalyzer';
 import { ChordDiagramSVG } from './ChordDiagramSVG';
+import { SteadyPitchGate } from '../../domain/tuneStability';
 import { useMicrophone } from '../../audio/useMicrophone';
 import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
@@ -63,20 +64,35 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
    */
   const ignoreEstimatesUntilRef = useRef(0);
 
+  /**
+   * В статус струны попадает только устоявшийся тон (#29). Раньше каждый кадр
+   * перезаписывал статус: смесь нот на смене струны и дрейф затухания уводили
+   * уже настроенную струну в «Высоко».
+   */
+  const steadyGateRef = useRef(new SteadyPitchGate());
+
   // Сброс статусов при смене аккорда или строя
   useEffect(() => {
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
     setLastMatchedIndex(null);
+    steadyGateRef.current.reset();
   }, [selectedVoicing, tuning, a4]);
 
   useEffect(() => {
+    const gate = steadyGateRef.current;
+    gate.reset();
     const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
       if (analysisMode !== 'arpeggio') return;
-      if (performance.now() < ignoreEstimatesUntilRef.current) return;
+      const now = performance.now();
+      if (now < ignoreEstimatesUntilRef.current) return;
+      // Пропущенные кадры (тишина, низкая чёткость) рвут удержание сами:
+      // после паузы дольше MAX_FRAME_GAP_MS ворота начинают отсчёт заново.
       if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.50) return;
+      const steadyFrequency = gate.push(estimate.frequency, now);
+      if (steadyFrequency === null) return;
 
       setStringStatuses(prev => {
-        const res = evaluateArpeggioNote(estimate.frequency, selectedVoicing, tuning, prev, inTuneThreshold, a4);
+        const res = evaluateArpeggioNote(steadyFrequency, selectedVoicing, tuning, prev, inTuneThreshold, a4);
         if (res.matchedIndex !== null) {
           setLastMatchedIndex(res.matchedIndex);
         }
@@ -150,6 +166,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
     // Запас над наблюдавшимися 250 мс: за это время окно анализатора полностью
     // промывается, а для нового щипка пауза всё равно неощутима.
     ignoreEstimatesUntilRef.current = performance.now() + RESET_SETTLE_MS;
+    steadyGateRef.current.reset();
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
     setLastMatchedIndex(null);
     setCaptureProgress(0);
