@@ -183,28 +183,44 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     } else if (gameMode === 'chord_quality') {
       // Мажор или Минор
       const isMajor = Math.random() > 0.5;
-      const filteredVoicings = getTriadVoicings(isMajor ? 'maj' : 'min');
-
-      const randomVoicing = filteredVoicings[Math.floor(Math.random() * filteredVoicings.length)];
+      // Аппликатуры — пересчитанные под текущий строй: шестиструнная форма на
+      // басе или укулеле играла не тот аккорд, о котором спрашивали (#5).
+      const filteredVoicings = getTriadVoicings(isMajor ? 'maj' : 'min', tuning);
       const options = ['Мажор (Светлый / Радостный)', 'Минор (Грустный / Драматичный)'];
       const correctIdx = isMajor ? 0 : 1;
 
       const notes: { freq: number; delay: number }[] = [];
+      let chordName: string;
       let delay = 0;
-      randomVoicing.frets.forEach((fret, sIdx) => {
-        if (fret !== 'x') {
-          const note = getFretNote(sIdx, fret, tuning);
-          notes.push({ freq: midiToFrequency(note.midi, a4), delay });
+      if (filteredVoicings.length > 0) {
+        const randomVoicing = filteredVoicings[Math.floor(Math.random() * filteredVoicings.length)];
+        chordName = randomVoicing.name;
+        randomVoicing.frets.forEach((fret, sIdx) => {
+          if (fret !== 'x') {
+            const note = getFretNote(sIdx, fret, tuning);
+            notes.push({ freq: midiToFrequency(note.midi, a4), delay });
+            delay += 100;
+          }
+        });
+      } else {
+        // Для строя без библиотеки аккордов (бас) — трезвучие в тесном
+        // расположении от случайной ноты малой октавы: вопрос о наклонении
+        // не зависит от инструмента.
+        const rootMidi = 48 + Math.floor(Math.random() * 12);
+        const root = midiToPitch(rootMidi);
+        chordName = `${formatNoteName(root.name, notation)}${isMajor ? '' : 'm'}`;
+        for (const interval of [0, isMajor ? 4 : 3, 7, 12]) {
+          notes.push({ freq: midiToFrequency(rootMidi + interval, a4), delay });
           delay += 100;
         }
-      });
+      }
 
       const q: QuestionState = {
-        targetLabel: `${randomVoicing.name} (${isMajor ? 'Мажор' : 'Минор'})`,
+        targetLabel: `${chordName} (${isMajor ? 'Мажор' : 'Минор'})`,
         targetMidi: 0,
         options: options,
         correctIndex: correctIdx,
-        explanation: `Звучал аккорд ${randomVoicing.name} — это ${isMajor ? 'мажорное' : 'минорное'} трезвучие.`,
+        explanation: `Звучал аккорд ${chordName} — это ${isMajor ? 'мажорное' : 'минорное'} трезвучие.`,
         notesToPlay: notes
       };
 

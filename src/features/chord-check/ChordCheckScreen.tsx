@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToPitch } from '../../domain/notes';
-import type { Voicing } from '../../domain/chords';
-import { COMMON_VOICINGS } from '../../domain/chords';
+import { OPEN_STRINGS_ID, getVoicingsForTuning, voicingLibraryKind } from '../../domain/chords';
 import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
 import type { StringTuningStatus } from '../../audio/chordAnalyzer';
@@ -35,13 +34,18 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   inTuneThreshold,
   onGoTuneString
 }) => {
-  const [selectedVoicing, setSelectedVoicing] = useState<Voicing>(COMMON_VOICINGS[0]); // Open strings
+  // Хранится id, а аппликатура берётся из библиотеки, пересчитанной под строй:
+  // шестиструнная форма на басе или укулеле давала не тот аккорд (#5).
+  const [selectedVoicingId, setSelectedVoicingId] = useState<string>(OPEN_STRINGS_ID);
+  const voicings = useMemo(() => getVoicingsForTuning(tuning), [tuning]);
+  const hasChordLibrary = voicingLibraryKind(tuning) !== null;
+  const selectedVoicing = voicings.find(v => v.id === selectedVoicingId) ?? voicings[0];
   const [analysisMode, setAnalysisMode] = useState<'arpeggio' | 'strum'>('arpeggio');
   const mic = useMicrophone();
   const [isCapturingStrum, setIsCapturingStrum] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
   const [stringStatuses, setStringStatuses] = useState<StringTuningStatus[]>(() =>
-    initChordStatuses(COMMON_VOICINGS[0], tuning, a4)
+    initChordStatuses(selectedVoicing, tuning, a4)
   );
   const [lastMatchedIndex, setLastMatchedIndex] = useState<number | null>(null);
 
@@ -242,18 +246,30 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {COMMON_VOICINGS.map(v => (
+          {voicings.map(v => (
             <button
               key={v.id}
               className={`btn btn-sm ${selectedVoicing.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
               data-testid={`cc-voicing-${v.id}`}
-              onClick={() => setSelectedVoicing(v)}
+              onClick={() => setSelectedVoicingId(v.id)}
+              title={v.shape ? `Форма ${v.shape}, пересчитанная под строй` : undefined}
               style={{ fontWeight: 700 }}
             >
               {v.name}
             </button>
           ))}
         </div>
+
+        {!hasChordLibrary && (
+          <span data-testid="cc-no-chords" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+            Для этого строя библиотеки аккордов нет — можно проверить открытые струны.
+          </span>
+        )}
+        {voicings.some(v => v.shape) && (
+          <span data-testid="cc-transposed-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+            Аппликатуры пересчитаны под строй: название — то, что звучит на самом деле.
+          </span>
+        )}
       </div>
 
       {/* Индикатор захвата удара (Режим B) */}
@@ -306,7 +322,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
           {tuning.strings.map((str, idx) => {
             const status = stringStatuses[idx];
             const fret = selectedVoicing.frets[idx];
-            const isMuted = fret === 'x';
+            const isMuted = fret === 'x' || fret === undefined;
             const isSounding = lastMatchedIndex === idx;
 
             let badgeColor = 'var(--ink-300)';
