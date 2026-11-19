@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AudioEngineStatus } from '../src/audio/audioEngine';
-import { AudioEngine, MicInterruptedError } from '../src/audio/audioEngine';
+import { AudioEngine, CAPTURE_LENGTH, MicInterruptedError } from '../src/audio/audioEngine';
 
 /**
  * Модульные тесты жизненного цикла микрофона (#8).
@@ -273,7 +273,8 @@ describe('AudioEngine: остановка', () => {
     expect(lastContext().state).toBe('closed');
     expect((engine as unknown as { analyserNode: unknown }).analyserNode).toBeNull();
     expect(engine.getState()).toBe('uninitialized');
-    expect(engine.getFrequencyData()).toBeNull();
+    expect(engine.getRecentSamples()).toBeNull();
+    expect((engine as unknown as { captureAnalyser: unknown }).captureAnalyser).toBeNull();
   });
 
   it('после stop() можно запустить заново', async () => {
@@ -415,12 +416,20 @@ describe('AudioEngine: скрытая страница', () => {
 });
 
 describe('AudioEngine: собственный звук', () => {
-  it('getFrequencyData() молчит, пока звучит эталон', async () => {
+  it('getRecentSamples() молчит, пока звучит эталон', async () => {
     const engine = new AudioEngine();
     await engine.start();
-    expect(engine.getFrequencyData()).not.toBeNull();
+    expect(engine.getRecentSamples()).not.toBeNull();
 
     engine.suppressFor(1000);
-    expect(engine.getFrequencyData()).toBeNull();
+    expect(engine.getRecentSamples()).toBeNull();
+  });
+
+  it('getRecentSamples() отдаёт полное окно захвата удара (#4)', async () => {
+    const engine = new AudioEngine();
+    await engine.start();
+    const captured = engine.getRecentSamples();
+    expect(captured?.samples.length).toBe(CAPTURE_LENGTH);
+    expect(engine.getCaptureWindowMs()).toBeCloseTo((CAPTURE_LENGTH / captured!.sampleRate) * 1000, 6);
   });
 });

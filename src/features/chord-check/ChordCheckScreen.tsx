@@ -9,12 +9,13 @@ import type { StringTuningStatus } from '../../audio/chordAnalyzer';
 import {
   initChordStatuses,
   evaluateArpeggioNote,
-  analyzeChordStrumSpectrum,
+  analyzeChordStrum,
   chordProgress,
   octavePartners
 } from '../../audio/chordAnalyzer';
 import { ChordDiagramSVG } from './ChordDiagramSVG';
 import { SteadyPitchGate } from '../../domain/tuneStability';
+import { StrumCapture, STRUM_WAIT_MS } from '../../audio/strumCapture';
 import { useMicrophone } from '../../audio/useMicrophone';
 import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
@@ -45,14 +46,17 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   const selectedVoicing = voicings.find(v => v.id === selectedVoicingId) ?? voicings[0];
   const [analysisMode, setAnalysisMode] = useState<'arpeggio' | 'strum'>('arpeggio');
   const mic = useMicrophone();
-  const [isCapturingStrum, setIsCapturingStrum] = useState(false);
+  /**
+   * Захват удара (#4): ждём удар → пропускаем атаку и пишем окно → анализ.
+   * timeout — удара не дождались, кнопку можно нажать снова.
+   */
+  const [strumPhase, setStrumPhase] = useState<'idle' | 'waiting' | 'recording' | 'timeout'>('idle');
   const [captureProgress, setCaptureProgress] = useState(0);
+  const isCapturingStrum = strumPhase === 'waiting' || strumPhase === 'recording';
   const [stringStatuses, setStringStatuses] = useState<StringTuningStatus[]>(() =>
     initChordStatuses(selectedVoicing, tuning, a4)
   );
   const [lastMatchedIndex, setLastMatchedIndex] = useState<number | null>(null);
-
-  const captureTimerRef = useRef<number | null>(null);
 
   /**
    * До этого момента оценки после сброса игнорируются (D-4).
@@ -72,10 +76,14 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   const steadyGateRef = useRef(new SteadyPitchGate());
 
   // Сброс статусов при смене аккорда или строя
+  // Захват удара тоже прерывается: он записан под прежний аккорд. Раньше
+  // интервал захвата убивался, а флаг оставался, и кнопка зависала (#4).
   useEffect(() => {
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
     setLastMatchedIndex(null);
     steadyGateRef.current.reset();
+    setStrumPhase('idle');
+    setCaptureProgress(0);
   }, [selectedVoicing, tuning, a4]);
 
   useEffect(() => {
@@ -100,25 +108,57 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       });
     });
 
-    return () => {
-      unsubscribe();
-      if (captureTimerRef.current) clearInterval(captureTimerRef.current);
-    };
+    return unsubscribe;
   }, [analysisMode, selectedVoicing, tuning, inTuneThreshold, a4]);
 
+  // Захват удара: подписка живёт, пока идёт захват. Таймер нужен, чтобы
+  // сдаться по таймауту, даже когда кадры не приходят (вкладка в фоне).
+  useEffect(() => {
+    if (!isCapturingStrum) return;
+    const capture = new StrumCapture(performance.now(), sharedAudioEngine.getCaptureWindowMs());
+    let finished = false;
+
+    const advance = (rmsDb: number | null) => {
+      if (finished) return;
+      const state = capture.update(rmsDb, performance.now());
+      setCaptureProgress(Math.round(state.progress * 100));
+      if (state.phase === 'recording') {
+        setStrumPhase('recording');
+      } else if (state.phase === 'timeout') {
+        finished = true;
+        setStrumPhase('timeout');
+      } else if (state.phase === 'ready') {
+        finished = true;
+        const captured = sharedAudioEngine.getRecentSamples();
+        if (captured) {
+          setStringStatuses(
+            analyzeChordStrum(captured.samples, captured.sampleRate, selectedVoicing, tuning, inTuneThreshold, a4)
+          );
+        }
+        setStrumPhase('idle');
+      }
+    };
+
+    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => advance(estimate.rms));
+    const timer = window.setInterval(() => advance(null), 250);
+    return () => {
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+    // Фаза waiting → recording не перезапускает захват: зависимость — только
+    // сам факт захвата, а смена аккорда или строя его отменяет выше.
+  }, [isCapturingStrum, selectedVoicing, tuning, inTuneThreshold, a4]);
+
   // Микрофон выключили (здесь, из шапки) или поток оборвался посреди захвата
-  // удара: дожидаться конца полосы незачем — спектра всё равно не будет.
+  // удара: дожидаться незачем — сигнала всё равно не будет.
   useEffect(() => {
     if (mic.isOn) return;
-    if (captureTimerRef.current) {
-      clearInterval(captureTimerRef.current);
-      captureTimerRef.current = null;
-    }
-    setIsCapturingStrum(false);
+    setStrumPhase(phase => (phase === 'waiting' || phase === 'recording' ? 'idle' : phase));
   }, [mic.isOn]);
 
   /**
-   * Запуск 1.2с спектрального захвата для полифонического анализа (Режим B)
+   * Захват удара для полифонического анализа (Режим B). Запись начинается не по
+   * кнопке, а по самому удару, и длится, пока окно не заполнится звуком (#4).
    */
   const handleStartStrumCapture = async () => {
     if (!sharedAudioEngine.isRunning()) {
@@ -127,39 +167,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       await mic.start();
       if (!sharedAudioEngine.isRunning()) return;
     }
-
-    setIsCapturingStrum(true);
     setCaptureProgress(0);
-
-    const startTime = performance.now();
-    const duration = 1200; // 1.2 с захвата звука струн
-
-    if (captureTimerRef.current) clearInterval(captureTimerRef.current);
-
-    captureTimerRef.current = window.setInterval(() => {
-      const elapsed = performance.now() - startTime;
-      const progress = Math.min(100, Math.round((elapsed / duration) * 100));
-      setCaptureProgress(progress);
-
-      if (elapsed >= duration) {
-        if (captureTimerRef.current) clearInterval(captureTimerRef.current);
-        setIsCapturingStrum(false);
-
-        // Получаем накопленный спектр из AudioEngine и анализируем
-        const freqInfo = sharedAudioEngine.getFrequencyData();
-        if (freqInfo) {
-          const analyzed = analyzeChordStrumSpectrum(
-            freqInfo.data,
-            freqInfo.sampleRate,
-            selectedVoicing,
-            tuning,
-            inTuneThreshold,
-            a4
-          );
-          setStringStatuses(analyzed);
-        }
-      }
-    }, 50);
+    setStrumPhase('waiting');
   };
 
   const resetAnalysis = () => {
@@ -170,7 +179,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
     setStringStatuses(initChordStatuses(selectedVoicing, tuning, a4));
     setLastMatchedIndex(null);
     setCaptureProgress(0);
-    setIsCapturingStrum(false);
+    setStrumPhase('idle');
   };
 
   const { complete: isChordComplete, unmeasured: unmeasuredCount } = chordProgress(stringStatuses);
@@ -251,7 +260,12 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             boxShadow: '0 4px 20px var(--shadow-brand)'
           }}
         >
-          <Play size={18} /> {isCapturingStrum ? `Слушаю струны (${captureProgress}%)...` : 'Ударьте по всем струнам'}
+          <Play size={18} />{' '}
+          {strumPhase === 'waiting'
+            ? 'Жду удар по струнам…'
+            : strumPhase === 'recording'
+              ? `Слушаю струны (${captureProgress}%)...`
+              : 'Ударьте по всем струнам'}
         </button>
       )}
 
@@ -291,6 +305,12 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             Аппликатуры пересчитаны под строй: название — то, что звучит на самом деле.
           </span>
         )}
+        {analysisMode === 'strum' && (
+          <span data-testid="cc-strum-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+            Струну, которая звучит октавой к другой струне аккорда, в ударе отдельно не измерить: все её
+            обертоны совпадают с чужими. Такие струны проверьте в тюнере или перебором.
+          </span>
+        )}
         {hasOctavePairs && analysisMode === 'arpeggio' && (
           <span data-testid="cc-octave-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
             Струны октавной пары (E2/E3, A2/A3, D3/D4, G3/G4) звучат вместе, и в переборе слышна одна из них.
@@ -300,7 +320,20 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       </div>
 
       {/* Индикатор захвата удара (Режим B) */}
-      {isCapturingStrum && (
+      {strumPhase === 'timeout' && (
+        <div className="banner warn" data-testid="cc-strum-timeout">
+          <div>
+            <b>Удар не услышан.</b>
+            <span> Нажмите кнопку и в течение {STRUM_WAIT_MS / 1000} секунд ударьте по всем струнам.</span>
+          </div>
+        </div>
+      )}
+      {strumPhase === 'waiting' && (
+        <div className="panel" data-testid="cc-strum-waiting" style={{ padding: 'var(--s4)', textAlign: 'center', fontWeight: 700, color: 'var(--brand)', fontSize: '15px' }}>
+          Ударьте по всем струнам — запись начнётся сама
+        </div>
+      )}
+      {strumPhase === 'recording' && (
         <div className="panel" style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
           <div style={{ fontWeight: 700, color: 'var(--brand)', fontSize: '15px' }}>
             Слушаю удар по струнам... {captureProgress}%
@@ -331,7 +364,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
               <span>Все звучащие струны аккорда {selectedVoicing.name} идеально настроены (погрешность ≤ ±{inTuneThreshold}¢).</span>
               {unmeasuredCount > 0 && (
                 <span data-testid="cc-unmeasured-note">
-                  {' '}Вторые струны октавных пар ({unmeasuredCount}) отдельно не измерялись — проверьте их в тюнере.
+                  {' '}Струны, звучащие октавой к другим ({unmeasuredCount}), отдельно не измерялись — проверьте их в тюнере.
                 </span>
               )}
             </div>

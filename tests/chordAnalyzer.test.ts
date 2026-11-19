@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePartials, extractSpectralPeaks } from '../src/audio/chordAnalyzer';
+import { calculatePartials } from '../src/audio/chordAnalyzer';
 
 describe('Polyphonic Chord Analyzer: Inharmonicity & Spectrum', () => {
   it('should calculate inharmonic partials: f_h = h * F0 * sqrt(1 + B * h^2)', () => {
@@ -16,20 +16,4 @@ describe('Polyphonic Chord Analyzer: Inharmonicity & Spectrum', () => {
     expect(partials[3]).toBeCloseTo(400.32, 2);
   });
 
-  it('should extract spectral peaks with parabolic interpolation', () => {
-    const sampleRate = 48000;
-    const fftSize = 4096;
-    const fftData = new Float32Array(fftSize / 2).fill(-90);
-
-    // Вставляем выраженный пик на бине 50 (соответствует частоте 50 * (48000/2) / 2048 = 585.9375 Гц)
-    const peakBin = 50;
-    fftData[peakBin - 1] = -40;
-    fftData[peakBin] = -20;
-    fftData[peakBin + 1] = -38;
-
-    const peaks = extractSpectralPeaks(fftData, sampleRate, 60, 2000, -70);
-    expect(peaks.length).toBeGreaterThan(0);
-    expect(peaks[0].frequency).toBeGreaterThan(500);
-    expect(peaks[0].frequency).toBeLessThan(700);
-  });
 });
