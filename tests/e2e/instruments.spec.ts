@@ -79,6 +79,26 @@ test.describe('аккорды для разных инструментов', () 
     await expect(page.getByTestId('cc-tune-11')).toBeVisible();
   });
 
+  test('на 12-струнной аккорд собирается без вторых струн октавных пар (#27, #29)', async ({ page }) => {
+    await openChordCheck(page, '12-string-std');
+    await page.getByTestId('cc-mic-toggle').click();
+
+    // Перебор шести хоров открытых струн подряд: по одной ноте на хор.
+    const courses: [string, number][] = [['E2', 12], ['A2', 10], ['D3', 8], ['G3', 6], ['B3', 4], ['E4', 2]];
+    for (const [note, stringNumber] of courses) {
+      await page.evaluate((f) => window.__fakeMic.setFrequency(f), noteFrequency(note));
+      await expect(page.getByTestId(`cc-status-${stringNumber}`)).toContainText('В строе', { timeout: 10_000 });
+    }
+    await page.evaluate(() => window.__fakeMic.silence());
+
+    await expect(page.getByText('Аккорд звучит безупречно!')).toBeVisible();
+    await expect(page.getByTestId('cc-unmeasured-note')).toContainText('(4)');
+    // Переходы между нотами не испортили уже настроенные хоры.
+    for (const [, stringNumber] of courses) {
+      await expect(page.getByTestId(`cc-status-${stringNumber}`)).toContainText('В строе');
+    }
+  });
+
   test('в режиме «Удар» подсказки про октавные пары нет', async ({ page }) => {
     await openChordCheck(page, '12-string-std');
     await page.getByTestId('cc-mode-strum').click();
