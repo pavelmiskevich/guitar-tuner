@@ -6,7 +6,7 @@ import { SCALES, getScaleNotes } from '../../domain/scales';
 import type { FretboardShareState } from '../../domain/deepLink';
 import { buildShareUrl, decodeFretboardHash, encodeFretboardHash, urlWithHash } from '../../domain/deepLink';
 import { detectChordFromFrets, getVoicingsForTuning, voicingLibraryKind } from '../../domain/chords';
-import { getFretNote } from '../../domain/fretboard';
+import { getFretNote, physicalFret, fretFromCapo } from '../../domain/fretboard';
 import type { HighlightedNote } from './FretboardSVG';
 import { FretboardSVG } from './FretboardSVG';
 import {
@@ -163,8 +163,11 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   if (viewMode === 'scales') {
     const scaleNotes = getScaleNotes(selectedRoot, selectedScaleId);
 
+    // Диапазон задан физическими ладами, подсветка — ладами от каподастра.
+    const fromFret = fretFromCapo(fretRange.from, capo) ?? 0;
+    const toFret = fretFromCapo(fretRange.to, capo) ?? -1;
     tuning.strings.forEach((_, strIdx) => {
-      for (let f = fretRange.from; f <= fretRange.to; f++) {
+      for (let f = fromFret; f <= toFret; f++) {
         const pitch = getFretNote(strIdx, f, tuning, capo);
         const match = scaleNotes.find(sn => sn.note === pitch.name);
         if (match) {
@@ -215,7 +218,8 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
     setLastClickedNote({
       note: `${formatNoteName(pitch.name, notation)}${pitch.octave}`,
       str: tuning.strings[strIdx]?.stringNumber || strIdx + 1,
-      fret
+      // В подписи — лад, который виден на грифе.
+      fret: physicalFret(fret, capo)
     });
 
     if (viewMode === 'explore') {
@@ -505,7 +509,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--ink-300)' }}>
         <span>💡 Нажмите на любой лад струны, чтобы услышать щипок струны (Karplus-Strong).</span>
         {lastClickedNote && (
-          <span style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
+          <span data-testid="fb-last-note" style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
             Струна {lastClickedNote.str}, Лад {lastClickedNote.fret}: {lastClickedNote.note}
           </span>
         )}

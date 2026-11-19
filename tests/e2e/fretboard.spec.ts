@@ -240,6 +240,33 @@ test.describe('гриф', () => {
     await expect(page.getByTestId('fb-detected-chord')).toHaveText('Распознан: Bm');
   });
 
+  test('с каподастром форма аккорда стоит за ним, на физических ладах (#26)', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=chords&voicing=am-open&capo=2');
+    await page.reload();
+
+    const svg = page.getByTestId('fretboard-svg');
+    // Форма Am (x.0.2.2.1.0) с капо на 2-м ладу играется на x.2.4.4.3.2.
+    for (const [str, fret] of [[1, 2], [2, 4], [3, 4], [4, 3], [5, 2]]) {
+      await expect(svg.getByTestId(`fb-cell-${str}-${fret}`).locator('[data-highlighted="true"]')).toHaveCount(1);
+    }
+    await expect(svg.locator('[data-highlighted="true"]')).toHaveCount(5);
+
+    // Лады за каподастром не звучат и затенены.
+    await expect(svg.getByTestId('fb-cell-0-1')).toHaveAttribute('data-behind-capo', 'true');
+    await expect(svg.getByTestId('fb-behind-capo')).toHaveCount(1);
+  });
+
+  test('щелчок с каподастром даёт ноту того лада, на который нажали (#26)', async ({ page }) => {
+    await page.goto('/#tab=fretboard&mode=explore&capo=2');
+    await page.reload();
+
+    await page.getByTestId('fb-cell-0-3').click();
+    await expect(page.getByTestId('fb-last-note')).toHaveText('Струна 6, Лад 3: G2');
+    await expect(page.getByTestId('fb-cell-0-3').locator('[data-highlighted="true"]')).toHaveCount(1);
+    // В ссылке лад записан от каподастра, как формы аккордов.
+    await expect(page).toHaveURL(/frets=1\.x\.x\.x\.x\.x/);
+  });
+
   test('ссылка, вставленная в уже открытую вкладку, применяется без перезагрузки (#13)', async ({ page }) => {
     // Маркер в window переживает только переход по хэшу, но не перезагрузку.
     await page.evaluate(() => { (window as unknown as { __noReload: boolean }).__noReload = true; });

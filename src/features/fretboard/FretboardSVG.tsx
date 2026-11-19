@@ -2,7 +2,7 @@ import React from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToFrequency } from '../../domain/notes';
-import { STANDARD_FRET_MARKERS, getFretRelativePositions, getFretNote } from '../../domain/fretboard';
+import { STANDARD_FRET_MARKERS, getFretRelativePositions, getFretNote, fretFromCapo } from '../../domain/fretboard';
 import { playGuitarString } from '../../audio/synth';
 
 export interface HighlightedNote {
@@ -23,6 +23,7 @@ interface FretboardSVGProps {
   orientation?: 'horizontal' | 'vertical';
   notation?: NotationSystem;
   labelMode?: 'note' | 'degree' | 'fret' | 'none';
+  /** Лады подсветки, звучащей ноты и щелчка отсчитаны от каподастра, как в ссылке. */
   highlightedNotes?: HighlightedNote[];
   activeSoundingNote?: { stringIndex: number; fret: number } | null;
   onFretClick?: (stringIndex: number, fret: number) => void;
@@ -82,12 +83,17 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
     return (currentX + prevX) / 2;
   };
 
-  const handleCellClick = (strIdx: number, fretNum: number) => {
-    const note = getFretNote(strIdx, fretNum, tuning, capo);
+  // fret — от каподастра, как в состоянии экрана.
+  const handleCellClick = (strIdx: number, fret: number) => {
+    const note = getFretNote(strIdx, fret, tuning, capo);
     const freq = midiToFrequency(note.midi, a4);
     playGuitarString(freq, 2.2);
-    onFretClick?.(strIdx, fretNum);
+    onFretClick?.(strIdx, fret);
   };
+
+  // Ячейки ниже каподастра не звучат — затеняем их до лада перед ним.
+  const behindCapoTo = capo !== null && capo > fromFret ? capo - 1 : null;
+  const capoShadeEdge = leftHanded ? width : 0;
 
   return (
     <div style={{ width: '100%', overflowX: 'auto', padding: '8px 0' }}>
@@ -250,6 +256,17 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
           </g>
         )}
 
+        {behindCapoTo !== null && (
+          <rect
+            data-testid="fb-behind-capo"
+            x={Math.min(capoShadeEdge, getFretX(behindCapoTo))}
+            y={8}
+            width={Math.abs(getFretX(behindCapoTo) - capoShadeEdge)}
+            height={height - 18}
+            fill="rgba(0,0,0,0.45)"
+          />
+        )}
+
         {/* Каподастр (если установлен) */}
         {capo !== null && capo >= fromFret && capo <= toFret && (
           <g>
@@ -312,15 +329,27 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
           const y = getStringY(strIdx);
 
           return Array.from({ length: numFrets + 1 }).map((_, fIdx) => {
+            // fretNum — физический лад (его номер подписан под грифом),
+            // fret — тот же лад от каподастра, в шкале подсветки и щелчка.
             const fretNum = fromFret + fIdx;
+            const fret = fretFromCapo(fretNum, capo);
+            if (fret === null) {
+              return (
+                <g
+                  key={`cell-${strIdx}-${fretNum}`}
+                  data-testid={`fb-cell-${strIdx}-${fretNum}`}
+                  data-behind-capo="true"
+                />
+              );
+            }
             const midX = getFretMidX(fretNum);
-            const note = getFretNote(strIdx, fretNum, tuning, capo);
+            const note = getFretNote(strIdx, fret, tuning, capo);
 
             const hl = highlightedNotes.find(
-              h => h.stringIndex === strIdx && h.fret === fretNum
+              h => h.stringIndex === strIdx && h.fret === fret
             );
             const isLiveSounding =
-              activeSoundingNote?.stringIndex === strIdx && activeSoundingNote?.fret === fretNum;
+              activeSoundingNote?.stringIndex === strIdx && activeSoundingNote?.fret === fret;
 
             const isRoot = hl?.isRoot;
             const noteText =
@@ -332,7 +361,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
               <g
                 key={`cell-${strIdx}-${fretNum}`}
                 data-testid={`fb-cell-${strIdx}-${fretNum}`}
-                onClick={() => handleCellClick(strIdx, fretNum)}
+                onClick={() => handleCellClick(strIdx, fret)}
                 style={{ cursor: 'pointer' }}
               >
                 {/* Невидимая область для легкого нажатия пальцем */}
