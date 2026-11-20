@@ -4,11 +4,11 @@ import { getPublicSiteUrl } from '../../domain/siteUrl';
 import { copyToClipboard } from '../../ui/clipboard';
 import { HAS_DONATE_QR } from '../../buildInfo';
 
-interface DonateCardProps {
-  // Props
-}
-
-export const DonateCard: React.FC<DonateCardProps> = () => {
+/**
+ * Карточка доната. Под React.memo: пропсов у неё нет, а родитель — экран
+ * тюнера — перерисовывается на каждом изменении показаний (#14).
+ */
+export const DonateCard = React.memo(function DonateCard() {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   // Без QR-кода в сборке картинку не запрашиваем вовсе: в офлайне запрос
   // несуществующего файла падал с ошибкой. Запасной значок — сразу.
@@ -239,4 +239,4 @@ export const DonateCard: React.FC<DonateCardProps> = () => {
       </div>
     </div>
   );
-};
+});

@@ -110,6 +110,36 @@ export function playSynthesizedKick(ctx: AudioContext, time: number, gainValue =
   osc.stop(time + 0.36);
 }
 
+/** Длина общего буфера шума, с: с запасом длиннее самого долгого удара (открытый хай-хэт). */
+export const NOISE_BUFFER_SECONDS = 1;
+
+const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>();
+
+/**
+ * Белый шум для малого барабана и хай-хэта — один буфер на аудиоконтекст
+ * (#14). Раньше каждый удар выделял и заполнял свой буфер, а в фанковом
+ * паттерне хай-хэт звучит 16 раз за такт.
+ */
+export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
+  let buffer = noiseBuffers.get(ctx);
+  if (!buffer) {
+    const length = Math.floor(ctx.sampleRate * NOISE_BUFFER_SECONDS);
+    buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    noiseBuffers.set(ctx, buffer);
+  }
+  return buffer;
+}
+
+/**
+ * Случайное начало внутри общего буфера: удары не звучат одним и тем же
+ * отрезком шума, как если бы его проигрывали с начала каждый раз.
+ */
+export function noiseOffset(duration: number): number {
+  return Math.random() * Math.max(0, NOISE_BUFFER_SECONDS - duration);
+}
+
 /**
  * Синтез малого барабана (Snare)
  */
@@ -143,15 +173,8 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
   osc.stop(time + 0.16);
 
   // Шумовая составляющая струн подструнника
-  const bufferSize = ctx.sampleRate * 0.2;
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-
   const noise = ctx.createBufferSource();
-  noise.buffer = buffer;
+  noise.buffer = noiseBuffer(ctx);
 
   const filter = ctx.createBiquadFilter();
   filter.type = 'highpass';
@@ -165,7 +188,7 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
   filter.connect(noiseGain);
   noiseGain.connect(output);
 
-  noise.start(time);
+  noise.start(time, noiseOffset(0.19));
   noise.stop(time + 0.19);
 }
 
@@ -174,15 +197,8 @@ export function playSynthesizedSnare(ctx: AudioContext, time: number, isCrossSti
  */
 export function playSynthesizedHiHat(ctx: AudioContext, time: number, isOpen = false, gainValue = 1.0, output: AudioNode = ctx.destination) {
   const duration = isOpen ? 0.32 : 0.05;
-  const bufferSize = Math.floor(ctx.sampleRate * duration);
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-
   const noise = ctx.createBufferSource();
-  noise.buffer = buffer;
+  noise.buffer = noiseBuffer(ctx);
 
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
@@ -197,6 +213,6 @@ export function playSynthesizedHiHat(ctx: AudioContext, time: number, isOpen = f
   filter.connect(gain);
   gain.connect(output);
 
-  noise.start(time);
+  noise.start(time, noiseOffset(duration + 0.01));
   noise.stop(time + duration + 0.01);
 }
