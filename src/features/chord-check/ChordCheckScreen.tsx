@@ -19,9 +19,18 @@ import { StrumCapture, STRUM_WAIT_MS } from '../../audio/strumCapture';
 import { useMicrophone } from '../../audio/useMicrophone';
 import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
+import { LiveRegion } from '../../ui/LiveRegion';
+import { useThrottledAnnouncement } from '../../ui/useThrottledAnnouncement';
+import {
+  chordStringStatusSpoken,
+  chordStringStatusText,
+  strumSummaryAnnouncement
+} from '../../domain/announcements';
 
 /** Сколько после сброса не принимать оценки высоты тона (D-4, см. ignoreEstimatesUntilRef). */
 const RESET_SETTLE_MS = 400;
+/** Как часто скринридер может зачитывать статусы струн. */
+const CHORD_ANNOUNCE_INTERVAL_MS = 1500;
 
 interface ChordCheckScreenProps {
   tuning: Tuning;
@@ -183,6 +192,25 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   };
 
   const { complete: isChordComplete, unmeasured: unmeasuredCount } = chordProgress(stringStatuses);
+  // Озвучка для скринридера (#11): итог аккорда, иначе — последняя услышанная
+  // струна в переборе или разбор удара.
+  const announcementText = (() => {
+    if (isChordComplete) return `Аккорд ${selectedVoicing.name} звучит безупречно`;
+    if (analysisMode === 'strum') {
+      if (strumPhase === 'waiting') return 'Жду удар по струнам';
+      if (strumPhase === 'recording') return 'Слушаю удар';
+      if (strumPhase === 'timeout') return 'Удар не услышан';
+      const analyzed = stringStatuses.some(s => s.status !== 'pending' && s.status !== 'muted');
+      return analyzed ? strumSummaryAnnouncement(stringStatuses, tuning.strings.map(s => s.stringNumber)) : '';
+    }
+    if (lastMatchedIndex === null) return '';
+    const status = stringStatuses[lastMatchedIndex];
+    const spoken = status ? chordStringStatusSpoken(status) : '';
+    const stringNumber = tuning.strings[lastMatchedIndex]?.stringNumber;
+    return spoken && stringNumber ? `${stringNumber}-я струна: ${spoken}` : '';
+  })();
+  const announcement = useThrottledAnnouncement(announcementText, CHORD_ANNOUNCE_INTERVAL_MS);
+
   const hasOctavePairs = useMemo(
     () => octavePartners(selectedVoicing, tuning).size > 0,
     [selectedVoicing, tuning]
@@ -202,6 +230,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
           <button
             className="btn btn-sm"
             data-testid="cc-mode-arpeggio"
+            aria-pressed={analysisMode === 'arpeggio'}
             style={{
               background: analysisMode === 'arpeggio' ? 'var(--brand-strong)' : 'transparent',
               color: analysisMode === 'arpeggio' ? 'var(--on-brand)' : 'var(--ink-300)',
@@ -218,6 +247,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
           <button
             className="btn btn-sm"
             data-testid="cc-mode-strum"
+            aria-pressed={analysisMode === 'strum'}
             style={{
               background: analysisMode === 'strum' ? 'var(--brand-strong)' : 'transparent',
               color: analysisMode === 'strum' ? 'var(--on-brand)' : 'var(--ink-300)',
@@ -271,6 +301,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 
       <MicErrorBanner mic={mic} />
 
+      <LiveRegion text={announcement} testId="cc-announcement" />
+
       {/* Быстрый выбор аккорда */}
       <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--s4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -285,6 +317,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             <button
               key={v.id}
               className={`btn btn-sm ${selectedVoicing.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={selectedVoicing.id === v.id}
               data-testid={`cc-voicing-${v.id}`}
               onClick={() => setSelectedVoicingId(v.id)}
               title={v.shape ? `Форма ${v.shape}, пересчитанная под строй` : undefined}
@@ -390,28 +423,14 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
             const isMuted = fret === 'x' || fret === undefined;
             const isSounding = lastMatchedIndex === idx;
 
-            let badgeColor = 'var(--ink-300)';
-            let badgeText = 'Ожидание';
-
-            if (isMuted) {
-              badgeColor = 'var(--ink-700)';
-              badgeText = 'Глушится (X)';
-            } else if (status?.status === 'in-tune') {
-              badgeColor = 'var(--sig-in)';
-              badgeText = `В строе (${status.cents > 0 ? '+' : ''}${status.cents.toFixed(1)}¢)`;
-            } else if (status?.status === 'low') {
-              badgeColor = 'var(--sig-off)';
-              badgeText = `Низко (${status.cents.toFixed(1)}¢)`;
-            } else if (status?.status === 'high') {
-              badgeColor = 'var(--sig-off)';
-              badgeText = `Высоко (+${status.cents.toFixed(1)}¢)`;
-            } else if (status?.status === 'not-played') {
-              badgeColor = 'var(--ink-300)';
-              badgeText = 'Не прозвучала';
-            } else if (status?.status === 'unmeasured') {
-              badgeColor = 'var(--ink-300)';
-              badgeText = 'Отдельно не измеряется';
-            }
+            const badgeText = chordStringStatusText(status, isMuted);
+            const badgeColor = isMuted
+              ? 'var(--ink-700)'
+              : status?.status === 'in-tune'
+                ? 'var(--sig-in)'
+                : status?.status === 'low' || status?.status === 'high'
+                  ? 'var(--sig-off)'
+                  : 'var(--ink-300)';
 
             const targetPitch = status && status.targetMidi > 0 ? midiToPitch(status.targetMidi) : str.open;
             const displayTargetName = formatNoteName(targetPitch.name, notation);

@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToFrequency } from '../../domain/notes';
-import { STANDARD_FRET_MARKERS, getFretRelativePositions, getFretNote, fretFromCapo } from '../../domain/fretboard';
+import type { FretboardCell } from '../../domain/fretboard';
+import {
+  STANDARD_FRET_MARKERS,
+  getFretRelativePositions,
+  getFretNote,
+  fretFromCapo,
+  fretboardKeyMove,
+  clampFretboardCell
+} from '../../domain/fretboard';
 import { playGuitarString } from '../../audio/synth';
 
 export interface HighlightedNote {
@@ -29,6 +37,8 @@ interface FretboardSVGProps {
   onFretClick?: (stringIndex: number, fret: number) => void;
   a4?: number;
   ref?: React.Ref<SVGSVGElement>;
+  /** id подсказки об управлении с клавиатуры (aria-describedby). */
+  describedBy?: string;
 }
 
 export const FretboardSVG: React.FC<FretboardSVGProps> = ({
@@ -43,7 +53,8 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
   activeSoundingNote = null,
   onFretClick,
   a4 = 440,
-  ref
+  ref,
+  describedBy
 }) => {
   const fromFret = visibleFrets.from;
   const toFret = visibleFrets.to;
@@ -66,7 +77,8 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
   };
 
   const getFretX = (fretNum: number) => {
-    if (fretNum < fromFret) return 0;
+    // Лады ниже диапазона прижаты к краю, с которого гриф начинается: у левши — к правому.
+    if (fretNum < fromFret) return leftHanded ? width : 0;
     const relIdx = fretNum - fromFret;
     const relPos = relativeFretPositions[relIdx] || 0;
     let posX = nutWidth + relPos * playableWidth;
@@ -91,6 +103,36 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
     onFretClick?.(strIdx, fret);
   };
 
+  // Управление с клавиатуры (#11): на грифе одна точка входа по Tab (roving
+  // tabindex), дальше — стрелки. Ячейки за каподастром не звучат и фокус
+  // не получают.
+  const keyBounds = {
+    numStrings,
+    // Без верхнего порожка лад начала диапазона приходится на край грифа
+    // и ячейки не имеет — первая видимая ячейка следующая.
+    minFret: Math.max(fromFret === 0 ? 0 : fromFret + 1, capo ?? 0),
+    maxFret: toFret,
+    leftHanded
+  };
+  const [focusCell, setFocusCell] = useState<FretboardCell>({ stringIndex: 0, fret: fromFret });
+  // Строй, диапазон или каподастр могли смениться — точка входа остаётся на грифе.
+  const tabCell = clampFretboardCell(focusCell, keyBounds);
+  const cellRefs = useRef(new Map<string, SVGGElement>());
+  const cellKey = (strIdx: number, fretNum: number) => `${strIdx}-${fretNum}`;
+
+  const handleCellKeyDown = (e: React.KeyboardEvent, strIdx: number, fretNum: number, fret: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCellClick(strIdx, fret);
+      return;
+    }
+    const next = fretboardKeyMove({ stringIndex: strIdx, fret: fretNum }, e.key, keyBounds);
+    if (!next) return;
+    e.preventDefault();
+    setFocusCell(next);
+    cellRefs.current.get(cellKey(next.stringIndex, next.fret))?.focus();
+  };
+
   // Ячейки ниже каподастра не звучат — затеняем их до лада перед ним.
   const behindCapoTo = capo !== null && capo > fromFret ? capo - 1 : null;
   const capoShadeEdge = leftHanded ? width : 0;
@@ -100,6 +142,11 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
       <svg
         ref={ref}
         data-testid="fretboard-svg"
+        // <svg> не заменить на <fieldset>: группа ячеек-кнопок с подписью.
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+        role="group"
+        aria-label={`Гриф, строй ${tuning.name}`}
+        aria-describedby={describedBy}
         viewBox={`0 0 ${width} ${height}`}
         style={{
           width: '100%',
@@ -173,6 +220,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
           const midX = getFretMidX(f);
           return (
             <text
+              aria-hidden="true"
               key={`fret-num-${f}`}
               x={midX}
               y={height - 4}
@@ -282,6 +330,7 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
               opacity="0.95"
             />
             <text
+              aria-hidden="true"
               x={getFretX(capo)}
               y={4}
               fill="var(--ink-050)"
@@ -357,16 +406,36 @@ export const FretboardSVG: React.FC<FretboardSVGProps> = ({
                 ? hl.label
                 : formatNoteName(note.name, notation);
 
+            const isTabStop = tabCell.stringIndex === strIdx && tabCell.fret === fretNum;
+            const place = fretNum === 0 ? 'открытая' : `${fretNum}-й лад`;
+            const mark = hl
+              ? `${isRoot ? ', тоника' : ', отмечена'}${labelMode === 'degree' && hl.label ? `, ступень ${hl.label}` : ''}`
+              : '';
+            const cellLabel = `${tuning.strings[strIdx].stringNumber}-я струна, ${place}: ${formatNoteName(note.name, notation)}${note.octave}${mark}`;
+
             return (
               <g
                 key={`cell-${strIdx}-${fretNum}`}
+                ref={(el) => {
+                  if (el) cellRefs.current.set(cellKey(strIdx, fretNum), el);
+                  else cellRefs.current.delete(cellKey(strIdx, fretNum));
+                }}
+                className="fb-cell"
+                // В SVG нет <button>: ячейке нужны роль кнопки и фокус вручную.
+                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+                role="button"
+                tabIndex={isTabStop ? 0 : -1}
+                aria-label={cellLabel}
                 data-testid={`fb-cell-${strIdx}-${fretNum}`}
                 onClick={() => handleCellClick(strIdx, fret)}
+                onKeyDown={(e) => handleCellKeyDown(e, strIdx, fretNum, fret)}
+                onFocus={() => setFocusCell({ stringIndex: strIdx, fret: fretNum })}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Невидимая область для легкого нажатия пальцем */}
+                {/* Невидимая область для легкого нажатия пальцем; она же рисует рамку фокуса */}
                 <rect
-                  x={fretNum === 0 ? 0 : getFretX(fretNum - 1)}
+                  className="fb-cell-hit"
+                  x={fretNum === 0 ? (leftHanded ? width - nutWidth - 16 : 0) : Math.min(getFretX(fretNum - 1), getFretX(fretNum))}
                   y={y - 16}
                   width={fretNum === 0 ? nutWidth + 16 : Math.abs(getFretX(fretNum) - getFretX(fretNum - 1))}
                   height={32}

@@ -109,7 +109,7 @@ https://<сайт>/#tab=fretboard&mode=scales&root=D&scale=blues&tuning=drop-c&c
 * **Аудио & DSP**: Web Audio API, McLeod Pitch Method (NSDF), Karplus-Strong Synthesis, FFT Analyzer, Drum Synthesizer
 * **Графика & UI**: Векторный SVG, Lucide Icons, CSS Custom Properties (Design Tokens)
 * **PWA**: Service Worker Network-First, Web App Manifest
-* **Доступность**: Lighthouse Accessibility 100/100 — контраст по WCAG AA, цели нажатия от 44px на сенсорных экранах, доступные имена у иконочных элементов
+* **Доступность**: Lighthouse Accessibility 100/100, проверка axe (WCAG 2.2 A/AA) по каждой вкладке в E2E — контраст по WCAG AA, цели нажатия от 44px на сенсорных экранах, доступные имена у иконочных элементов; всё управляется с клавиатуры (гриф — стрелками), показания тюнера, статусы струн аккорда и ответы тренажёра озвучиваются скринридером, анимации отключаются при `prefers-reduced-motion`
 * **Тестирование**: Vitest (модульные), Playwright (E2E на двух вьюпортах и на реальном захвате WebRTC), GitHub Actions
 
 ---

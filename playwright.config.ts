@@ -32,7 +32,7 @@ const HOST = '127.0.0.1';
  * - @sw-offline: перезагрузка в офлайне через service worker. WebKit
  *   Playwright падает на ней с «WebKit encountered an internal error».
  */
-const NO_MIC_SPECS = /(smoke|navigation|fretboard|metronome|theme|settings|pwa|resilience)\.spec\.ts/;
+const NO_MIC_SPECS = /(smoke|navigation|fretboard|metronome|theme|settings|pwa|resilience|a11y)\.spec\.ts/;
 
 export default defineConfig({
   testDir: './tests/e2e',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NoteName, NotationSystem } from '../../domain/notes';
 import { NOTE_NAMES, formatNoteName } from '../../domain/notes';
@@ -46,6 +46,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   notation,
   a4
 }) => {
+  const hintId = useId();
   // Состояние схемы читается из хэша до первого рендера (FR-FB-18): гриф сразу
   // рисуется в присланном виде, без промежуточного кадра со значениями по умолчанию.
   // Хэш всегда актуален (см. эффект ниже), поэтому возврат на вкладку сохраняет схему.
@@ -247,6 +248,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           <button
             className="btn btn-sm"
             data-testid="fb-mode-explore"
+            aria-pressed={viewMode === 'explore'}
             style={{
               background: viewMode === 'explore' ? 'var(--brand-strong)' : 'transparent',
               color: viewMode === 'explore' ? 'var(--on-brand)' : 'var(--ink-300)',
@@ -259,6 +261,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           <button
             className="btn btn-sm"
             data-testid="fb-mode-scales"
+            aria-pressed={viewMode === 'scales'}
             style={{
               background: viewMode === 'scales' ? 'var(--brand-strong)' : 'transparent',
               color: viewMode === 'scales' ? 'var(--on-brand)' : 'var(--ink-300)',
@@ -271,6 +274,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           <button
             className="btn btn-sm"
             data-testid="fb-mode-chords"
+            aria-pressed={viewMode === 'chords'}
             style={{
               background: viewMode === 'chords' ? 'var(--brand-strong)' : 'transparent',
               color: viewMode === 'chords' ? 'var(--on-brand)' : 'var(--ink-300)',
@@ -334,12 +338,14 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
               <button
                 className={`btn btn-sm ${labelMode === 'note' ? 'btn-primary' : 'btn-ghost'}`}
+                aria-pressed={labelMode === 'note'}
                 onClick={() => setLabelMode('note')}
               >
                 Ноты
               </button>
               <button
                 className={`btn btn-sm ${labelMode === 'degree' ? 'btn-primary' : 'btn-ghost'}`}
+                aria-pressed={labelMode === 'degree'}
                 onClick={() => setLabelMode('degree')}
               >
                 Ступени (1, ♭3...)
@@ -387,6 +393,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             <div>
               <span className="eyebrow">Обратный поиск аккорда</span>
               <div
+                aria-live="polite"
                 data-testid="fb-detected-chord"
                 style={{ fontSize: '16px', fontWeight: 800, color: detectedChord ? 'var(--sig-in)' : 'var(--ink-300)' }}
               >
@@ -502,17 +509,24 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         labelMode={labelMode}
         highlightedNotes={highlightedNotes}
         onFretClick={handleFretClick}
+        describedBy={hintId}
         a4={a4}
       />
 
       {/* Информационная подсказка */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--ink-300)' }}>
-        <span>💡 Нажмите на любой лад струны, чтобы услышать щипок струны (Karplus-Strong).</span>
-        {lastClickedNote && (
-          <span data-testid="fb-last-note" style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
-            Струна {lastClickedNote.str}, Лад {lastClickedNote.fret}: {lastClickedNote.note}
-          </span>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--ink-300)', gap: '12px', flexWrap: 'wrap' }}>
+        <span id={hintId}>
+          💡 Нажмите на любой лад струны, чтобы услышать щипок струны (Karplus-Strong). С клавиатуры: Tab — на гриф,
+          стрелки — по ладам и струнам, Enter — сыграть ноту.
+        </span>
+        {/* Область всегда в DOM — иначе скринридер не озвучит появившуюся ноту. */}
+        <span aria-live="polite">
+          {lastClickedNote && (
+            <span data-testid="fb-last-note" style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
+              Струна {lastClickedNote.str}, Лад {lastClickedNote.fret}: {lastClickedNote.note}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* Пояснение к шарингу схемы (FR-FB-18) */}

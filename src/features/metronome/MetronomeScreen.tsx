@@ -284,6 +284,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
         <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
           <button
             data-testid="mt-tab-metronome"
+            aria-pressed={activeTab === 'metronome'}
             className="btn btn-sm"
             style={{
               background: activeTab === 'metronome' ? 'var(--brand-strong)' : 'transparent',
@@ -300,6 +301,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           </button>
           <button
             data-testid="mt-tab-drums"
+            aria-pressed={activeTab === 'drums'}
             className="btn btn-sm"
             style={{
               background: activeTab === 'drums' ? 'var(--brand-strong)' : 'transparent',
@@ -329,6 +331,7 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
               <button
                 key={pattern.id}
                 data-testid={`mt-pattern-${pattern.id}`}
+                aria-pressed={isSelected}
                 onClick={() => {
                   setSelectedPattern(pattern);
                   setBpm(pattern.defaultBpm);
@@ -491,6 +494,8 @@ export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
           {/* Ползунок темпа (адаптивный) */}
           <input
             data-testid="mt-bpm-slider"
+            aria-label="Темп"
+            aria-valuetext={`${bpm} ударов в минуту`}
             type="range"
             min={MIN_BPM}
             max={MAX_BPM}
