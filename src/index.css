@@ -663,3 +663,29 @@ button {
 .fieldset-reset > legend {
   padding: 0;
 }
+
+/* Переключатель-«пилюля» (SegmentedControl): выбранный пункт — по aria-pressed. */
+.segmented {
+  display: flex;
+  margin: 0;
+  min-width: 0;
+  padding: 3px;
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-pill);
+}
+
+.segmented-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-300);
+}
+
+.segmented-btn[aria-pressed="true"] {
+  background: var(--brand-strong);
+  color: var(--on-brand);
+}

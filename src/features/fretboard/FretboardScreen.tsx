@@ -9,6 +9,7 @@ import { detectChordFromFrets, getVoicingsForTuning, voicingLibraryKind } from '
 import { getFretNote, physicalFret, fretFromCapo } from '../../domain/fretboard';
 import type { HighlightedNote } from './FretboardSVG';
 import { FretboardSVG } from './FretboardSVG';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import {
   Layers,
   Music,
@@ -244,47 +245,16 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         </div>
 
         {/* Переключатель режимов */}
-        <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
-          <button
-            className="btn btn-sm"
-            data-testid="fb-mode-explore"
-            aria-pressed={viewMode === 'explore'}
-            style={{
-              background: viewMode === 'explore' ? 'var(--brand-strong)' : 'transparent',
-              color: viewMode === 'explore' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)'
-            }}
-            onClick={() => setViewMode('explore')}
-          >
-            <Sparkles size={14} /> Исследование
-          </button>
-          <button
-            className="btn btn-sm"
-            data-testid="fb-mode-scales"
-            aria-pressed={viewMode === 'scales'}
-            style={{
-              background: viewMode === 'scales' ? 'var(--brand-strong)' : 'transparent',
-              color: viewMode === 'scales' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)'
-            }}
-            onClick={() => setViewMode('scales')}
-          >
-            <Layers size={14} /> Гаммы
-          </button>
-          <button
-            className="btn btn-sm"
-            data-testid="fb-mode-chords"
-            aria-pressed={viewMode === 'chords'}
-            style={{
-              background: viewMode === 'chords' ? 'var(--brand-strong)' : 'transparent',
-              color: viewMode === 'chords' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)'
-            }}
-            onClick={() => setViewMode('chords')}
-          >
-            <Music size={14} /> Аккорды
-          </button>
-        </div>
+        <SegmentedControl
+          label="Режим грифа"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { value: 'explore', label: <><Sparkles size={14} aria-hidden="true" /> Исследование</>, testId: 'fb-mode-explore' },
+            { value: 'scales', label: <><Layers size={14} aria-hidden="true" /> Гаммы</>, testId: 'fb-mode-scales' },
+            { value: 'chords', label: <><Music size={14} aria-hidden="true" /> Аккорды</>, testId: 'fb-mode-chords' }
+          ]}
+        />
       </div>
 
       {/* Панель управления выбранным режимом */}

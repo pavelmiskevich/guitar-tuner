@@ -22,6 +22,7 @@ import type { AccentLevel, BeatClock, Meter } from '../../domain/metronome';
 import { STORAGE_KEYS, readEnumSetting, readNumberSetting, writeSetting } from '../../domain/storage';
 import { startSchedulerTicker } from './schedulerTicker';
 import { useScreenWakeLock } from './useScreenWakeLock';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 
 /** Задержка первой доли после старта: успеть запланировать её до того, как она прозвучит. */
 const START_DELAY_SECONDS = 0.05;
@@ -277,45 +278,18 @@ export const MetronomeScreen: React.FC = () => {
         </div>
 
         {/* Табы режима */}
-        <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
-          <button
-            data-testid="mt-tab-metronome"
-            aria-pressed={activeTab === 'metronome'}
-            className="btn btn-sm"
-            style={{
-              background: activeTab === 'metronome' ? 'var(--brand-strong)' : 'transparent',
-              color: activeTab === 'metronome' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 14px'
-            }}
-            onClick={() => {
-              setIsPlaying(false);
-              setActiveTab('metronome');
-            }}
-          >
-            Метроном
-          </button>
-          <button
-            data-testid="mt-tab-drums"
-            aria-pressed={activeTab === 'drums'}
-            className="btn btn-sm"
-            style={{
-              background: activeTab === 'drums' ? 'var(--brand-strong)' : 'transparent',
-              color: activeTab === 'drums' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onClick={() => {
-              setIsPlaying(false);
-              setActiveTab('drums');
-            }}
-          >
-            <Disc3 size={14} /> Драм-машина
-          </button>
-        </div>
+        <SegmentedControl
+          label="Режим ритма"
+          value={activeTab}
+          onChange={(tab) => {
+            setIsPlaying(false);
+            setActiveTab(tab);
+          }}
+          options={[
+            { value: 'metronome', label: 'Метроном', testId: 'mt-tab-metronome' },
+            { value: 'drums', label: <><Disc3 size={14} aria-hidden="true" /> Драм-машина</>, testId: 'mt-tab-drums' }
+          ]}
+        />
       </div>
 
       {/* Пресеты барабанных стилей (если выбран режим драм-машины) */}
