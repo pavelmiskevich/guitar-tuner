@@ -55,9 +55,7 @@ export interface PitchRange {
 const DEFAULT_PITCH_RANGE: PitchRange = { minFreq: 40, maxFreq: 1400 };
 
 export interface AudioEngineOptions {
-  onEstimate?: EstimateCallback;
   onError?: (err: Error) => void;
-  onStateChange?: (state: AudioEngineState) => void;
 }
 
 /**
@@ -157,18 +155,13 @@ export class AudioEngine {
   private suppressUntil = 0;
   private lastAnalysisAt = 0;
   private onError?: (err: Error) => void;
-  private onStateChange?: (state: AudioEngineState) => void;
 
   constructor(options: AudioEngineOptions = {}) {
     this.timeDataArray = new Float32Array(ANALYSIS_LENGTH * 2);
     this.freqDataArray = new Float32Array(ANALYSIS_LENGTH);
     this.detector = new PitchDetector(48000, ANALYSIS_LENGTH);
 
-    if (options.onEstimate) {
-      this.listeners.add(options.onEstimate);
-    }
     this.onError = options.onError;
-    this.onStateChange = options.onStateChange;
 
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
     if (typeof document !== 'undefined') {
@@ -244,7 +237,6 @@ export class AudioEngine {
   private setStatus(state: AudioEngineState, error: Error | null = null): void {
     if (this.status.state === state && this.status.error === error) return;
     this.status = { state, error };
-    this.onStateChange?.(state);
     for (const listener of this.stateListeners) {
       try {
         listener(this.status);

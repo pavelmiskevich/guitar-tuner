@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { midiToFrequency, calculateCents, formatNoteName, NOTE_NAMES } from '../src/domain/notes';
-import { calculateFretPositions, getFretNote, physicalFret, fretFromCapo } from '../src/domain/fretboard';
+import { calculateFretDistance, getFretNote, physicalFret, fretFromCapo } from '../src/domain/fretboard';
 import { DEFAULT_TUNING } from '../src/domain/tunings';
 import { getScaleNotes } from '../src/domain/scales';
 import { COMMON_VOICINGS, detectChordFromFrets, getTriadVoicings, getVoicingExpectedPitches } from '../src/domain/chords';
@@ -42,11 +42,9 @@ describe('Domain: Notes & Math Formulas', () => {
 describe('Domain: Fretboard Geometry: d(n) = L * (1 - 2^(-n/12))', () => {
   it('should calculate precise fret positions', () => {
     const scaleLength = 648; // mm (Fender scale)
-    const frets = calculateFretPositions(scaleLength, 12);
-
-    expect(frets[0]).toBe(0);
+    expect(calculateFretDistance(0, scaleLength)).toBe(0);
     // 12th fret should be exactly at half scale length
-    expect(frets[12]).toBeCloseTo(scaleLength / 2, 2);
+    expect(calculateFretDistance(12, scaleLength)).toBeCloseTo(scaleLength / 2, 2);
   });
 
   it('should resolve note on string with capo', () => {
