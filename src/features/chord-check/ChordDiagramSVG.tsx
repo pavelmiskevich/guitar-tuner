@@ -68,6 +68,15 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
     return id;
   };
 
+  // Текстовая альтернатива схемы для скринридера (#11): что зажать на какой струне.
+  const diagramLabel = `Аппликатура ${voicing.name}${voicing.shape ? `, форма ${voicing.shape}` : ''}: ${frets
+    .map((f, sIdx) => {
+      const n = tuning.strings[stringIndexOf(sIdx)]?.stringNumber ?? sIdx + 1;
+      const what = f === 'x' ? 'глушится' : f === 0 ? 'открытая' : `${f}-й лад`;
+      return `${n}-я ${what}`;
+    })
+    .join(', ')}`;
+
   // Воспроизведение аккорда красивым перебором (арпеджио)
   const handlePlayChord = () => {
     let delay = 0;
@@ -111,13 +120,14 @@ export const ChordDiagramSVG: React.FC<ChordDiagramSVGProps> = ({
           className="btn btn-ghost btn-sm"
           onClick={handlePlayChord}
           title="Слушать звучание аккорда"
+          aria-label={`Слушать аккорд ${voicing.name}`}
           style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
         >
           <Volume2 size={13} color="var(--brand)" /> Слушать
         </button>
       </div>
 
-      <svg data-testid="chord-diagram" viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
+      <svg data-testid="chord-diagram" role="img" aria-label={diagramLabel} viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: '210px', height: 'auto', display: 'block' }}>
         <defs>
           {/* Яркий хромированный/никелевый металлический ладовый порожек как в разделе «Гриф» */}
           <linearGradient id="chordFretMetal" x1="0%" y1="0%" x2="100%" y2="0%">

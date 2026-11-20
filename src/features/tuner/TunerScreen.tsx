@@ -12,6 +12,9 @@ import { InTuneHold, MedianSmoother } from '../../domain/tuneStability';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
 import { DonateCard } from '../donate/DonateCard';
+import { LiveRegion } from '../../ui/LiveRegion';
+import { useThrottledAnnouncement } from '../../ui/useThrottledAnnouncement';
+import { tunerAnnouncement } from '../../domain/announcements';
 import {
   Volume2,
   CheckCircle2,
@@ -36,6 +39,8 @@ const SPECTRUM_RANGE_DB = 40;
  * Вместе с удержанием (IN_TUNE_HOLD_MS) даёт прежние ~1.2 с от входа в допуск.
  */
 const AUTO_ADVANCE_AFTER_STABLE_MS = 800;
+/** Как часто скринридер может зачитывать показания тюнера. */
+const TUNER_ANNOUNCE_INTERVAL_MS = 1500;
 
 interface TunerScreenProps {
   tuning: Tuning;
@@ -324,6 +329,19 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     }
   };
 
+  // Озвучка для скринридера (#11): смысл показаний, не чаще раза в полторы
+  // секунды — иначе диктор не успевает договорить.
+  const hasPitch = isListening && measuredFreq > 0 && isSoundActive;
+  const announcement = useThrottledAnnouncement(
+    tunerAnnouncement({
+      hasPitch,
+      noteLabel: `${displayNoteName}${currentDisplayNote.octave}`,
+      cents,
+      inTuneThreshold
+    }),
+    TUNER_ANNOUNCE_INTERVAL_MS
+  );
+
   // Определение команды действия тюнера (FR-TN-18)
   let actionCommandText = 'Сыграйте струну';
   let actionCommandColor = 'var(--ink-300)';
@@ -385,7 +403,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       {/* Верхний блок микрофона: крупная кнопка ДО включения, компактная плашка ПОСЛЕ включения */}
       <MicBar mic={mic} testIds={{ start: 'mic-toggle', status: 'mic-status' }}>
         {/* Компактный VU-индикатор входного уровня */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
+        <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
           <div style={{ flex: 1, height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
             <div
               style={{
@@ -399,6 +417,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700, fontSize: '10px' }}>MAX!</span>}
         </div>
       </MicBar>
+
+      <LiveRegion text={announcement} testId="tuner-announcement" />
+
 
       {/* Ошибки микрофона: отказ в доступе, занятое устройство, обрыв потока */}
       <MicErrorBanner mic={mic} />
@@ -428,47 +449,48 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             state = 'done';
           }
 
-          return (
-            <button
-              key={str.stringNumber}
-              className="schip"
-              data-state={state}
-              data-testid={`string-chip-${str.stringNumber}`}
-              onClick={() => {
-                onSelectString(isSelected ? null : idx);
-                handlePlayReference(str);
-              }}
-              title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора и воспроизведения`}
-              style={{ minWidth: 0, width: '100%', position: 'relative' }}
-            >
-              <span>{strNoteName}{str.open.octave}</span>
-              <small className="mono">{str.stringNumber}я</small>
+          const stateText = state === 'done' ? ', настроена' : state === 'off' ? ', не в строе' : '';
 
-              {/* Кнопка воспроизведения эталона на слух */}
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
+          return (
+            // Кнопка эталона — соседка чипа, а не его потомок (#11): вложенная в
+            // <button> интерактивность недостижима с клавиатуры и не видна
+            // скринридеру.
+            <div key={str.stringNumber} style={{ position: 'relative', minWidth: 0 }}>
+              <button
+                className="schip"
+                data-state={state}
+                data-testid={`string-chip-${str.stringNumber}`}
+                aria-pressed={isSelected}
+                onClick={() => {
+                  onSelectString(isSelected ? null : idx);
                   handlePlayReference(str);
                 }}
-                style={{
-                  position: 'absolute',
-                  top: '3px',
-                  right: '3px',
-                  background: 'var(--ink-700)',
-                  borderRadius: '50%',
-                  width: '17px',
-                  height: '17px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--ink-100)',
-                  cursor: 'pointer'
-                }}
+                title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора и воспроизведения`}
+                style={{ minWidth: 0, width: '100%' }}
+              >
+                {/* Имя кнопки — из видимой ноты и скрытых пояснений: голосовое
+                    управление находит кнопку по тому, что написано на ней. */}
+                <span className="sr-only">{str.stringNumber}-я струна, </span>
+                <span>{strNoteName}{str.open.octave}</span>
+                <small className="mono" aria-hidden="true">{str.stringNumber}я</small>
+                <span className="sr-only">, {strFreq} Гц{stateText}</span>
+              </button>
+
+              {/* Кнопка воспроизведения эталона на слух: зона нажатия 24×24,
+                  видимый кружок меньше — чтобы не закрывать ноту на узком чипе. */}
+              <button
+                type="button"
+                className="schip-ref"
+                data-testid={`string-ref-${str.stringNumber}`}
+                onClick={() => handlePlayReference(str)}
+                aria-label={`Эталон ${str.stringNumber}-й струны, ${strNoteName}${str.open.octave}`}
                 title="Воспроизвести эталонный звук"
               >
-                <Volume2 size={10} />
-              </div>
-            </button>
+                <span className="schip-ref-dot">
+                  <Volume2 size={10} aria-hidden="true" />
+                </span>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -497,7 +519,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           {lockedStringIndex !== null && (
             <button
               onClick={() => onSelectString(null)}
-              style={{ color: 'var(--brand)', textDecoration: 'underline', fontSize: '12px' }}
+              style={{ color: 'var(--brand)', textDecoration: 'underline', fontSize: '12px', minHeight: '24px', padding: '0 4px' }}
             >
               Сброс на авто
             </button>
@@ -551,9 +573,12 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </div>
 
         {/* Крупная интерактивная нота (нажатие воспроизводит эталон) */}
-        <div
+        <button
+          type="button"
           onClick={handlePlayCurrentNote}
           className={`tuner-note-interactive ${isPlayingSample ? 'tuner-note-playing' : ''}`}
+          data-testid="tuner-note-button"
+          aria-label={`${displayNoteName}${currentDisplayNote.octave} — прослушать эталон`}
           style={{
             position: 'relative',
             display: 'flex',
@@ -593,7 +618,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           </span>
 
           {/* Иконка динамика на ноте */}
-          <div
+          <span
+            aria-hidden="true"
             style={{
               position: 'absolute',
               right: '-14px',
@@ -611,8 +637,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             }}
           >
             <Volume2 size={13} />
-          </div>
-        </div>
+          </span>
+        </button>
 
         {/* Кнопка-подсказка под нотой */}
         <button
@@ -675,6 +701,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => setShowSpectrum(!showSpectrum)}
+          aria-expanded={showSpectrum}
           data-testid="spectrum-toggle"
           style={{ alignSelf: 'flex-start', fontSize: '12px' }}
         >
@@ -682,7 +709,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </button>
 
         {showSpectrum && (
-          <div className="panel" style={{ padding: '8px 12px', display: 'flex', alignItems: 'flex-end', height: '60px', gap: '3px' }}>
+          <div className="panel" aria-hidden="true" style={{ padding: '8px 12px', display: 'flex', alignItems: 'flex-end', height: '60px', gap: '3px' }}>
             {spectrumBars.map((val, i) => (
               <div
                 key={i}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import type { NotationSystem, NoteName } from '../../domain/notes';
 import { NOTE_NAMES } from '../../domain/notes';
 import type { Tuning } from '../../domain/tunings';
@@ -53,7 +53,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { note: 'E', octave: 4 }
   ]);
 
-  if (!isOpen) return null;
+  const titleId = useId();
+  const tuningNameId = useId();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Нативный модальный <dialog> (#11): showModal() делает страницу под ним
+  // инертной — Tab не уходит под подложку, — закрывает окно по Escape, а
+  // close() возвращает фокус на элемент, с которого окно открыли.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (isOpen && !dialog.open) dialog.showModal();
+    if (!isOpen && dialog.open) dialog.close();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    // Escape и close() приходят сюда событием close — состояние окна
+    // в App синхронизируется отсюда.
+    const handleClose = () => onCloseRef.current();
+    // Щелчок по подложке: панель занимает всё окно, так что целью щелчка
+    // сам <dialog> бывает только за её пределами — на ::backdrop.
+    const handleClick = (e: MouseEvent) => {
+      if (e.target === dialog) dialog.close();
+    };
+    dialog.addEventListener('close', handleClose);
+    dialog.addEventListener('click', handleClick);
+    return () => {
+      dialog.removeEventListener('close', handleClose);
+      dialog.removeEventListener('click', handleClick);
+    };
+  }, []);
 
   const handleStringCountChange = (cnt: number) => {
     setStringCount(cnt);
@@ -94,26 +129,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onCustomTuningDeleted?.(id);
   };
 
+  // Окно рендерится всегда: закрытый <dialog> скрыт браузером, а close()
+  // возвращает фокус, только пока содержимое окна на месте.
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'var(--backdrop)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 999,
-        padding: '16px'
-      }}
-      onClick={onClose}
-    >
+    <dialog ref={dialogRef} className="settings-dialog" aria-labelledby={titleId}>
       <div
         className="panel"
         style={{
           width: '100%',
-          maxWidth: '520px',
           maxHeight: '90vh',
           overflowY: 'auto',
           display: 'flex',
@@ -121,30 +144,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           gap: 'var(--s6)',
           position: 'relative'
         }}
-        onClick={(e) => e.stopPropagation()}
         data-testid="settings-modal"
       >
         {/* Шапка модального окна */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={20} color="var(--brand)" />
-            <h2 style={{ fontSize: '18px', margin: 0 }}>Настройки приложения</h2>
+            <Sliders size={20} color="var(--brand)" aria-hidden="true" />
+            <h2 id={titleId} style={{ fontSize: '18px', margin: 0 }}>Настройки приложения</h2>
           </div>
           <button
             onClick={onClose}
             className="btn btn-ghost btn-sm"
-            style={{ padding: '6px', borderRadius: '50%', minHeight: 'auto' }}
+            style={{ padding: '6px', borderRadius: '50%', minHeight: 'auto', minWidth: '32px' }}
+            aria-label="Закрыть настройки"
+            title="Закрыть"
+            data-testid="settings-dismiss"
           >
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
         {/* Тема оформления */}
-        <div>
-          <span className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Тема оформления</span>
+        <fieldset className="fieldset-reset">
+          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Тема оформления</legend>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               className={`btn btn-sm ${theme === 'night' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={theme === 'night'}
               style={{ flex: 1 }}
               onClick={() => onThemeChange('night')}
               data-testid="settings-theme-night"
@@ -153,6 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
             <button
               className={`btn btn-sm ${theme === 'day' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={theme === 'day'}
               style={{ flex: 1 }}
               onClick={() => onThemeChange('day')}
               data-testid="settings-theme-day"
@@ -160,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Sun size={16} /> День (Светлая)
             </button>
           </div>
-        </div>
+        </fieldset>
 
         {/* Опорная частота A4 */}
         <div>
@@ -188,6 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 key={freq}
                 className={`btn btn-sm ${a4 === freq ? 'btn-primary' : 'btn-ghost'}`}
+                aria-pressed={a4 === freq}
                 style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }}
                 onClick={() => onA4Change(freq)}
                 data-testid={`settings-a4-${freq}`}
@@ -199,8 +227,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Система обозначения нот */}
-        <div>
-          <span className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Система нотации</span>
+        <fieldset className="fieldset-reset">
+          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Система нотации</legend>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--ink-800)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
               <input
@@ -247,14 +275,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </label>
           </div>
-        </div>
+        </fieldset>
 
         {/* Порог строя */}
-        <div>
-          <span className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Порог точности «В строе»</span>
+        <fieldset className="fieldset-reset">
+          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Порог точности «В строе»</legend>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               className={`btn btn-sm ${inTuneThreshold === 3 ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={inTuneThreshold === 3}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(3)}
               data-testid="settings-threshold-3"
@@ -263,6 +292,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
             <button
               className={`btn btn-sm ${inTuneThreshold === 5 ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={inTuneThreshold === 5}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(5)}
               data-testid="settings-threshold-5"
@@ -271,6 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
             <button
               className={`btn btn-sm ${inTuneThreshold === 10 ? 'btn-primary' : 'btn-ghost'}`}
+              aria-pressed={inTuneThreshold === 10}
               style={{ flex: 1 }}
               onClick={() => onThresholdChange(10)}
               data-testid="settings-threshold-10"
@@ -278,7 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               Свободный (±10¢)
             </button>
           </div>
-        </div>
+        </fieldset>
 
         {/* Пользовательские строи (Custom Tunings Builder) */}
         <div>
@@ -294,8 +325,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Форма создания своего строя */}
           {isCreatingCustom && (
             <div className="panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--ink-900)' }}>
+              <label htmlFor={tuningNameId} className="sr-only">Название строя</label>
               <input
                 type="text"
+                id={tuningNameId}
                 placeholder="Название строя (например: Open Gm)"
                 value={newTuningName}
                 onChange={(e) => setNewTuningName(e.target.value)}
@@ -316,6 +349,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     key={cnt}
                     className={`btn btn-sm ${stringCount === cnt ? 'btn-primary' : 'btn-ghost'}`}
+                    aria-pressed={stringCount === cnt}
+                    aria-label={`${cnt} ${cnt === 4 ? 'струны' : 'струн'}`}
                     onClick={() => handleStringCountChange(cnt)}
                   >
                     {cnt}
@@ -330,6 +365,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span style={{ fontSize: '11px', color: 'var(--ink-300)', display: 'block' }}>{stringCount - i}-я струна:</span>
                     <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
                       <select
+                        aria-label={`Нота ${stringCount - i}-й струны`}
                         value={cn.note}
                         onChange={(e) => {
                           const updated = [...customNotes];
@@ -341,6 +377,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {NOTE_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                       <select
+                        aria-label={`Октава ${stringCount - i}-й струны`}
                         value={cn.octave}
                         onChange={(e) => {
                           const updated = [...customNotes];
@@ -415,6 +452,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           Версия {APP_VERSION} · сборка {APP_COMMIT}
         </p>
       </div>
-    </div>
+    </dialog>
   );
 };

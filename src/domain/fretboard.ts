@@ -110,3 +110,63 @@ export function fretFromCapo(physical: number, capo: number | null): number | nu
   const fret = physical - (capo ?? 0);
   return fret < 0 ? null : fret;
 }
+
+/** Ячейка грифа для управления с клавиатуры: лад физический, как подписан под грифом. */
+export interface FretboardCell {
+  stringIndex: number;
+  fret: number;
+}
+
+export interface FretboardKeyBounds {
+  numStrings: number;
+  /** Первый звучащий лад: начало диапазона или каподастр, если он дальше. */
+  minFret: number;
+  maxFret: number;
+  /** У левши лады идут справа налево — стрелки следуют за картинкой. */
+  leftHanded: boolean;
+}
+
+/**
+ * Куда переходит фокус грифа по клавише (#11). Стрелки «влево/вправо» —
+ * соседний лад в ту сторону, куда он нарисован; «вверх/вниз» — соседняя
+ * струна (6-я сверху); Home/End — край диапазона на той же струне.
+ * null — клавиша не перемещает фокус. У края фокус остаётся на месте.
+ */
+export function fretboardKeyMove(cell: FretboardCell, key: string, b: FretboardKeyBounds): FretboardCell | null {
+  const toward = b.leftHanded ? -1 : 1;
+  let { stringIndex, fret } = cell;
+  switch (key) {
+    case 'ArrowRight':
+      fret += toward;
+      break;
+    case 'ArrowLeft':
+      fret -= toward;
+      break;
+    case 'ArrowUp':
+      stringIndex -= 1;
+      break;
+    case 'ArrowDown':
+      stringIndex += 1;
+      break;
+    case 'Home':
+      fret = b.minFret;
+      break;
+    case 'End':
+      fret = b.maxFret;
+      break;
+    default:
+      return null;
+  }
+  return {
+    stringIndex: Math.min(b.numStrings - 1, Math.max(0, stringIndex)),
+    fret: Math.min(b.maxFret, Math.max(b.minFret, fret))
+  };
+}
+
+/** Ячейка в пределах грифа: после смены строя, диапазона или каподастра. */
+export function clampFretboardCell(cell: FretboardCell, b: Omit<FretboardKeyBounds, 'leftHanded'>): FretboardCell {
+  return {
+    stringIndex: Math.min(b.numStrings - 1, Math.max(0, cell.stringIndex)),
+    fret: Math.min(b.maxFret, Math.max(b.minFret, cell.fret))
+  };
+}

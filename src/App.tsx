@@ -220,7 +220,7 @@ export const App: React.FC = () => {
       <header className="app-header">
         <div className="header-inner">
           <div className="header-brand">
-            <span className="brand-icon">🎸</span>
+            <span className="brand-icon" aria-hidden="true">🎸</span>
             <div className="brand-text">
               <h1 className="brand-title">
                 Ночная репетиция
@@ -232,16 +232,17 @@ export const App: React.FC = () => {
           </div>
 
           {/* Навигация на десктопе (скрыта на мобильных) */}
-          <nav className="desktop-nav">
+          <nav className="desktop-nav" aria-label="Разделы">
             {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
                 id={`nav-desktop-${id}`}
                 className={`btn btn-sm ${activeTab === id ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => navigateTab(id)}
+                aria-current={activeTab === id ? 'page' : undefined}
                 data-testid={`nav-desktop-${id}`}
               >
-                <Icon size={15} /> {label}
+                <Icon size={15} aria-hidden="true" /> {label}
               </button>
             ))}
           </nav>
@@ -346,12 +347,13 @@ export const App: React.FC = () => {
       </main>
 
       {/* Нижний таб-бар для мобильных устройств */}
-      <nav className="mobile-bottom-nav">
+      <nav className="mobile-bottom-nav" aria-label="Разделы">
         {NAV_ITEMS.map(({ id, icon: Icon, short }) => (
           <button
             key={id}
             id={`nav-mobile-${id}`}
             onClick={() => navigateTab(id)}
+            aria-current={activeTab === id ? 'page' : undefined}
             data-testid={`nav-mobile-${id}`}
             style={{
               flex: 1,
@@ -366,7 +368,7 @@ export const App: React.FC = () => {
               fontWeight: activeTab === id ? 700 : 500
             }}
           >
-            <Icon size={18} />
+            <Icon size={18} aria-hidden="true" />
             <span>{short}</span>
           </button>
         ))}

@@ -18,6 +18,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { STORAGE_KEYS, readNumberSetting, writeSetting } from '../../domain/storage';
+import { LiveRegion } from '../../ui/LiveRegion';
 
 interface EarTrainingScreenProps {
   tuning: Tuning;
@@ -341,6 +342,13 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     generateNewQuestion();
   };
 
+  // Итог ответа для скринридера (#11): карточка с разбором появляется вместе
+  // с текстом, и без постоянной live-области её бы не озвучили.
+  const feedbackAnnouncement =
+    isAnswered && question
+      ? `${selectedOption === question.correctIndex ? 'Правильно!' : 'Не совсем точно.'} ${question.explanation}`
+      : '';
+
   const accuracy = totalAttempts > 0 ? Math.round((score / totalAttempts) * 100) : 100;
 
   return (
@@ -363,6 +371,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('note')}
+            aria-pressed={gameMode === 'note'}
             data-testid="et-mode-note"
           >
             Ноты
@@ -376,6 +385,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('string')}
+            aria-pressed={gameMode === 'string'}
             data-testid="et-mode-string"
           >
             Струны
@@ -389,6 +399,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               padding: '6px 12px'
             }}
             onClick={() => setGameMode('chord_quality')}
+            aria-pressed={gameMode === 'chord_quality'}
             data-testid="et-mode-quality"
           >
             Мажор/Минор
@@ -508,6 +519,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           onClick={() => question && playCurrentSound(question.notesToPlay)}
           disabled={isPlayingSound}
           data-testid="et-play"
+          aria-label="Прослушать ещё раз"
           style={{
             width: '64px',
             height: '64px',
@@ -528,6 +540,8 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           {isPlayingSound ? 'Звучит инструмент...' : 'Нажмите на кнопку с динамиком, чтобы повторить звук'}
         </span>
       </div>
+
+      <LiveRegion text={feedbackAnnouncement} testId="et-announcement" />
 
       {/* Варианты ответов */}
       {question && (
@@ -556,7 +570,9 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
               <button
                 key={idx}
                 onClick={() => handleSelectOption(idx)}
-                disabled={isAnswered}
+                // aria-disabled, а не disabled: отключённая кнопка теряет фокус, и после
+                // ответа с клавиатуры пришлось бы снова идти Tab с начала страницы (#11).
+                aria-disabled={isAnswered}
                 data-testid={`et-answer-${idx}`}
                 style={{
                   background: btnBg,
@@ -575,6 +591,9 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
                 }}
               >
                 <span>{opt}</span>
+                {/* Верный и выбранный ответ отличаются цветом — для скринридера словами. */}
+                {isAnswered && isCorrect && <span className="sr-only">, верный ответ</span>}
+                {isAnswered && isChosen && !isCorrect && <span className="sr-only">, ваш ответ</span>}
               </button>
             );
           })}
