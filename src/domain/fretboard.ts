@@ -20,26 +20,6 @@ export const STANDARD_FRET_MARKERS: FretMarker[] = [
   { fret: 24, type: 'double' }
 ];
 
-export interface FretboardConfig {
-  scaleLengthMm: number;
-  fretsCount: number;
-  visibleFrets: { from: number; to: number };
-  capo: number | null;
-  leftHanded: boolean;
-  orientation: 'horizontal' | 'vertical';
-  labelMode: 'note' | 'degree' | 'fret' | 'none';
-}
-
-export const DEFAULT_FRETBOARD_CONFIG: FretboardConfig = {
-  scaleLengthMm: 648,
-  fretsCount: 22,
-  visibleFrets: { from: 0, to: 15 },
-  capo: null,
-  leftHanded: false,
-  orientation: 'horizontal',
-  labelMode: 'note'
-};
-
 /**
  * Геометрически точное расстояние от верхнего порожка до лада n
  * d(n) = L * (1 - 2^(-n/12))
@@ -47,17 +27,6 @@ export const DEFAULT_FRETBOARD_CONFIG: FretboardConfig = {
 export function calculateFretDistance(n: number, scaleLength = 648): number {
   if (n <= 0) return 0;
   return scaleLength * (1 - Math.pow(2, -n / 12));
-}
-
-/**
- * Массив расстояний для всех ладов до maxFret
- */
-export function calculateFretPositions(scaleLength = 648, maxFret = 24): number[] {
-  const positions: number[] = [];
-  for (let i = 0; i <= maxFret; i++) {
-    positions.push(calculateFretDistance(i, scaleLength));
-  }
-  return positions;
 }
 
 /**

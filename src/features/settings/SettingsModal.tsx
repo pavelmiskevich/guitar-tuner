@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import type { NotationSystem, NoteName } from '../../domain/notes';
-import { NOTE_NAMES } from '../../domain/notes';
+import { NOTE_NAMES, pitchFromName } from '../../domain/notes';
 import type { Tuning } from '../../domain/tunings';
 import {
   loadSavedCustomTunings,
@@ -102,10 +102,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSaveNewCustomTuning = () => {
     if (!newTuningName.trim()) return;
 
-    const midiNotes = customNotes.map(n => {
-      const idx = NOTE_NAMES.indexOf(n.note);
-      return (n.octave + 1) * 12 + idx;
-    });
+    const midiNotes = customNotes.map(n => pitchFromName(n.note, n.octave).midi);
 
     const newTuning: Tuning = {
       id: `custom-${Date.now()}`,

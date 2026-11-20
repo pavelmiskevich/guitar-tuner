@@ -23,10 +23,6 @@ import { STORAGE_KEYS, readEnumSetting, readNumberSetting, writeSetting } from '
 import { startSchedulerTicker } from './schedulerTicker';
 import { useScreenWakeLock } from './useScreenWakeLock';
 
-interface MetronomeScreenProps {
-  // Props
-}
-
 /** Задержка первой доли после старта: успеть запланировать её до того, как она прозвучит. */
 const START_DELAY_SECONDS = 0.05;
 
@@ -100,7 +96,7 @@ function silenceOutput(ctx: AudioContext, output: GainNode) {
   }, (STOP_FADE_SECONDS + 0.05) * 1000);
 }
 
-export const MetronomeScreen: React.FC<MetronomeScreenProps> = () => {
+export const MetronomeScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'metronome' | 'drums'>('metronome');
   const [bpm, setBpm] = useState<number>(readSavedBpm);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
