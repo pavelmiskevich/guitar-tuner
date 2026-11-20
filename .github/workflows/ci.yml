@@ -63,17 +63,29 @@ jobs:
       # пятью минутами и не считался фатальным — и при медленном зеркале WebKit
       # падал на всех 68 тестах с невнятным «browser has been closed». Теперь
       # две попытки по шесть минут, а неудача роняет шаг с понятной причиной.
+      #
+      # timeout обрывает npx, но apt-get, запущенный через sudo, переживал его
+      # и держал блокировку dpkg: вторая попытка сразу падала на «Could not get
+      # lock», не начав работу. Поэтому после неудачи оставшийся apt-get
+      # останавливается (dpkg не трогаем: оборванная распаковка ломает систему
+      # пакетов), прерванная настройка пакетов доводится до конца, а apt ждёт
+      # освобождения блокировки, а не падает.
+      # Скачанные пакеты остаются в кэше apt, и вторая попытка докачивает только
+      # недостающие.
       - name: Системные зависимости браузеров
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 14
+        timeout-minutes: 15
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          echo 'DPkg::Lock::Timeout "120";' | sudo tee /etc/apt/apt.conf.d/99lock-timeout >/dev/null
           for attempt in 1 2; do
             if timeout 360 npx playwright install-deps chromium firefox webkit; then
               exit 0
             fi
             echo "::warning::установка системных библиотек браузеров, попытка $attempt не удалась"
+            sudo pkill -TERM -x apt-get || true
+            sudo dpkg --configure -a || true
           done
           echo "::error::не удалось поставить системные библиотеки браузеров — WebKit без них не запустится"
           exit 1
