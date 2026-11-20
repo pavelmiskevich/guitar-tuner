@@ -101,10 +101,11 @@ test.describe('доступность', () => {
     await expect(ref).toBeVisible();
     expect(await ref.evaluate(el => el.closest('[data-testid^="string-chip-"]'))).toBeNull();
 
-    // Зона нажатия не меньше 24×24 (WCAG 2.5.8).
+    // Зона нажатия не меньше 24×24 (WCAG 2.5.8). Округление: Firefox считает
+    // раскладку в 1/60 px и отдаёт 23.99997 для ровных 24 px.
     const box = await ref.boundingBox();
-    expect(box!.width).toBeGreaterThanOrEqual(24);
-    expect(box!.height).toBeGreaterThanOrEqual(24);
+    expect(Math.round(box!.width)).toBeGreaterThanOrEqual(24);
+    expect(Math.round(box!.height)).toBeGreaterThanOrEqual(24);
 
     // Чип выбирается с клавиатуры и сообщает выбор.
     const chip = page.getByTestId('string-chip-6');
