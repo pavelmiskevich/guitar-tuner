@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
-import { formatNoteName, midiToFrequency, frequencyToMidi, midiToPitch, calculateCents, NOTE_NAMES } from '../../domain/notes';
+import { formatNoteName, midiToFrequency, frequencyToMidi, midiToPitch, calculateCents } from '../../domain/notes';
 import { sharedAudioEngine } from '../../audio/audioEngine';
 import type { PitchEstimate } from '../../audio/dsp';
-import { getFretNote } from '../../domain/fretboard';
-import { getTriadVoicings } from '../../domain/chords';
 import { playGuitarString } from '../../audio/synth';
 import { useMicrophone } from '../../audio/useMicrophone';
 import { MicErrorBanner } from '../../ui/MicBar';
@@ -19,6 +17,8 @@ import {
 } from 'lucide-react';
 import { STORAGE_KEYS, readNumberSetting, writeSetting } from '../../domain/storage';
 import { LiveRegion } from '../../ui/LiveRegion';
+import type { EarGameMode, EarQuestion } from '../../domain/earTraining';
+import { generateEarQuestion } from '../../domain/earTraining';
 
 interface EarTrainingScreenProps {
   tuning: Tuning;
@@ -26,7 +26,6 @@ interface EarTrainingScreenProps {
   a4: number;
 }
 
-type GameMode = 'note' | 'string' | 'chord_quality';
 type AnswerMode = 'buttons' | 'guitar';
 
 /** Пауза перед автопереходом: хватает прочитать разбор, но не заставляет ждать. */
@@ -36,21 +35,12 @@ const STRING_MATCH_CENTS = 120;
 /** Сколько тишины считать паузой между щипками. */
 const SILENCE_BEFORE_PLUCK_MS = 250;
 
-interface QuestionState {
-  targetLabel: string;
-  targetMidi: number;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-  notesToPlay: { freq: number; delay: number }[];
-}
-
 export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   tuning,
   notation,
   a4
 }) => {
-  const [gameMode, setGameMode] = useState<GameMode>('note');
+  const [gameMode, setGameMode] = useState<EarGameMode>('note');
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -60,7 +50,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   );
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
-  const [question, setQuestion] = useState<QuestionState | null>(null);
+  const [question, setQuestion] = useState<EarQuestion | null>(null);
   const [isPlayingSound, setIsPlayingSound] = useState(false);
   const [answerMode, setAnswerMode] = useState<AnswerMode>('buttons');
   const mic = useMicrophone();
@@ -127,107 +117,13 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
     }, maxDelay + 500);
   }, [safeSetTimeout]);
 
-  // Генерация нового вопроса в зависимости от режима
+  // Новый вопрос в текущем режиме; сам генератор — в domain/earTraining.ts.
   const generateNewQuestion = useCallback(() => {
     setIsAnswered(false);
     setSelectedOption(null);
-
-    if (gameMode === 'note') {
-      // Выбираем случайную ноту в диапазоне 2-4 октавы
-      const randomStrIdx = Math.floor(Math.random() * tuning.strings.length);
-      const randomFret = Math.floor(Math.random() * 8);
-      const targetNote = getFretNote(randomStrIdx, randomFret, tuning);
-      const targetName = formatNoteName(targetNote.name, notation);
-      const targetFreq = midiToFrequency(targetNote.midi, a4);
-
-      // Генерируем 3 неправильных варианта
-      const otherNames = NOTE_NAMES.filter(n => n !== targetNote.name)
-        .map(n => formatNoteName(n, notation))
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3);
-
-      const allOptions = [targetName, ...otherNames].sort(() => Math.random() - 0.5);
-      const correctIdx = allOptions.indexOf(targetName);
-
-      const q: QuestionState = {
-        targetLabel: `${targetName} (${targetNote.name}${targetNote.octave})`,
-        targetMidi: targetNote.midi,
-        options: allOptions,
-        correctIndex: correctIdx,
-        explanation: `Звучала нота ${targetName}${targetNote.octave} (${targetFreq.toFixed(1)} Гц) на ${tuning.strings[randomStrIdx]?.stringNumber}-й струне, ${randomFret}-й лад.`,
-        notesToPlay: [{ freq: targetFreq, delay: 0 }]
-      };
-
-      setQuestion(q);
-      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
-    } else if (gameMode === 'string') {
-      // Угадать открытую струну
-      const strIdx = Math.floor(Math.random() * tuning.strings.length);
-      const strSpec = tuning.strings[strIdx];
-      const strNoteName = formatNoteName(strSpec.open.name, notation);
-      const targetFreq = midiToFrequency(strSpec.open.midi, a4);
-
-      const options = tuning.strings.map(s => `${s.stringNumber}-я струна (${formatNoteName(s.open.name, notation)}${s.open.octave})`);
-      const correctIdx = strIdx;
-
-      const q: QuestionState = {
-        targetLabel: `${strSpec.stringNumber}-я струна (${strNoteName}${strSpec.open.octave})`,
-        targetMidi: strSpec.open.midi,
-        options: options,
-        correctIndex: correctIdx,
-        explanation: `Звучала открытая ${strSpec.stringNumber}-я струна: ${strNoteName}${strSpec.open.octave} (${targetFreq.toFixed(1)} Гц).`,
-        notesToPlay: [{ freq: targetFreq, delay: 0 }]
-      };
-
-      setQuestion(q);
-      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
-    } else if (gameMode === 'chord_quality') {
-      // Мажор или Минор
-      const isMajor = Math.random() > 0.5;
-      // Аппликатуры — пересчитанные под текущий строй: шестиструнная форма на
-      // басе или укулеле играла не тот аккорд, о котором спрашивали (#5).
-      const filteredVoicings = getTriadVoicings(isMajor ? 'maj' : 'min', tuning);
-      const options = ['Мажор (Светлый / Радостный)', 'Минор (Грустный / Драматичный)'];
-      const correctIdx = isMajor ? 0 : 1;
-
-      const notes: { freq: number; delay: number }[] = [];
-      let chordName: string;
-      let delay = 0;
-      if (filteredVoicings.length > 0) {
-        const randomVoicing = filteredVoicings[Math.floor(Math.random() * filteredVoicings.length)];
-        chordName = randomVoicing.name;
-        randomVoicing.frets.forEach((fret, sIdx) => {
-          if (fret !== 'x') {
-            const note = getFretNote(sIdx, fret, tuning);
-            notes.push({ freq: midiToFrequency(note.midi, a4), delay });
-            delay += 100;
-          }
-        });
-      } else {
-        // Для строя без библиотеки аккордов (бас) — трезвучие в тесном
-        // расположении от случайной ноты малой октавы: вопрос о наклонении
-        // не зависит от инструмента.
-        const rootMidi = 48 + Math.floor(Math.random() * 12);
-        const root = midiToPitch(rootMidi);
-        chordName = `${formatNoteName(root.name, notation)}${isMajor ? '' : 'm'}`;
-        for (const interval of [0, isMajor ? 4 : 3, 7, 12]) {
-          notes.push({ freq: midiToFrequency(rootMidi + interval, a4), delay });
-          delay += 100;
-        }
-      }
-
-      const q: QuestionState = {
-        targetLabel: `${chordName} (${isMajor ? 'Мажор' : 'Минор'})`,
-        targetMidi: 0,
-        options: options,
-        correctIndex: correctIdx,
-        explanation: `Звучал аккорд ${chordName} — это ${isMajor ? 'мажорное' : 'минорное'} трезвучие.`,
-        notesToPlay: notes
-      };
-
-      setQuestion(q);
-      safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
-    }
+    const q = generateEarQuestion(gameMode, tuning, notation, a4);
+    setQuestion(q);
+    safeSetTimeout(() => playCurrentSound(q.notesToPlay), 150);
   }, [gameMode, tuning, notation, a4, playCurrentSound, safeSetTimeout]);
 
   // Запуск игры при смене режима
