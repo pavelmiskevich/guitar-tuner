@@ -20,6 +20,7 @@ import { useMicrophone } from '../../audio/useMicrophone';
 import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { ArrowRight, RotateCcw, Play, CheckCircle2 } from 'lucide-react';
 import { LiveRegion } from '../../ui/LiveRegion';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import { useThrottledAnnouncement } from '../../ui/useThrottledAnnouncement';
 import {
   chordStringStatusSpoken,
@@ -226,42 +227,18 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
 
         {/* Переключатель режимов: Арпеджио / Один удар */}
-        <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
-          <button
-            className="btn btn-sm"
-            data-testid="cc-mode-arpeggio"
-            aria-pressed={analysisMode === 'arpeggio'}
-            style={{
-              background: analysisMode === 'arpeggio' ? 'var(--brand-strong)' : 'transparent',
-              color: analysisMode === 'arpeggio' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 12px'
-            }}
-            onClick={() => {
-              setAnalysisMode('arpeggio');
-              resetAnalysis();
-            }}
-          >
-            Режим A: Перебор
-          </button>
-          <button
-            className="btn btn-sm"
-            data-testid="cc-mode-strum"
-            aria-pressed={analysisMode === 'strum'}
-            style={{
-              background: analysisMode === 'strum' ? 'var(--brand-strong)' : 'transparent',
-              color: analysisMode === 'strum' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 12px'
-            }}
-            onClick={() => {
-              setAnalysisMode('strum');
-              resetAnalysis();
-            }}
-          >
-            Режим B: Удар (Спектр)
-          </button>
-        </div>
+        <SegmentedControl
+          label="Режим анализа"
+          value={analysisMode}
+          onChange={(mode) => {
+            setAnalysisMode(mode);
+            resetAnalysis();
+          }}
+          options={[
+            { value: 'arpeggio', label: 'Режим A: Перебор', testId: 'cc-mode-arpeggio' },
+            { value: 'strum', label: 'Режим B: Удар (Спектр)', testId: 'cc-mode-strum' }
+          ]}
+        />
       </div>
 
       {/* Верхний блок микрофона: крупная кнопка ДО включения, минимизированный статус ПОСЛЕ */}

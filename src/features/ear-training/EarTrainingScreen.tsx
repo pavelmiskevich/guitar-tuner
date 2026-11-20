@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { STORAGE_KEYS, readNumberSetting, writeSetting } from '../../domain/storage';
 import { LiveRegion } from '../../ui/LiveRegion';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import type { EarGameMode, EarQuestion } from '../../domain/earTraining';
 import { generateEarQuestion } from '../../domain/earTraining';
 
@@ -257,50 +258,16 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
         </div>
 
         {/* Переключатель режимов игры */}
-        <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
-          <button
-            className="btn btn-sm"
-            style={{
-              background: gameMode === 'note' ? 'var(--brand-strong)' : 'transparent',
-              color: gameMode === 'note' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 12px'
-            }}
-            onClick={() => setGameMode('note')}
-            aria-pressed={gameMode === 'note'}
-            data-testid="et-mode-note"
-          >
-            Ноты
-          </button>
-          <button
-            className="btn btn-sm"
-            style={{
-              background: gameMode === 'string' ? 'var(--brand-strong)' : 'transparent',
-              color: gameMode === 'string' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 12px'
-            }}
-            onClick={() => setGameMode('string')}
-            aria-pressed={gameMode === 'string'}
-            data-testid="et-mode-string"
-          >
-            Струны
-          </button>
-          <button
-            className="btn btn-sm"
-            style={{
-              background: gameMode === 'chord_quality' ? 'var(--brand-strong)' : 'transparent',
-              color: gameMode === 'chord_quality' ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: 'var(--r-pill)',
-              padding: '6px 12px'
-            }}
-            onClick={() => setGameMode('chord_quality')}
-            aria-pressed={gameMode === 'chord_quality'}
-            data-testid="et-mode-quality"
-          >
-            Мажор/Минор
-          </button>
-        </div>
+        <SegmentedControl
+          label="Режим тренажёра"
+          value={gameMode}
+          onChange={setGameMode}
+          options={[
+            { value: 'note', label: 'Ноты', testId: 'et-mode-note' },
+            { value: 'string', label: 'Струны', testId: 'et-mode-string' },
+            { value: 'chord_quality', label: 'Мажор/Минор', testId: 'et-mode-quality' }
+          ]}
+        />
       </div>
 
       {/* Статистика игрока (Очки, Стрик, Точность) */}
@@ -350,36 +317,15 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       {gameMode !== 'chord_quality' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--ink-300)' }}>
           <span>Отвечать:</span>
-          <div style={{ display: 'flex', background: 'var(--ink-900)', border: '1px solid var(--ink-700)', borderRadius: 'var(--r-pill)', padding: '3px' }}>
-            <button
-              className="btn btn-sm"
-              data-testid="et-input-buttons"
-              aria-pressed={answerMode === 'buttons'}
-              style={{
-                background: answerMode === 'buttons' ? 'var(--brand-strong)' : 'transparent',
-                color: answerMode === 'buttons' ? 'var(--on-brand)' : 'var(--ink-300)',
-                borderRadius: 'var(--r-pill)',
-                padding: '6px 12px'
-              }}
-              onClick={() => setAnswerMode('buttons')}
-            >
-              Кнопками
-            </button>
-            <button
-              className="btn btn-sm"
-              data-testid="et-input-guitar"
-              aria-pressed={answerMode === 'guitar'}
-              style={{
-                background: answerMode === 'guitar' ? 'var(--brand-strong)' : 'transparent',
-                color: answerMode === 'guitar' ? 'var(--on-brand)' : 'var(--ink-300)',
-                borderRadius: 'var(--r-pill)',
-                padding: '6px 12px'
-              }}
-              onClick={enableGuitarAnswers}
-            >
-              Игрой на гитаре
-            </button>
-          </div>
+          <SegmentedControl
+            label="Способ ответа"
+            value={answerMode}
+            onChange={(mode) => (mode === 'guitar' ? enableGuitarAnswers() : setAnswerMode('buttons'))}
+            options={[
+              { value: 'buttons', label: 'Кнопками', testId: 'et-input-buttons' },
+              { value: 'guitar', label: 'Игрой на гитаре', testId: 'et-input-guitar' }
+            ]}
+          />
           {answerMode === 'guitar' && mic.isOn && (
             <span data-testid="et-guitar-hint" style={{ color: 'var(--sig-in)' }}>
               {gameMode === 'string' ? 'Сыграйте открытую струну' : 'Сыграйте услышанную ноту'}
