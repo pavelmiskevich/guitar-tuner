@@ -7,8 +7,9 @@
 - `npm run test:e2e:ui` — интерактивный режим
 - `npm run test:e2e -- tuner.spec.ts` — одна спека
 - `npm run test:e2e:explore` — разведочный проход, в обычный прогон не входит
+- `npm run test:e2e:perf` — замер кадров тюнера при шестикратном замедлении процессора (`perf.spec.ts`, только Chromium), в обычный прогон не входит
 
-Разведка отделена флагами `--grep-invert @exploration` / `--grep @exploration` в самих
+Разведка и замер отделены флагами `--grep-invert "@exploration|@perf"` / `--grep @exploration` в самих
 скриптах, а не через `grepInvert` в конфиге: в Playwright 1.62.1 конфигурационный
 `grepInvert` применяется раньше CLI-флагов, и переопределить его из командной строки
 невозможно.

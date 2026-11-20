@@ -3,6 +3,8 @@
  * Реализация McLeod Pitch Method (MPM) на основе NSDF + параболическая интерполяция + фазовое уточнение
  */
 
+import { HeadCorrelator } from './fft';
+
 export interface PitchEstimate {
   frequency: number;   // Гц
   clarity: number;     // 0..1 (мера уверенности детектора)
@@ -59,6 +61,8 @@ export class PitchDetector {
   private squarePrefix: Float64Array;
   private peakTaus: Int32Array;
   private peakCount = 0;
+  private correlator = new HeadCorrelator();
+  private acf: Float64Array;
 
   constructor(sampleRate = 48000, bufferSize = 4096, cutoffRate = 0.85) {
     this.sampleRate = sampleRate;
@@ -67,6 +71,7 @@ export class PitchDetector {
     this.preprocessed = new Float32Array(bufferSize);
     this.squarePrefix = new Float64Array(bufferSize + 1);
     this.peakTaus = new Int32Array(Math.floor(bufferSize / 2) + 1);
+    this.acf = new Float64Array(bufferSize);
   }
 
   /** Входной буфер может оказаться длиннее заявленного — тогда буферы растут один раз. */
@@ -76,6 +81,7 @@ export class PitchDetector {
     this.preprocessed = new Float32Array(len);
     this.squarePrefix = new Float64Array(len + 1);
     this.peakTaus = new Int32Array(Math.floor(len / 2) + 1);
+    this.acf = new Float64Array(len);
   }
 
   /**
@@ -135,11 +141,12 @@ export class PitchDetector {
     }
     const headEnergy = prefix[window];
 
+    // Числитель — корреляция начала кадра со всем кадром, через БПФ (#14):
+    // прямой двойной цикл стоил 2,6–4,2 млн умножений на кадр.
+    this.correlator.correlate(buffer, len, window, maxTau + 1, this.acf);
+
     for (let tau = 0; tau <= maxTau + 1; tau++) {
-      let acf = 0;
-      for (let i = 0; i < window; i++) {
-        acf += buffer[i] * buffer[i + tau];
-      }
+      const acf = this.acf[tau];
 
       const divisorM = headEnergy + (prefix[tau + window] - prefix[tau]);
       this.nsdfBuffer[tau] = divisorM > 1e-9 ? (2 * acf) / divisorM : 0;

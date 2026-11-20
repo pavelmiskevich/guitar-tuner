@@ -133,12 +133,14 @@ test.describe('тюнер', () => {
 
     // Шкала логарифмическая: 32 полосы на диапазон 40–4000 Гц, то есть
     // множитель 1.1548 на полосу. Основной тон E2 (82.41 Гц) попадает в 5-ю.
-    const bars = page.getByTestId('spectrum-toggle').locator('xpath=../div').locator('div[data-level]');
+    // Спектрограмма рисуется на <canvas> (#14), уровни полос — в data-levels.
+    const canvas = page.getByTestId('spectrum-canvas');
 
     await expect(async () => {
-      const levels = await bars.evaluateAll((els) =>
-        els.map((e) => Number((e as HTMLElement).dataset.level))
-      );
+      const levels = ((await canvas.getAttribute('data-levels')) ?? '')
+        .split(',')
+        .filter(Boolean)
+        .map(Number);
       expect(levels).toHaveLength(32);
 
       // До исправления каждая полоса читала шумовой пол между пиками и все

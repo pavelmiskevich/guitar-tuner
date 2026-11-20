@@ -149,8 +149,11 @@ export class AudioEngine {
   private sessionEvents: AbortController | null = null;
   private backgroundTimer: ReturnType<typeof setTimeout> | null = null;
   private animationFrameId: number | null = null;
-  private timeDataArray: Float32Array;
-  private freqDataArray: Float32Array;
+  // Буферы именно на ArrayBuffer: getFloat*Data не принимает Float32Array
+  // поверх SharedArrayBuffer, и без уточнения типа у каждого вызова стояла
+  // директива подавления ошибки TypeScript.
+  private timeDataArray: Float32Array<ArrayBuffer>;
+  private freqDataArray: Float32Array<ArrayBuffer>;
 
   private listeners: Set<EstimateCallback> = new Set();
   /** До этого момента оценки не рассылаются: приложение играет само. */
@@ -507,9 +510,7 @@ export class AudioEngine {
       }
       this.lastAnalysisAt = now;
 
-      // @ts-expect-error Float32Array buffer compatibility
       this.analyserNode.getFloatTimeDomainData(this.timeDataArray);
-      // @ts-expect-error Float32Array buffer compatibility
       this.analyserNode.getFloatFrequencyData(this.freqDataArray);
 
       // Пока звучит собственный эталон, оценки не рассылаем вовсе.

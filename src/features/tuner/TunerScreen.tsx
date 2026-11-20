@@ -11,6 +11,9 @@ import { MicBar, MicErrorBanner } from '../../ui/MicBar';
 import { InTuneHold, MedianSmoother } from '../../domain/tuneStability';
 import { CentsScale } from './CentsScale';
 import { TunerAura } from './TunerAura';
+import { SpectrumCanvas } from './SpectrumCanvas';
+import { StringChips } from './StringChips';
+import type { SoundingState } from './StringChips';
 import { DonateCard } from '../donate/DonateCard';
 import { LiveRegion } from '../../ui/LiveRegion';
 import { useThrottledAnnouncement } from '../../ui/useThrottledAnnouncement';
@@ -26,14 +29,6 @@ import {
   Music
 } from 'lucide-react';
 
-// Диапазон спектрограммы: от ниже самой низкой басовой струны до верхних гармоник.
-const SPECTRUM_BARS = 32;
-const SPECTRUM_MIN_HZ = 40;
-const SPECTRUM_MAX_HZ = 4000;
-/** Ниже этого пика считаем, что сигнала нет, и не растягиваем шум на всю шкалу. */
-const SPECTRUM_SILENCE_DB = -75;
-/** Показываемый динамический диапазон под пиком. */
-const SPECTRUM_RANGE_DB = 40;
 /**
  * Пауза перед автошагом мастера после того, как струна признана настроенной.
  * Вместе с удержанием (IN_TUNE_HOLD_MS) даёт прежние ~1.2 с от входа в допуск.
@@ -41,6 +36,11 @@ const SPECTRUM_RANGE_DB = 40;
 const AUTO_ADVANCE_AFTER_STABLE_MS = 800;
 /** Как часто скринридер может зачитывать показания тюнера. */
 const TUNER_ANNOUNCE_INTERVAL_MS = 1500;
+
+/** Округление до шага отображения: равные значения React не перерисовывает. */
+function roundTo(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
 
 interface TunerScreenProps {
   tuning: Tuning;
@@ -77,7 +77,6 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [tunedStrings, setTunedStrings] = useState<Set<number>>(new Set());
   const [showSpectrum, setShowSpectrum] = useState(false);
-  const [spectrumBars, setSpectrumBars] = useState<number[]>(new Array(SPECTRUM_BARS).fill(0));
 
   const stableTimerRef = useRef<number | null>(null);
   const smootherRef = useRef(new MedianSmoother());
@@ -94,8 +93,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     inTuneThreshold,
     lockedStringIndex,
     autoAdvance,
-    onSelectString,
-    showSpectrum
+    onSelectString
   });
 
   useEffect(() => {
@@ -105,10 +103,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       inTuneThreshold,
       lockedStringIndex,
       autoAdvance,
-      onSelectString,
-      showSpectrum
+      onSelectString
     };
-  }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString, showSpectrum]);
+  }, [tuning, a4, inTuneThreshold, lockedStringIndex, autoAdvance, onSelectString]);
 
   // Смена строя или эталона A4 меняет целевые ноты: прежние отметки «настроено»,
   // последняя услышанная струна и её частоты относятся к старым целям и только
@@ -155,51 +152,13 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
 
   // Подписка на глобальный AudioEngine
   useEffect(() => {
-    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate, _timeBuf, freqBuf, sampleRate) => {
+    const unsubscribe = sharedAudioEngine.subscribe((estimate: PitchEstimate) => {
       // Порог в 1 дБ: на глаз шкала не меняется, а ререндеров становится в разы меньше.
       if (Math.abs(estimate.rms - shownLevelDbRef.current) >= 1) {
         shownLevelDbRef.current = estimate.rms;
         setInputLevelDb(estimate.rms);
       }
       setIsClipping(estimate.isClipping);
-
-      // Обновление спектрограммы.
-      // Каждая полоса берёт МАКСИМУМ по своему диапазону бинов, а не одиночный бин:
-      // гармоника — узкий пик шириной в пару бинов, и выборка через равные
-      // промежутки почти всегда попадала между пиками, показывая шумовой пол.
-      // Шкала логарифмическая, иначе рабочий диапазон гитары (82–330 Гц)
-      // занимает лишь первые полосы из 32.
-      // Скрытая спектрограмма не считается вовсе: 32 полосы по сотням бинов
-      // на каждом кадре — заметная работа ради невидимого результата.
-      if (latestConfigRef.current.showSpectrum && freqBuf && freqBuf.length > 0 && sampleRate) {
-        const binWidth = sampleRate / (freqBuf.length * 2);
-        const bars: number[] = [];
-        for (let i = 0; i < SPECTRUM_BARS; i++) {
-          const fLo = SPECTRUM_MIN_HZ * Math.pow(SPECTRUM_MAX_HZ / SPECTRUM_MIN_HZ, i / SPECTRUM_BARS);
-          const fHi = SPECTRUM_MIN_HZ * Math.pow(SPECTRUM_MAX_HZ / SPECTRUM_MIN_HZ, (i + 1) / SPECTRUM_BARS);
-          const loBin = Math.max(1, Math.floor(fLo / binWidth));
-          const hiBin = Math.min(freqBuf.length - 1, Math.max(loBin, Math.ceil(fHi / binWidth)));
-          let peak = -Infinity;
-          for (let b = loBin; b <= hiBin; b++) {
-            if (freqBuf[b] > peak) peak = freqBuf[b];
-          }
-          if (!Number.isFinite(peak)) peak = -100;
-          bars.push(peak);
-        }
-
-        // Нормировка относительно текущего пика, а не абсолютных децибел.
-        // Гитара через микрофон телефона даёт примерно -60 dBFS, и при
-        // абсолютной шкале все полосы прижимались к нулю — спектрограмма
-        // выглядела плоской линией при исправном расчёте частот.
-        const peakDb = Math.max(...bars);
-        const normalized = peakDb < SPECTRUM_SILENCE_DB
-          ? bars.map(() => 0)
-          : bars.map((db) => {
-              const rel = (db - (peakDb - SPECTRUM_RANGE_DB)) / SPECTRUM_RANGE_DB;
-              return Math.max(0, Math.min(100, rel * 100));
-            });
-        setSpectrumBars(normalized);
-      }
 
       // Проверка наличия распознаваемого тона
       if (estimate.isSilent || estimate.frequency <= 0 || estimate.clarity < 0.40) {
@@ -233,7 +192,9 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       // ошибка детектора не должны дёргать стрелку и переключать струну.
       const now = performance.now();
       const freq = smootherRef.current.push(estimate.frequency, now);
-      setMeasuredFreq(freq);
+      // Состояние меняется только сверх отображаемой точности (0,1 Гц, 0,1 цента):
+      // дрожание в сотых долях перерисовывало весь экран на каждом кадре (#14).
+      setMeasuredFreq(roundTo(freq, 0.1));
 
       const currentTargetStr = findBestString(freq, curTuning, curA4, curLockedIdx);
       setActiveString(currentTargetStr);
@@ -242,7 +203,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       setTargetFreq(tFreq);
 
       const dCents = calculateCents(freq, tFreq);
-      setCents(dCents);
+      setCents(roundTo(dCents, 0.1));
 
       // Проверка удержания строя. Струна считается настроенной не по одному
       // кадру в допуске, а после непрерывного удержания: иначе её засчитывал бы
@@ -303,13 +264,21 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     setMeasuredFreq(0);
   }, [isListening]);
 
-  const handlePlayReference = (str: StringSpec) => {
+  // Обработчики стабильны между кадрами: иначе мемоизированные чипы
+  // перерисовывались бы вместе с экраном (#14).
+  const handlePlayReference = useCallback((str: StringSpec) => {
     const f = midiToFrequency(str.open.midi, a4);
     playGuitarString(f, 2.8);
     setIsPlayingSample(true);
     if (sampleTimerRef.current) clearTimeout(sampleTimerRef.current);
     sampleTimerRef.current = window.setTimeout(() => setIsPlayingSample(false), 1200);
-  };
+  }, [a4]);
+
+  const handleChipClick = useCallback((idx: number) => {
+    onSelectString(lockedStringIndex === idx ? null : idx);
+    const str = tuning.strings[idx];
+    if (str) handlePlayReference(str);
+  }, [onSelectString, lockedStringIndex, tuning, handlePlayReference]);
 
   const currentTargetStr = activeString
     ? activeString
@@ -341,6 +310,18 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
     }),
     TUNER_ANNOUNCE_INTERVAL_MS
   );
+
+  // Звучащая струна для чипов: меняется при смене струны или пересечении
+  // порога, а не на каждом кадре.
+  const soundingStringNumber = isSoundActive && activeString ? activeString.stringNumber : null;
+  const soundingState: SoundingState | null =
+    soundingStringNumber === null
+      ? null
+      : isStableTuned
+        ? 'done'
+        : Math.abs(cents) > inTuneThreshold
+          ? 'off'
+          : 'active';
 
   // Определение команды действия тюнера (FR-TN-18)
   let actionCommandText = 'Сыграйте струну';
@@ -425,75 +406,17 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       <MicErrorBanner mic={mic} />
 
       {/* Интерактивные чипы струн (ровная сетка на всю ширину без полосы прокрутки) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${tuning.strings.length}, minmax(0, 1fr))`,
-          gap: '6px',
-          width: '100%',
-          padding: '2px 0'
-        }}
-      >
-        {tuning.strings.map((str, idx) => {
-          const isSelected = lockedStringIndex === idx;
-          const isSounding = activeString?.stringNumber === str.stringNumber;
-          const isMarkedTuned = tunedStrings.has(idx);
-          const strNoteName = formatNoteName(str.open.name, notation);
-          const strFreq = midiToFrequency(str.open.midi, a4).toFixed(1);
-
-          let state = 'idle';
-          if (isSelected) state = 'active';
-          else if (isSounding && isSoundActive) {
-            state = isStableTuned ? 'done' : Math.abs(cents) > inTuneThreshold ? 'off' : 'active';
-          } else if (isMarkedTuned) {
-            state = 'done';
-          }
-
-          const stateText = state === 'done' ? ', настроена' : state === 'off' ? ', не в строе' : '';
-
-          return (
-            // Кнопка эталона — соседка чипа, а не его потомок (#11): вложенная в
-            // <button> интерактивность недостижима с клавиатуры и не видна
-            // скринридеру.
-            <div key={str.stringNumber} style={{ position: 'relative', minWidth: 0 }}>
-              <button
-                className="schip"
-                data-state={state}
-                data-testid={`string-chip-${str.stringNumber}`}
-                aria-pressed={isSelected}
-                onClick={() => {
-                  onSelectString(isSelected ? null : idx);
-                  handlePlayReference(str);
-                }}
-                title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора и воспроизведения`}
-                style={{ minWidth: 0, width: '100%' }}
-              >
-                {/* Имя кнопки — из видимой ноты и скрытых пояснений: голосовое
-                    управление находит кнопку по тому, что написано на ней. */}
-                <span className="sr-only">{str.stringNumber}-я струна, </span>
-                <span>{strNoteName}{str.open.octave}</span>
-                <small className="mono" aria-hidden="true">{str.stringNumber}я</small>
-                <span className="sr-only">, {strFreq} Гц{stateText}</span>
-              </button>
-
-              {/* Кнопка воспроизведения эталона на слух: зона нажатия 24×24,
-                  видимый кружок меньше — чтобы не закрывать ноту на узком чипе. */}
-              <button
-                type="button"
-                className="schip-ref"
-                data-testid={`string-ref-${str.stringNumber}`}
-                onClick={() => handlePlayReference(str)}
-                aria-label={`Эталон ${str.stringNumber}-й струны, ${strNoteName}${str.open.octave}`}
-                title="Воспроизвести эталонный звук"
-              >
-                <span className="schip-ref-dot">
-                  <Volume2 size={10} aria-hidden="true" />
-                </span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <StringChips
+        tuning={tuning}
+        notation={notation}
+        a4={a4}
+        lockedStringIndex={lockedStringIndex}
+        tunedStrings={tunedStrings}
+        soundingStringNumber={soundingStringNumber}
+        soundingState={soundingState}
+        onChipClick={handleChipClick}
+        onPlayReference={handlePlayReference}
+      />
 
       {/* Опции: Режим автоопределения / Мастер настройки */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--ink-300)', flexWrap: 'wrap', gap: '8px' }}>
@@ -709,21 +632,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </button>
 
         {showSpectrum && (
-          <div className="panel" aria-hidden="true" style={{ padding: '8px 12px', display: 'flex', alignItems: 'flex-end', height: '60px', gap: '3px' }}>
-            {spectrumBars.map((val, i) => (
-              <div
-                key={i}
-                data-level={Math.round(val)}
-                style={{
-                  flex: 1,
-                  height: `${Math.max(4, val)}%`,
-                  background: val > 60 ? 'var(--sig-in)' : 'var(--brand)',
-                  borderRadius: '1px',
-                  opacity: isListening ? 0.85 : 0.2,
-                  transition: 'height 40ms linear'
-                }}
-              />
-            ))}
+          <div className="panel" aria-hidden="true" style={{ padding: '8px 12px', height: '60px' }}>
+            <SpectrumCanvas dimmed={!isListening} />
           </div>
         )}
       </div>
