@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Tuning } from './domain/tunings';
-import { DEFAULT_TUNING, TUNING_PRESETS, loadSavedCustomTunings, pitchSearchRange } from './domain/tunings';
+import { DEFAULT_TUNING, TUNING_PRESETS, pitchSearchRange } from './domain/tunings';
+import { loadSavedCustomTunings } from './domain/customTunings';
 import { sharedAudioEngine } from './audio/audioEngine';
 import type { NotationSystem } from './domain/notes';
 import type { TabId } from './domain/deepLink';

@@ -1,6 +1,5 @@
 import type { Pitch } from './notes';
 import { calculateCents, midiToFrequency, midiToPitch } from './notes';
-import { STORAGE_KEYS, isValidTuning, readSetting, writeSetting } from './storage';
 
 export interface StringSpec {
   index: number;
@@ -191,33 +190,6 @@ export function findClosestString(freq: number, strings: StringSpec[], a4 = 440)
   }
 
   return closest;
-}
-
-export function loadSavedCustomTunings(): Tuning[] {
-  const raw = readSetting(STORAGE_KEYS.customTunings);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    // Битую запись отбрасываем поштучно: одна испорченная строка в хранилище
-    // не должна лишать пользователя остальных сохранённых строёв.
-    return parsed.filter(isValidTuning);
-  } catch {
-    return [];
-  }
-}
-
-/** Возвращает false, если хранилище недоступно или переполнено. */
-export function saveCustomTuning(tuning: Tuning): boolean {
-  const current = loadSavedCustomTunings().filter(t => t.id !== tuning.id);
-  current.push(tuning);
-  return writeSetting(STORAGE_KEYS.customTunings, JSON.stringify(current));
-}
-
-/** Возвращает false, если хранилище недоступно или переполнено. */
-export function deleteCustomTuning(tuningId: string): boolean {
-  const current = loadSavedCustomTunings().filter(t => t.id !== tuningId);
-  return writeSetting(STORAGE_KEYS.customTunings, JSON.stringify(current));
 }
 
 /** Запас ниже самой низкой струны: её спускают и подтягивают снизу. */

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseNumberSetting, parseEnumSetting, isValidTuning } from '../src/domain/storage';
+import { parseNumberSetting, parseEnumSetting } from '../src/domain/storage';
+import { isValidTuning } from '../src/domain/customTunings';
 import { DEFAULT_TUNING, TUNING_PRESETS, findClosestString } from '../src/domain/tunings';
 import { midiToFrequency } from '../src/domain/notes';
 

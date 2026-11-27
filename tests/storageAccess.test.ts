@@ -8,7 +8,8 @@ import {
   readSetting,
   writeSetting
 } from '../src/domain/storage';
-import { deleteCustomTuning, loadSavedCustomTunings, saveCustomTuning, DEFAULT_TUNING } from '../src/domain/tunings';
+import { DEFAULT_TUNING } from '../src/domain/tunings';
+import { deleteCustomTuning, loadSavedCustomTunings, saveCustomTuning } from '../src/domain/customTunings';
 import { copyToClipboard } from '../src/ui/clipboard';
 
 /** Минимальная реализация Storage поверх Map. */
