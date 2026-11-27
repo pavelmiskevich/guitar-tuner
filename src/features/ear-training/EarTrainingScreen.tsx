@@ -20,6 +20,7 @@ import { LiveRegion } from '../../ui/LiveRegion';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import type { EarGameMode, EarQuestion } from '../../domain/earTraining';
 import { generateEarQuestion } from '../../domain/earTraining';
+import './earTraining.css';
 
 interface EarTrainingScreenProps {
   tuning: Tuning;
@@ -249,12 +250,12 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
   const accuracy = totalAttempts > 0 ? Math.round((score / totalAttempts) * 100) : 100;
 
   return (
-    <div className="ear-screen" style={{ width: '100%', maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+    <div className="ear-screen">
       {/* Заголовок и выбор режима */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="ear-header">
         <div>
           <span className="eyebrow">Обучение и слух</span>
-          <h2 style={{ fontSize: '20px', margin: 0 }}>Тренажер музыкального слуха</h2>
+          <h2 className="ear-title">Тренажер музыкального слуха</h2>
         </div>
 
         {/* Переключатель режимов игры */}
@@ -271,42 +272,30 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       </div>
 
       {/* Статистика игрока (Очки, Стрик, Точность) */}
-      <div
-        className="ear-stats"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px',
-          background: 'var(--ink-900)',
-          border: '1px solid var(--ink-700)',
-          borderRadius: 'var(--r-md)',
-          padding: '8px 12px',
-          textAlign: 'center'
-        }}
-      >
+      <div className="ear-stats">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--sig-in)', fontSize: '12px', fontWeight: 600 }}>
+          <div className="ear-stat-label ear-stat-label--score">
             <Award size={14} /> Очки
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }} data-testid="et-score">
+          <div className="ear-stat-value" data-testid="et-score">
             {score} / {totalAttempts}
           </div>
         </div>
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: streak > 2 ? 'var(--sig-near)' : 'var(--ink-300)', fontSize: '12px', fontWeight: 600 }}>
+          <div className={streak > 2 ? 'ear-stat-label ear-stat-label--hot' : 'ear-stat-label'}>
             <Flame size={14} /> Серия
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px', color: streak > 2 ? 'var(--sig-near)' : 'inherit' }} data-testid="et-streak">
+          <div className={streak > 2 ? 'ear-stat-value ear-stat-value--hot' : 'ear-stat-value'} data-testid="et-streak">
             {streak} 🔥
           </div>
         </div>
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--brand)', fontSize: '12px', fontWeight: 600 }}>
+          <div className="ear-stat-label ear-stat-label--best">
             <Trophy size={14} /> Рекорд
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-num)', marginTop: '2px' }} data-testid="et-best">
+          <div className="ear-stat-value" data-testid="et-best">
             {bestStreak} ({accuracy}%)
           </div>
         </div>
@@ -315,7 +304,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       {/* Способ ответа. В режиме «Мажор/минор» скрыт: характер аккорда
           одной струной не сыграть. */}
       {gameMode !== 'chord_quality' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--ink-300)' }}>
+        <div className="ear-answer-mode">
           <span>Отвечать:</span>
           <SegmentedControl
             label="Способ ответа"
@@ -327,7 +316,7 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
             ]}
           />
           {answerMode === 'guitar' && mic.isOn && (
-            <span data-testid="et-guitar-hint" style={{ color: 'var(--sig-in)' }}>
+            <span data-testid="et-guitar-hint" className="ear-guitar-hint">
               {gameMode === 'string' ? 'Сыграйте открытую струну' : 'Сыграйте услышанную ноту'}
             </span>
           )}
@@ -337,48 +326,24 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       {gameMode !== 'chord_quality' && guitarRequested && <MicErrorBanner mic={mic} testId="et-mic-error" />}
 
       {/* Центральная карточка вопроса с большой кнопкой прослушивания */}
-      <div
-        className="panel"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--s6) var(--s4)',
-          textAlign: 'center',
-          gap: '10px',
-          minHeight: '150px',
-          position: 'relative'
-        }}
-      >
-        <span className="eyebrow" style={{ color: 'var(--brand)' }}>
+      <div className="panel ear-question-panel">
+        <span className="eyebrow ear-question">
           {gameMode === 'note' ? 'Какая нота звучит?' : gameMode === 'string' ? 'Какая струна прозвучала?' : 'Какой характер у аккорда?'}
         </span>
 
         {/* Большая интерактивная кнопка повтора звука */}
         <button
-          className="btn btn-primary"
+          className="btn btn-primary ear-play"
           onClick={() => question && playCurrentSound(question.notesToPlay)}
           disabled={isPlayingSound}
           data-testid="et-play"
           aria-label="Прослушать ещё раз"
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: isPlayingSound ? '0 0 25px var(--brand)' : '0 4px 16px var(--shadow-brand)',
-            transform: isPlayingSound ? 'scale(1.08)' : 'scale(1)',
-            transition: 'all 150ms ease'
-          }}
           title="Нажмите, чтобы прослушать ещё раз"
         >
           <Volume2 size={30} />
         </button>
 
-        <span style={{ fontSize: '13px', color: 'var(--ink-300)' }}>
+        <span className="ear-play-hint">
           {isPlayingSound ? 'Звучит инструмент...' : 'Нажмите на кнопку с динамиком, чтобы повторить звук'}
         </span>
       </div>
@@ -387,50 +352,27 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
 
       {/* Варианты ответов */}
       {question && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div className="ear-answers">
           {question.options.map((opt, idx) => {
             const isCorrect = idx === question.correctIndex;
             const isChosen = idx === selectedOption;
 
-            let btnBg = 'var(--ink-900)';
-            let borderColor = 'var(--ink-700)';
-            let textColor = 'var(--ink-050)';
-
+            // После ответа верный вариант — зелёный, выбранный неверный — красный.
+            let answerClass = 'ear-answer';
             if (isAnswered) {
-              if (isCorrect) {
-                btnBg = 'color-mix(in srgb, var(--sig-in) 20%, var(--ink-900))';
-                borderColor = 'var(--sig-in)';
-                textColor = 'var(--sig-in)';
-              } else if (isChosen) {
-                btnBg = 'color-mix(in srgb, var(--sig-off) 20%, var(--ink-900))';
-                borderColor = 'var(--sig-off)';
-                textColor = 'var(--sig-off)';
-              }
+              if (isCorrect) answerClass += ' ear-answer--correct';
+              else if (isChosen) answerClass += ' ear-answer--wrong';
             }
 
             return (
               <button
                 key={idx}
+                className={answerClass}
                 onClick={() => handleSelectOption(idx)}
                 // aria-disabled, а не disabled: отключённая кнопка теряет фокус, и после
                 // ответа с клавиатуры пришлось бы снова идти Tab с начала страницы (#11).
                 aria-disabled={isAnswered}
                 data-testid={`et-answer-${idx}`}
-                style={{
-                  background: btnBg,
-                  border: `2px solid ${borderColor}`,
-                  borderRadius: 'var(--r-md)',
-                  padding: '12px',
-                  fontSize: '15px',
-                  fontWeight: 800,
-                  color: textColor,
-                  cursor: isAnswered ? 'default' : 'pointer',
-                  transition: 'all 150ms ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
               >
                 <span>{opt}</span>
                 {/* Верный и выбранный ответ отличаются цветом — для скринридера словами. */}
@@ -445,11 +387,10 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
       {/* Пояснение и кнопка «Следующий вопрос» */}
       {isAnswered && question && (
         <div
-          className={`banner ${selectedOption === question.correctIndex ? 'ok' : 'err'}`}
-          style={{ animation: 'fadeIn 200ms ease', display: 'flex', flexDirection: 'column', gap: '12px' }}
+          className={`banner ear-feedback ${selectedOption === question.correctIndex ? 'ok' : 'err'}`}
           data-testid="et-feedback"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="ear-feedback-body">
             {selectedOption === question.correctIndex ? (
               <Sparkles size={22} color="var(--sig-in)" />
             ) : (
@@ -462,10 +403,9 @@ export const EarTrainingScreen: React.FC<EarTrainingScreenProps> = ({
           </div>
 
           <button
-            className="btn btn-primary"
+            className="btn btn-primary ear-next"
             onClick={handleNext}
             data-testid="et-next"
-            style={{ width: '100%', marginTop: '4px', fontSize: '15px', fontWeight: 800 }}
           >
             Следующий вопрос →
           </button>
