@@ -8,10 +8,10 @@
 
 Работает прямо в браузере, устанавливается как приложение (PWA) и открывается офлайн.
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite)](https://vitejs.dev/)
-[![Vitest](https://img.shields.io/badge/Vitest-4.1-729B1B?logo=vitest)](https://vitest.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?logo=vite)](https://vitejs.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-5.1-729B1B?logo=vitest)](https://vitest.dev/)
 [![PWA](https://img.shields.io/badge/PWA-Offline_Ready-5A0FC8?logo=pwa)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 [![Поддержать](https://img.shields.io/badge/%D0%9F%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C-CloudTips-9B6BFF?logo=buymeacoffee&logoColor=white)](https://pay.cloudtips.ru/p/05d48070)
 
