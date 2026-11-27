@@ -203,6 +203,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             value={a4}
             onChange={(e) => onA4Change(Number(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--brand)', cursor: 'pointer' }}
+            name="a4"
             data-testid="settings-a4-slider"
             aria-label="Эталонная частота A4 в герцах"
           />
