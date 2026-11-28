@@ -6,6 +6,7 @@ import { createStringsFromMidi } from '../../domain/tunings';
 import { loadSavedCustomTunings, saveCustomTuning, deleteCustomTuning } from '../../domain/customTunings';
 import { X, Sun, Moon, Sliders, Plus, Trash2, Check } from 'lucide-react';
 import { APP_COMMIT, APP_VERSION } from '../../buildInfo';
+import './settings.css';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -126,29 +127,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // возвращает фокус, только пока содержимое окна на месте.
   return (
     <dialog ref={dialogRef} className="settings-dialog" aria-labelledby={titleId}>
-      <div
-        className="panel"
-        style={{
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--s6)',
-          position: 'relative'
-        }}
-        data-testid="settings-modal"
-      >
+      <div className="panel set-panel" data-testid="settings-modal">
         {/* Шапка модального окна */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="set-header">
+          <div className="set-heading">
             <Sliders size={20} color="var(--brand)" aria-hidden="true" />
-            <h2 id={titleId} style={{ fontSize: '18px', margin: 0 }}>Настройки приложения</h2>
+            <h2 id={titleId} className="set-title">Настройки приложения</h2>
           </div>
           <button
             onClick={onClose}
-            className="btn btn-ghost btn-sm"
-            style={{ padding: '6px', borderRadius: '50%', minHeight: 'auto', minWidth: '32px' }}
+            className="btn btn-ghost btn-sm set-dismiss"
             aria-label="Закрыть настройки"
             title="Закрыть"
             data-testid="settings-dismiss"
@@ -159,21 +147,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Тема оформления */}
         <fieldset className="fieldset-reset">
-          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Тема оформления</legend>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <legend className="eyebrow set-legend">Тема оформления</legend>
+          <div className="set-choices">
             <button
-              className={`btn btn-sm ${theme === 'night' ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm set-choice ${theme === 'night' ? 'btn-primary' : 'btn-ghost'}`}
               aria-pressed={theme === 'night'}
-              style={{ flex: 1 }}
               onClick={() => onThemeChange('night')}
               data-testid="settings-theme-night"
             >
               <Moon size={16} /> Ночь (Индиго)
             </button>
             <button
-              className={`btn btn-sm ${theme === 'day' ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm set-choice ${theme === 'day' ? 'btn-primary' : 'btn-ghost'}`}
               aria-pressed={theme === 'day'}
-              style={{ flex: 1 }}
               onClick={() => onThemeChange('day')}
               data-testid="settings-theme-day"
             >
@@ -184,9 +170,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Опорная частота A4 */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div className="set-section-head">
             <span className="eyebrow">Эталон A4 (Ля 1-й октавы)</span>
-            <span className="mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand)' }}>
+            <span className="mono set-a4-value">
               {a4} Гц
             </span>
           </div>
@@ -198,19 +184,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             step="1"
             value={a4}
             onChange={(e) => onA4Change(Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--brand)', cursor: 'pointer' }}
+            className="set-a4-slider"
             name="a4"
             data-testid="settings-a4-slider"
             aria-label="Эталонная частота A4 в герцах"
           />
 
-          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+          <div className="set-a4-presets">
             {[432, 440, 442, 444].map(freq => (
               <button
                 key={freq}
-                className={`btn btn-sm ${a4 === freq ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-sm set-a4-preset ${a4 === freq ? 'btn-primary' : 'btn-ghost'}`}
                 aria-pressed={a4 === freq}
-                style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }}
                 onClick={() => onA4Change(freq)}
                 data-testid={`settings-a4-${freq}`}
               >
@@ -222,50 +207,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Система обозначения нот */}
         <fieldset className="fieldset-reset">
-          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Система нотации</legend>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--ink-800)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+          <legend className="eyebrow set-legend">Система нотации</legend>
+          <div className="set-notation-list">
+            <label className="set-notation-option">
               <input
                 type="radio"
                 name="notation"
                 checked={notation === 'english'}
                 onChange={() => onNotationChange('english')}
-                style={{ accentColor: 'var(--brand)' }}
+                className="set-notation-radio"
                 data-testid="settings-notation-english"
               />
               <div>
-                <b style={{ display: 'block', fontSize: '14px' }}>Английская (C, D, E, F, G, A, B)</b>
-                <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>Международный стандарт</span>
+                <b className="set-notation-name">Английская (C, D, E, F, G, A, B)</b>
+                <span className="set-notation-hint">Международный стандарт</span>
               </div>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--ink-800)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+            <label className="set-notation-option">
               <input
                 type="radio"
                 name="notation"
                 checked={notation === 'german'}
                 onChange={() => onNotationChange('german')}
-                style={{ accentColor: 'var(--brand)' }}
+                className="set-notation-radio"
                 data-testid="settings-notation-german"
               />
               <div>
-                <b style={{ display: 'block', fontSize: '14px' }}>Немецкая (C, D, E, F, G, A, H)</b>
-                <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>Классическая европейская школа (Си = H, Си-бемоль = B)</span>
+                <b className="set-notation-name">Немецкая (C, D, E, F, G, A, H)</b>
+                <span className="set-notation-hint">Классическая европейская школа (Си = H, Си-бемоль = B)</span>
               </div>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--ink-800)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+            <label className="set-notation-option">
               <input
                 type="radio"
                 name="notation"
                 checked={notation === 'solfege'}
                 onChange={() => onNotationChange('solfege')}
-                style={{ accentColor: 'var(--brand)' }}
+                className="set-notation-radio"
                 data-testid="settings-notation-solfege"
               />
               <div>
-                <b style={{ display: 'block', fontSize: '14px' }}>Скрипичная / Сольфеджио (До, Ре, Ми...)</b>
-                <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>Слоговые названия нот</span>
+                <b className="set-notation-name">Скрипичная / Сольфеджио (До, Ре, Ми...)</b>
+                <span className="set-notation-hint">Слоговые названия нот</span>
               </div>
             </label>
           </div>
@@ -273,30 +258,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Порог строя */}
         <fieldset className="fieldset-reset">
-          <legend className="eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Порог точности «В строе»</legend>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <legend className="eyebrow set-legend">Порог точности «В строе»</legend>
+          <div className="set-choices">
             <button
-              className={`btn btn-sm ${inTuneThreshold === 3 ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm set-choice ${inTuneThreshold === 3 ? 'btn-primary' : 'btn-ghost'}`}
               aria-pressed={inTuneThreshold === 3}
-              style={{ flex: 1 }}
               onClick={() => onThresholdChange(3)}
               data-testid="settings-threshold-3"
             >
               Строгий (±3¢)
             </button>
             <button
-              className={`btn btn-sm ${inTuneThreshold === 5 ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm set-choice ${inTuneThreshold === 5 ? 'btn-primary' : 'btn-ghost'}`}
               aria-pressed={inTuneThreshold === 5}
-              style={{ flex: 1 }}
               onClick={() => onThresholdChange(5)}
               data-testid="settings-threshold-5"
             >
               Стандарт (±5¢)
             </button>
             <button
-              className={`btn btn-sm ${inTuneThreshold === 10 ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm set-choice ${inTuneThreshold === 10 ? 'btn-primary' : 'btn-ghost'}`}
               aria-pressed={inTuneThreshold === 10}
-              style={{ flex: 1 }}
               onClick={() => onThresholdChange(10)}
               data-testid="settings-threshold-10"
             >
@@ -307,7 +289,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Пользовательские строи (Custom Tunings Builder) */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div className="set-section-head">
             <span className="eyebrow">Пользовательские строи</span>
             {!isCreatingCustom && (
               <button className="btn btn-ghost btn-sm" onClick={() => setIsCreatingCustom(true)} data-testid="custom-tuning-create">
@@ -318,7 +300,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Форма создания своего строя */}
           {isCreatingCustom && (
-            <div className="panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--ink-900)' }}>
+            <div className="panel set-custom-form">
               <label htmlFor={tuningNameId} className="sr-only">Название строя</label>
               <input
                 type="text"
@@ -326,19 +308,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="Название строя (например: Open Gm)"
                 value={newTuningName}
                 onChange={(e) => setNewTuningName(e.target.value)}
-                style={{
-                  background: 'var(--ink-800)',
-                  border: '1px solid var(--ink-700)',
-                  color: 'var(--ink-050)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '8px 12px',
-                  fontSize: '14px'
-                }}
+                className="set-custom-name"
                 data-testid="custom-tuning-name"
               />
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>Струн:</span>
+              <div className="set-strings-row">
+                <span className="set-strings-label">Струн:</span>
                 {[4, 5, 6, 7, 8].map(cnt => (
                   <button
                     key={cnt}
@@ -353,11 +328,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Выбор ноты и октавы для каждой струны */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
+              <div className="set-notes-grid">
                 {customNotes.map((cn, i) => (
-                  <div key={i} style={{ background: 'var(--ink-800)', padding: '6px', borderRadius: 'var(--r-md)' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--ink-300)', display: 'block' }}>{stringCount - i}-я струна:</span>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                  <div key={i} className="set-note-cell">
+                    <span className="set-note-caption">{stringCount - i}-я струна:</span>
+                    <div className="set-note-selects">
                       <select
                         aria-label={`Нота ${stringCount - i}-й струны`}
                         value={cn.note}
@@ -366,7 +341,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           updated[i].note = e.target.value as NoteName;
                           setCustomNotes(updated);
                         }}
-                        style={{ background: 'var(--ink-900)', color: 'var(--ink-050)', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
+                        className="set-note-select"
                       >
                         {NOTE_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
@@ -378,7 +353,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           updated[i].octave = Number(e.target.value);
                           setCustomNotes(updated);
                         }}
-                        style={{ background: 'var(--ink-900)', color: 'var(--ink-050)', border: '1px solid var(--ink-700)', borderRadius: '4px', fontSize: '12px' }}
+                        className="set-note-select"
                       >
                         {[1, 2, 3, 4, 5].map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
@@ -387,7 +362,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
+              <div className="set-custom-actions">
                 <button className="btn btn-ghost btn-sm" onClick={() => setIsCreatingCustom(false)}>
                   Отмена
                 </button>
@@ -400,22 +375,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Список сохраненных строёв */}
           {customTunings.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+            <div className="set-saved-list">
               {customTunings.map(ct => (
-                <div
-                  key={ct.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    background: 'var(--ink-800)',
-                    borderRadius: 'var(--r-md)'
-                  }}
-                >
+                <div key={ct.id} className="set-saved-item">
                   <div>
                     <b>{ct.name}</b>
-                    <span style={{ fontSize: '12px', color: 'var(--ink-300)', marginLeft: '8px' }}>
+                    <span className="set-saved-strings">
                       ({ct.strings.map(s => `${s.open.name}${s.open.octave}`).join(' ')})
                     </span>
                   </div>
@@ -435,13 +400,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Кнопка закрыть */}
-        <button className="btn btn-primary" onClick={onClose} data-testid="settings-close" style={{ marginTop: '8px' }}>
+        <button className="btn btn-primary set-save" onClick={onClose} data-testid="settings-close">
           Сохранить и закрыть
         </button>
 
         <p
           data-testid="settings-version"
-          style={{ margin: 0, textAlign: 'center', fontSize: 'var(--fs-caption)', color: 'var(--ink-300)' }}
+          className="set-version"
         >
           Версия {APP_VERSION} · сборка {APP_COMMIT}
         </p>
