@@ -3,6 +3,7 @@ import { Coffee, Heart, ExternalLink, Sparkles, Check, Copy, QrCode } from 'luci
 import { getPublicSiteUrl } from '../../domain/siteUrl';
 import { copyToClipboard } from '../../ui/clipboard';
 import { HAS_DONATE_QR } from '../../buildInfo';
+import './donate.css';
 
 /**
  * Карточка доната. Под React.memo: пропсов у неё нет, а родитель — экран
@@ -26,168 +27,65 @@ export const DonateCard = React.memo(function DonateCard() {
   };
 
   return (
-    <div
-      className="panel"
-      style={{
-        width: '100%',
-        // Раньше градиент уходил в тёмный индиго rgba(20, 17, 44): в теме «День»
-        // текст --ink-050 (там он тёмный) оказывался на тёмном фоне.
-        background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, var(--ink-800)) 0%, var(--ink-800) 100%)',
-        border: '1px solid color-mix(in srgb, var(--brand) 30%, var(--ink-700))',
-        borderRadius: 'var(--r-lg)',
-        padding: '18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 6px 24px var(--shadow-soft)'
-      }}
-    >
+    <div className="panel don-card">
       {/* Декоративная подсветка */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-30px',
-          right: '-30px',
-          width: '100px',
-          height: '100px',
-          background: 'var(--brand)',
-          opacity: 0.12,
-          borderRadius: '50%',
-          filter: 'blur(25px)',
-          pointerEvents: 'none'
-        }}
-      />
+      <div className="don-glow" />
 
       {/* Верхний ряд: заголовок и описание */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: 'var(--r-md)',
-            background: 'linear-gradient(135deg, var(--brand-strong) 0%, var(--brand) 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--on-brand)',
-            boxShadow: '0 3px 10px var(--shadow-brand)',
-            flexShrink: 0
-          }}
-        >
+      <div className="don-head">
+        <div className="don-icon">
           <Coffee size={22} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--ink-050)' }}>
+        <div className="don-head-text">
+          <div className="don-title-row">
+            <h3 className="don-title">
               Поддержать автора
             </h3>
             <Sparkles size={14} color="var(--brand)" />
           </div>
-          <span style={{ fontSize: '12px', color: 'var(--ink-300)', lineHeight: 1.35 }}>
+          <span className="don-lead">
             Понравился тюнер? Буду благодарен за любую поддержку на кофе и развитие проекта!
           </span>
         </div>
       </div>
 
       {/* Основной контент: кликабельный QR-код и кнопка перехода */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          background: 'var(--ink-900)',
-          border: '1px solid var(--ink-700)',
-          borderRadius: 'var(--r-md)',
-          padding: '12px 14px',
-          flexWrap: 'wrap'
-        }}
-      >
-        {/* Интерактивный QR-код с гармоничным темным фоном в тон кнопок */}
+      <div className="don-body">
+        {/* Интерактивный QR-код с гармоничным темным фоном в тон кнопок;
+            подсветка при наведении — в donate.css (:hover) */}
         <a
           href={donationUrl}
           target="_blank"
           rel="noopener noreferrer"
           title="Нажмите, чтобы открыть страницу доната CloudTips"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textDecoration: 'none',
-            background: 'var(--ink-800)',
-            border: '1px solid var(--ink-600)',
-            padding: '8px',
-            borderRadius: 'var(--r-md)',
-            boxShadow: '0 4px 14px var(--shadow-soft)',
-            transition: 'all 150ms ease',
-            cursor: 'pointer',
-            flexShrink: 0
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.04)';
-            e.currentTarget.style.borderColor = 'var(--brand)';
-            e.currentTarget.style.boxShadow = '0 6px 20px var(--shadow-brand)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.borderColor = 'var(--ink-600)';
-            e.currentTarget.style.boxShadow = '0 4px 14px var(--shadow-soft)';
-          }}
+          className="don-qr"
         >
           {!imgError ? (
-            <div
-              style={{
-                background: '#EAE7FA',
-                padding: '6px',
-                borderRadius: 'var(--r-sm)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
+            <div className="don-qr-frame">
               <img
                 src="/qrCode.png"
                 alt="QR-код для доната CloudTips"
                 onError={() => setImgError(true)}
-                style={{
-                  width: '92px',
-                  height: '92px',
-                  objectFit: 'contain',
-                  display: 'block',
-                  borderRadius: '2px'
-                }}
+                className="don-qr-img"
               />
             </div>
           ) : (
-            <div
-              style={{
-                width: '104px',
-                height: '104px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--ink-700)',
-                color: 'var(--brand)',
-                borderRadius: 'var(--r-sm)'
-              }}
-            >
+            <div className="don-qr-fallback">
               <QrCode size={42} />
-              <span style={{ fontSize: '9px', fontWeight: 800, marginTop: '4px', color: 'var(--ink-100)' }}>CloudTips QR</span>
+              <span className="don-qr-fallback-label">CloudTips QR</span>
             </div>
           )}
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-100)', marginTop: '6px', textAlign: 'center' }}>
+          <span className="don-qr-caption">
             Нажмите или сканируйте 📷
           </span>
         </a>
 
         {/* Правая часть: кнопка быстрого перехода и инфо */}
-        <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-100)' }}>
+        <div className="don-side">
+          <div className="don-side-title">
             Быстрый перевод через <b>CloudTips</b>:
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--ink-300)', lineHeight: 1.4 }}>
+          <div className="don-side-note">
             Оплата в 1 клик через <b>СБП</b>, T-Pay, SberPay или банковские карты.
           </div>
 
@@ -195,19 +93,7 @@ export const DonateCard = React.memo(function DonateCard() {
             href={donationUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary"
-            style={{
-              padding: '10px 14px',
-              fontSize: '13px',
-              fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              textDecoration: 'none',
-              marginTop: '4px',
-              boxShadow: '0 4px 14px var(--shadow-brand)'
-            }}
+            className="btn btn-primary don-tip"
           >
             <Heart size={15} /> Отправить чаевые <ExternalLink size={13} />
           </a>
@@ -215,21 +101,20 @@ export const DonateCard = React.memo(function DonateCard() {
       </div>
 
       {/* Нижняя строка: поделиться ссылкой */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--ink-300)' }}>
+      <div className="don-footer">
+        <span className="don-footer-text">
           Или поделитесь ссылкой на тюнер с друзьями:
         </span>
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm don-copy"
           onClick={handleCopyLink}
-          style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
         >
           {copyStatus === 'copied' ? (
             <>
               <Check size={12} color="var(--sig-in)" /> Скопировано!
             </>
           ) : copyStatus === 'failed' ? (
-            <span style={{ color: 'var(--sig-off)' }}>Не удалось скопировать</span>
+            <span className="don-copy-failed">Не удалось скопировать</span>
           ) : (
             <>
               <Copy size={12} /> Скопировать ссылку

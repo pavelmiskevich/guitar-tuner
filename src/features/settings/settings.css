@@ -1,0 +1,224 @@
+/* Окно настроек: опорная частота, нотация, тема, порог строя, свои строи.
+   Корень — .settings-dialog из index.css (сам <dialog> и его подложка).
+   Селекторы вложены в него: правила должны перекрывать общие классы
+   (.btn, .btn-sm, .panel, .eyebrow, h2, p) независимо от порядка подключения
+   файлов. */
+
+.settings-dialog .set-panel {
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  position: relative;
+}
+
+/* — Шапка — */
+.settings-dialog .set-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-dialog .set-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.settings-dialog .set-title {
+  font-size: 18px;
+  margin: 0;
+}
+
+/* Круглая кнопка-крестик: min-height перекрывает и .btn, и .btn-sm
+   для pointer: coarse — как было с инлайновым стилем. */
+.settings-dialog .set-dismiss {
+  padding: 6px;
+  border-radius: 50%;
+  min-height: auto;
+  min-width: 32px;
+}
+
+/* — Общие части разделов — */
+.settings-dialog .set-legend {
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.settings-dialog .set-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--s2);
+}
+
+/* Ряд кнопок-вариантов равной ширины: тема и порог строя. */
+.settings-dialog .set-choices {
+  display: flex;
+  gap: var(--s2);
+}
+
+.settings-dialog .set-choice {
+  flex: 1;
+}
+
+/* — Опорная частота A4 — */
+.settings-dialog .set-a4-value {
+  font-size: var(--fs-subhead);
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.settings-dialog .set-a4-slider {
+  width: 100%;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.settings-dialog .set-a4-presets {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--s2);
+}
+
+.settings-dialog .set-a4-preset {
+  flex: 1;
+  padding: var(--s1) var(--s2);
+  font-size: var(--fs-caption);
+}
+
+/* — Система нотации — */
+.settings-dialog .set-notation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-dialog .set-notation-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--s2) var(--s3);
+  background: var(--ink-800);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.settings-dialog .set-notation-radio {
+  accent-color: var(--brand);
+}
+
+.settings-dialog .set-notation-name {
+  display: block;
+  font-size: var(--fs-body);
+}
+
+.settings-dialog .set-notation-hint {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+}
+
+/* — Форма своего строя — */
+.settings-dialog .set-custom-form {
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ink-900);
+}
+
+.settings-dialog .set-custom-name {
+  background: var(--ink-800);
+  border: var(--hairline) solid var(--ink-700);
+  color: var(--ink-050);
+  border-radius: var(--r-md);
+  padding: var(--s2) var(--s3);
+  font-size: var(--fs-body);
+}
+
+.settings-dialog .set-strings-row {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+}
+
+.settings-dialog .set-strings-label {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+}
+
+.settings-dialog .set-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--s2);
+}
+
+.settings-dialog .set-note-cell {
+  background: var(--ink-800);
+  padding: 6px;
+  border-radius: var(--r-md);
+}
+
+.settings-dialog .set-note-caption {
+  font-size: 11px;
+  color: var(--ink-300);
+  display: block;
+}
+
+.settings-dialog .set-note-selects {
+  display: flex;
+  gap: var(--s1);
+  margin-top: 2px;
+}
+
+.settings-dialog .set-note-select {
+  background: var(--ink-900);
+  color: var(--ink-050);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: 4px;
+  font-size: var(--fs-caption);
+}
+
+.settings-dialog .set-custom-actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+/* — Сохранённые строи — */
+.settings-dialog .set-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--s2);
+}
+
+.settings-dialog .set-saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s2) var(--s3);
+  background: var(--ink-800);
+  border-radius: var(--r-md);
+}
+
+.settings-dialog .set-saved-strings {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+  margin-left: var(--s2);
+}
+
+/* — Низ окна — */
+.settings-dialog .set-save {
+  margin-top: var(--s2);
+}
+
+.settings-dialog .set-version {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+}

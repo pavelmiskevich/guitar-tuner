@@ -1,0 +1,215 @@
+/* Карточка «Поддержать автора» под тюнером.
+   Корень — .panel.don-card: два класса перекрывают общий .panel (фон, рамка,
+   скругление, отступы) независимо от порядка подключения файлов. Остальные
+   селекторы вложены в .don-card по той же причине — ради .btn, .btn-sm, h3. */
+
+.panel.don-card {
+  width: 100%;
+  /* Раньше градиент уходил в тёмный индиго rgba(20, 17, 44): в теме «День»
+     текст --ink-050 (там он тёмный) оказывался на тёмном фоне. */
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, var(--ink-800)) 0%, var(--ink-800) 100%);
+  border: var(--hairline) solid color-mix(in srgb, var(--brand) 30%, var(--ink-700));
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 24px var(--shadow-soft);
+}
+
+/* Декоративная подсветка в углу */
+.don-card .don-glow {
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 100px;
+  height: 100px;
+  background: var(--brand);
+  opacity: 0.12;
+  border-radius: 50%;
+  filter: blur(25px);
+  pointer-events: none;
+}
+
+/* — Верхний ряд: значок, заголовок и описание — */
+.don-card .don-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.don-card .don-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--brand-strong) 0%, var(--brand) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-brand);
+  box-shadow: 0 3px 10px var(--shadow-brand);
+  flex-shrink: 0;
+}
+
+.don-card .don-head-text {
+  flex: 1;
+}
+
+.don-card .don-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.don-card .don-title {
+  font-size: var(--fs-subhead);
+  font-weight: 800;
+  margin: 0;
+  color: var(--ink-050);
+}
+
+.don-card .don-lead {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+  line-height: 1.35;
+}
+
+/* — Основной блок: QR-код и кнопка перехода — */
+.don-card .don-body {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-md);
+  padding: var(--s3) 14px;
+  flex-wrap: wrap;
+}
+
+/* Кликабельный QR-код; при наведении слегка увеличивается и подсвечивается. */
+.don-card .don-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  background: var(--ink-800);
+  border: var(--hairline) solid var(--ink-600);
+  padding: var(--s2);
+  border-radius: var(--r-md);
+  box-shadow: 0 4px 14px var(--shadow-soft);
+  transition: all 150ms ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.don-card .don-qr:hover {
+  transform: scale(1.04);
+  border-color: var(--brand);
+  box-shadow: 0 6px 20px var(--shadow-brand);
+}
+
+.don-card .don-qr-frame {
+  background: #EAE7FA;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.don-card .don-qr-img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  display: block;
+  border-radius: var(--r-sm);
+}
+
+/* Запасной значок, когда QR-кода в сборке нет или он не загрузился. */
+.don-card .don-qr-fallback {
+  width: 104px;
+  height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink-700);
+  color: var(--brand);
+  border-radius: var(--r-sm);
+}
+
+.don-card .don-qr-fallback-label {
+  font-size: 9px;
+  font-weight: 800;
+  margin-top: var(--s1);
+  color: var(--ink-100);
+}
+
+.don-card .don-qr-caption {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-100);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* — Правая часть: пояснение и кнопка — */
+.don-card .don-side {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.don-card .don-side-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-100);
+}
+
+.don-card .don-side-note {
+  font-size: 11px;
+  color: var(--ink-300);
+  line-height: 1.4;
+}
+
+.don-card .don-tip {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  margin-top: var(--s1);
+  box-shadow: 0 4px 14px var(--shadow-brand);
+}
+
+/* — Нижняя строка: поделиться ссылкой — */
+.don-card .don-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--s1);
+}
+
+.don-card .don-footer-text {
+  font-size: 11px;
+  color: var(--ink-300);
+}
+
+.don-card .don-copy {
+  padding: 3px var(--s2);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.don-card .don-copy-failed {
+  color: var(--sig-off);
+}
