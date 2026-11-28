@@ -1,0 +1,184 @@
+/* ============================================================
+   ЭКРАН ГРИФА (FretboardScreen)
+   Префикс fbs- — чтобы не пересекаться с глобальными .fb-cell и др.
+   Литералы, у которых нет точного токена, оставлены как были.
+   ============================================================ */
+
+.fbs-screen {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+/* Шапка: заголовок и переключатель режимов */
+.fbs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.fbs-title {
+  font-size: 20px;
+  margin: 0;
+}
+
+/* Панель управления выбранным режимом */
+.fbs-controls {
+  padding: var(--s4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Группа полей режима (гаммы, аккорды) и быстрых параметров */
+.fbs-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+
+/* Подпись над полем выбора */
+.fbs-field-label {
+  display: block;
+  margin-bottom: var(--s1);
+}
+
+/* Поля выбора: общая основа */
+.fbs-select {
+  background: var(--ink-800);
+  color: var(--ink-050);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-md);
+}
+
+/* Тоника и лад гаммы */
+.fbs-select-md {
+  padding: 6px var(--s3);
+  font-weight: 600;
+}
+
+/* Аппликатура аккорда */
+.fbs-select-lg {
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* Каподастр и диапазон ладов */
+.fbs-select-sm {
+  padding: var(--s1) var(--s2);
+  font-size: var(--fs-caption);
+}
+
+/* Переключатель «Ноты / Ступени» */
+.fbs-label-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.fbs-no-chords {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+  max-width: 320px;
+}
+
+/* Режим исследования: обратный поиск аккорда */
+.fbs-explore {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.fbs-detected {
+  font-size: var(--fs-subhead);
+  font-weight: 800;
+  color: var(--ink-300);
+}
+
+.fbs-detected--found {
+  color: var(--sig-in);
+}
+
+/* «Левша» */
+.fbs-lefty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-caption);
+  color: var(--ink-100);
+  cursor: pointer;
+  margin-top: 14px;
+}
+
+.fbs-lefty-input {
+  accent-color: var(--brand);
+}
+
+/* Кнопки «Поделиться» и «Экспорт» */
+.fbs-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.fbs-icon-btn {
+  padding: 6px var(--s2);
+}
+
+/* Подсказка под грифом */
+.fbs-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-300);
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.fbs-last-note {
+  color: var(--ink-050);
+  font-weight: 700;
+}
+
+/* Пояснение к шарингу схемы */
+.fbs-share-hint {
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fbs-share-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-100);
+  line-height: var(--lh-normal);
+}
+
+.fbs-share-icon {
+  vertical-align: -1px;
+}
+
+.fbs-share-status {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fbs-share-status--ok {
+  color: var(--sig-in);
+}
+
+.fbs-share-status--fail {
+  color: var(--sig-off);
+}

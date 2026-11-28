@@ -27,6 +27,7 @@ import {
   chordStringStatusText,
   strumSummaryAnnouncement
 } from '../../domain/announcements';
+import './chordCheck.css';
 
 /** Сколько после сброса не принимать оценки высоты тона (D-4, см. ignoreEstimatesUntilRef). */
 const RESET_SETTLE_MS = 400;
@@ -218,12 +219,12 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
   );
 
   return (
-    <div style={{ width: '100%', maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div className="chk-screen">
       {/* Заголовок */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="chk-header">
         <div>
           <span className="eyebrow">Проверка аккорда</span>
-          <h2 style={{ fontSize: '20px', margin: 0 }}>Анализ строя в аккорде</h2>
+          <h2 className="chk-title">Анализ строя в аккорде</h2>
         </div>
 
         {/* Переключатель режимов: Арпеджио / Один удар */}
@@ -251,21 +252,10 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         />
       ) : (
         <button
-          className="btn btn-primary"
+          className="btn btn-primary chk-strum-btn"
           data-testid="cc-strum-start"
           onClick={handleStartStrumCapture}
           disabled={isCapturingStrum || mic.isRequesting}
-          style={{
-            width: '100%',
-            padding: '14px 20px',
-            fontSize: '16px',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 20px var(--shadow-brand)'
-          }}
         >
           <Play size={18} />{' '}
           {strumPhase === 'waiting'
@@ -281,24 +271,23 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       <LiveRegion text={announcement} testId="cc-announcement" />
 
       {/* Быстрый выбор аккорда */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--s4)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+      <div className="panel chk-picker">
+        <div className="chk-picker-head">
           <span className="eyebrow">Быстрый выбор аккорда</span>
           <button className="btn btn-ghost btn-sm" data-testid="cc-reset" onClick={resetAnalysis} title="Сбросить статус">
             <RotateCcw size={14} /> Сбросить
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="chk-voicings">
           {voicings.map(v => (
             <button
               key={v.id}
-              className={`btn btn-sm ${selectedVoicing.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-sm ${selectedVoicing.id === v.id ? 'btn-primary' : 'btn-ghost'} chk-voicing`}
               aria-pressed={selectedVoicing.id === v.id}
               data-testid={`cc-voicing-${v.id}`}
               onClick={() => setSelectedVoicingId(v.id)}
               title={v.shape ? `Форма ${v.shape}, пересчитанная под строй` : undefined}
-              style={{ fontWeight: 700 }}
             >
               {v.name}
             </button>
@@ -306,23 +295,23 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
 
         {!hasChordLibrary && (
-          <span data-testid="cc-no-chords" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span data-testid="cc-no-chords" className="chk-note">
             Для этого строя библиотеки аккордов нет — можно проверить открытые струны.
           </span>
         )}
         {voicings.some(v => v.shape) && (
-          <span data-testid="cc-transposed-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span data-testid="cc-transposed-hint" className="chk-note">
             Аппликатуры пересчитаны под строй: название — то, что звучит на самом деле.
           </span>
         )}
         {analysisMode === 'strum' && (
-          <span data-testid="cc-strum-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span data-testid="cc-strum-hint" className="chk-note">
             Струну, которая звучит октавой к другой струне аккорда, в ударе отдельно не измерить: все её
             обертоны совпадают с чужими. Такие струны проверьте в тюнере или перебором.
           </span>
         )}
         {hasOctavePairs && analysisMode === 'arpeggio' && (
-          <span data-testid="cc-octave-hint" style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span data-testid="cc-octave-hint" className="chk-note">
             Струны октавной пары (E2/E3, A2/A3, D3/D4, G3/G4) звучат вместе, и в переборе слышна одна из них.
             Вторую проверьте в тюнере, придержав соседнюю.
           </span>
@@ -339,26 +328,20 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         </div>
       )}
       {strumPhase === 'waiting' && (
-        <div className="panel" data-testid="cc-strum-waiting" style={{ padding: 'var(--s4)', textAlign: 'center', fontWeight: 700, color: 'var(--brand)', fontSize: '15px' }}>
+        <div className="panel chk-strum-waiting" data-testid="cc-strum-waiting">
           Ударьте по всем струнам — запись начнётся сама
         </div>
       )}
       {strumPhase === 'recording' && (
-        <div className="panel" style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: 'var(--brand)', fontSize: '15px' }}>
+        <div className="panel chk-strum-recording">
+          <div className="chk-strum-recording-title">
             Слушаю удар по струнам... {captureProgress}%
           </div>
-          <div style={{ width: '100%', height: '8px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
-            <div
-              style={{
-                width: `${captureProgress}%`,
-                height: '100%',
-                background: 'var(--brand)',
-                transition: 'width 50ms linear'
-              }}
-            />
+          <div className="chk-progress">
+            {/* Ширина — от прогресса захвата, поэтому инлайном. */}
+            <div className="chk-progress-fill" style={{ width: `${captureProgress}%` }} />
           </div>
-          <span style={{ fontSize: '12px', color: 'var(--ink-300)' }}>
+          <span className="chk-note">
             Дайте струнам звенеть, пока полоса не заполнится
           </span>
         </div>
@@ -366,8 +349,8 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
 
       {/* Поздравление при успешной проверке всех струн */}
       {isChordComplete && (
-        <div className="banner ok" style={{ animation: 'pulse 1s ease' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="banner ok chk-complete">
+          <div className="chk-complete-body">
             <CheckCircle2 size={20} color="var(--sig-in)" />
             <div>
               <b>Аккорд звучит безупречно!</b>
@@ -383,7 +366,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
       )}
 
       {/* Сетка: Картинка-схема аккорда + Список струн */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--s4)', alignItems: 'start' }}>
+      <div className="chk-grid">
         {/* Картинка-схема аппликатуры */}
         <ChordDiagramSVG
           voicing={selectedVoicing}
@@ -393,7 +376,7 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
         />
 
         {/* Индикаторы струн аккорда */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="chk-strings">
           {tuning.strings.map((str, idx) => {
             const status = stringStatuses[idx];
             const fret = selectedVoicing.frets[idx];
@@ -416,46 +399,23 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
               <div
                 key={str.stringNumber}
                 data-testid={`cc-string-${str.stringNumber}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: isSounding ? 'color-mix(in srgb, var(--brand) 12%, var(--ink-900))' : 'var(--ink-900)',
-                  border: `1px solid ${isSounding ? 'var(--brand)' : 'var(--ink-700)'}`,
-                  borderRadius: 'var(--r-md)',
-                  transition: 'all 150ms ease'
-                }}
+                className={`chk-string${isSounding ? ' chk-string--sounding' : ''}`}
               >
                 {/* Номер струны и лад */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span
-                    className="mono"
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--ink-800)',
-                      border: '1px solid var(--ink-700)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '13px'
-                    }}
-                  >
+                <div className="chk-string-info">
+                  <span className="mono chk-string-num">
                     {str.stringNumber}
                   </span>
 
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                    <div className="chk-string-target">
                       {displayTargetName}{targetPitch.octave}
-                      <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--ink-300)', marginLeft: '6px' }}>
+                      <span className="chk-string-fret">
                         ({isMuted ? 'глушить' : fret === 0 ? 'открытая' : `лад ${fret}`})
                       </span>
                     </div>
                     {!isMuted && status?.targetFreq ? (
-                      <div className="mono" style={{ fontSize: '10px', color: 'var(--ink-300)' }}>
+                      <div className="mono chk-string-freq">
                         Цель: {status.targetFreq.toFixed(1)} Гц {status.measuredFreq > 0 ? `| Изм: ${status.measuredFreq.toFixed(1)} Гц` : ''}
                       </div>
                     ) : null}
@@ -463,29 +423,22 @@ export const ChordCheckScreen: React.FC<ChordCheckScreenProps> = ({
                 </div>
 
                 {/* Статус и кнопка перейти к настройке */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="chk-string-actions">
+                  {/* Цвет плашки зависит от статуса — передаётся переменной. */}
                   <span
                     data-testid={`cc-status-${str.stringNumber}`}
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: badgeColor,
-                      padding: '3px 8px',
-                      background: 'var(--ink-800)',
-                      borderRadius: 'var(--r-pill)',
-                      border: `1px solid ${badgeColor}`
-                    }}
+                    className="chk-badge"
+                    style={{ '--chk-badge': badgeColor } as React.CSSProperties}
                   >
                     {badgeText}
                   </span>
 
                   {!isMuted && status && status.status !== 'in-tune' && (
                     <button
-                      className="btn btn-ghost btn-sm"
+                      className="btn btn-ghost btn-sm chk-tune-btn"
                       data-testid={`cc-tune-${str.stringNumber}`}
                       onClick={() => onGoTuneString(idx)}
                       title={`Перейти в тюнер для ${str.stringNumber}-й струны`}
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
                     >
                       Настроить <ArrowRight size={11} />
                     </button>
