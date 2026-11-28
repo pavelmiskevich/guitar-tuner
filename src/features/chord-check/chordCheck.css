@@ -110,9 +110,17 @@
   transition: width 50ms linear;
 }
 
-/* Поздравление при успешной проверке */
+/* Поздравление при успешной проверке: короткий «толчок» при появлении.
+   Раньше здесь стояло `animation: pulse`, но таких @keyframes в проекте не
+   было, и баннер появлялся без анимации. */
 .chk-complete {
-  animation: pulse 1s ease;
+  animation: chk-complete-pop 600ms ease-out;
+}
+
+@keyframes chk-complete-pop {
+  0% { opacity: 0; transform: scale(0.96); }
+  60% { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .chk-complete-body {

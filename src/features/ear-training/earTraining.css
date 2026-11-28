@@ -165,8 +165,10 @@
 }
 
 /* — Разбор ответа и переход к следующему вопросу — */
+/* Раньше здесь стояло `animation: fadeIn`, но таких @keyframes в проекте не
+   было, и разбор появлялся без анимации. */
 .ear-screen .ear-feedback {
-  animation: fadeIn 200ms ease;
+  animation: ear-feedback-in 200ms ease-out;
   display: flex;
   flex-direction: column;
   gap: var(--s3);
@@ -183,4 +185,9 @@
   margin-top: var(--s1);
   font-size: 15px;
   font-weight: 800;
+}
+
+@keyframes ear-feedback-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
