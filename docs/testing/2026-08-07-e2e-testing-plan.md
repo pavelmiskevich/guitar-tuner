@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Ветка работы: `feat/e2e-testing`. Не коммитить в `main`.
-- Спека: `docs/superpowers/specs/2026-08-07-e2e-testing-design.md`. При расхождении плана и спеки — спека главнее, план правится.
+- Спека: `docs/testing/2026-08-07-e2e-testing-design.md`. При расхождении плана и спеки — спека главнее, план правится.
 - Каталог E2E: `tests/e2e/`. Модульные тесты Vitest в `tests/*.test.ts` не трогаем.
 - Порт preview-сервера: `4173`.
 - Проекты Playwright: `chromium-desktop` (1440×900) и `chromium-mobile` (`devices['Pixel 7']`).
@@ -474,11 +474,11 @@ git commit -m "test(e2e): add shared fixture with console guard and note helpers
 
 **Files:**
 - Create: `tests/e2e/exploration.spec.ts`
-- Create: `docs/superpowers/2026-08-07-e2e-exploration-report.md`
+- Create: `docs/testing/2026-08-07-e2e-exploration-report.md`
 
 **Interfaces:**
 - Consumes: `test`/`expect` из Task 3, `window.__fakeMic` из Task 2.
-- Produces: отчёт `docs/superpowers/2026-08-07-e2e-exploration-report.md` со списком дефектов; скриншоты в `test-results/`.
+- Produces: отчёт `docs/testing/2026-08-07-e2e-exploration-report.md` со списком дефектов; скриншоты в `test-results/`.
 
 **Отчёт кладётся в `docs/`, а не в `_worklog/`:** каталог `_worklog/` перечислен в `.gitignore` как приватный и в репозиторий не попадает.
 
@@ -1030,7 +1030,7 @@ test.describe('настройки', () => {
     expect(saved).toContain('Тестовый строй');
   });
 
-  // D-1 из отчёта разведки (docs/superpowers/2026-08-07-e2e-exploration-report.md):
+  // D-1 из отчёта разведки (docs/testing/2026-08-07-e2e-exploration-report.md):
   // селектор строя в тюнере строится только из TUNING_PRESETS, а у сохранённых строёв
   // в настройках нет действия «Применить» — повторно выбрать свой строй нельзя.
   // Решение заказчика: в бэклог. Тест описывает желаемое поведение и включится после фикса.
@@ -1125,7 +1125,7 @@ git commit -m "test(e2e): cover settings, notation systems and persistence"
 - Consumes: `nav-desktop-fretboard` / `nav-mobile-fretboard` из Task 5.
 - Produces: `fb-mode-explore`, `fb-mode-scales`, `fb-mode-chords`, `fb-root`, `fb-scale`, `fb-capo`, `fb-range`, `fb-lefty`, `fb-share`, `fb-export`, `fb-detected-chord`, `fretboard-svg`.
 
-**Эта задача включает исправление дефекта D-2** (см. `docs/superpowers/2026-08-07-e2e-exploration-report.md`). Разведка подтвердила: `handleExportSVG` вызывает `document.querySelector('svg')` и скачивает первую иконку lucide из шапки — файл 371 байт с `viewBox="0 0 24 24"`. На странице 17 элементов `<svg>`. Решение заказчика: чинить сейчас. Тест экспорта поэтому пишется под корректное поведение и обязан проходить.
+**Эта задача включает исправление дефекта D-2** (см. `docs/testing/2026-08-07-e2e-exploration-report.md`). Разведка подтвердила: `handleExportSVG` вызывает `document.querySelector('svg')` и скачивает первую иконку lucide из шапки — файл 371 байт с `viewBox="0 0 24 24"`. На странице 17 элементов `<svg>`. Решение заказчика: чинить сейчас. Тест экспорта поэтому пишется под корректное поведение и обязан проходить.
 
 Исправление — через ref на настоящий корневой `<svg>` грифа, а не через уточнённый CSS-селектор и тем более не через `data-testid`: продуктовый код не должен зависеть ни от порядка элементов в DOM, ни от тестовых атрибутов.
 
@@ -2057,7 +2057,7 @@ npm run test:e2e
 
 - [ ] **Step 5: Обновить рабочий журнал**
 
-В `_worklog/PROGRESS.md` в разделе «3. Статус тестирования и сборки» заменить содержимое на актуальное: число unit-тестов, число E2E-тестов, время прогона, ссылка на `docs/superpowers/2026-08-07-e2e-exploration-report.md`. В раздел 2 «Что нужно сделать дальше» добавить дефект D-1 (пользовательский строй нельзя выбрать повторно), отправленный заказчиком в бэклог.
+В `_worklog/PROGRESS.md` в разделе «3. Статус тестирования и сборки» заменить содержимое на актуальное: число unit-тестов, число E2E-тестов, время прогона, ссылка на `docs/testing/2026-08-07-e2e-exploration-report.md`. В раздел 2 «Что нужно сделать дальше» добавить дефект D-1 (пользовательский строй нельзя выбрать повторно), отправленный заказчиком в бэклог.
 
 **Файл не коммитить.** Каталог `_worklog/` перечислен в `.gitignore` с пометкой «Local private work logs & progress (not pushed to GitHub)», и `PROGRESS.md` в git не отслеживается. Правка делается только в рабочей копии; `git add` для него не выполняется ни с `--force`, ни без.
 
