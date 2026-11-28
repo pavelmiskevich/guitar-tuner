@@ -23,6 +23,7 @@ import { STORAGE_KEYS, readEnumSetting, readNumberSetting, writeSetting } from '
 import { startSchedulerTicker } from './schedulerTicker';
 import { useScreenWakeLock } from './useScreenWakeLock';
 import { SegmentedControl } from '../../ui/SegmentedControl';
+import './metronome.css';
 
 /** Задержка первой доли после старта: успеть запланировать её до того, как она прозвучит. */
 const START_DELAY_SECONDS = 0.05;
@@ -39,8 +40,6 @@ const CLICK_SOUND: Record<AccentLevel, { frequency: number; type: OscillatorType
   medium: { frequency: 1000, type: 'triangle', gain: 0.6 },
   weak: { frequency: 800, type: 'sine', gain: 0.7 }
 };
-
-const BEAT_DOT_SIZE: Record<AccentLevel, string> = { strong: '22px', medium: '19px', weak: '16px' };
 
 const AUDIO_CONTEXT_ERROR =
   'Не удалось включить звук: браузер не дал создать аудиоконтекст. Закройте другие вкладки со звуком или перезагрузите страницу.';
@@ -269,12 +268,12 @@ export const MetronomeScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div className="metro-screen">
       {/* Заголовок и переключатель Метроном / Драм-ритмы */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="metro-header">
         <div>
           <span className="eyebrow">Ритм и тренировка</span>
-          <h2 style={{ fontSize: '20px', margin: 0 }}>{activeTab === 'metronome' ? 'Метроном' : 'Барабанные ритмы'}</h2>
+          <h2 className="metro-title">{activeTab === 'metronome' ? 'Метроном' : 'Барабанные ритмы'}</h2>
         </div>
 
         {/* Табы режима */}
@@ -294,35 +293,24 @@ export const MetronomeScreen: React.FC = () => {
 
       {/* Пресеты барабанных стилей (если выбран режим драм-машины) */}
       {activeTab === 'drums' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+        <div className="metro-patterns">
           {DRUM_PATTERNS.map(pattern => {
             const isSelected = selectedPattern.id === pattern.id;
             return (
               <button
                 key={pattern.id}
+                className="metro-pattern"
                 data-testid={`mt-pattern-${pattern.id}`}
                 aria-pressed={isSelected}
                 onClick={() => {
                   setSelectedPattern(pattern);
                   setBpm(pattern.defaultBpm);
                 }}
-                style={{
-                  background: isSelected ? 'var(--ink-800)' : 'var(--ink-900)',
-                  border: `2px solid ${isSelected ? 'var(--brand)' : 'var(--ink-700)'}`,
-                  borderRadius: 'var(--r-md)',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  transition: 'all 150ms ease'
-                }}
               >
-                <span style={{ fontWeight: 800, fontSize: '13px', color: isSelected ? 'var(--brand)' : 'var(--ink-050)' }}>
+                <span className="metro-pattern-name">
                   {pattern.name}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--ink-300)', marginTop: '2px' }}>
+                <span className="metro-pattern-genre">
                   {pattern.genre}
                 </span>
               </button>
@@ -332,55 +320,29 @@ export const MetronomeScreen: React.FC = () => {
       )}
 
       {/* Панель метронома / ритма */}
-      <div
-        className="panel"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--s6) var(--s4)',
-          gap: 'var(--s6)',
-          width: '100%',
-          boxSizing: 'border-box'
-        }}
-      >
+      <div className="panel metro-panel">
         {/* Индикатор долей */}
         {activeTab === 'metronome' ? (
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div className="metro-beats">
             {Array.from({ length: meter.beats }).map((_, i) => {
               const isActive = isPlaying && currentBeat === i;
               const accent = accentAt(meter, i);
-              const isFirst = accent === 'strong';
-              const size = BEAT_DOT_SIZE[accent];
+              // Размер, отступ и подсветка доли — в metronome.css по data-accent и data-active.
               return (
                 <div
                   key={i}
+                  className="metro-beat"
                   data-testid={`mt-beat-${i}`}
                   data-active={String(isActive)}
                   data-accent={accent}
-                  style={{
-                    width: size,
-                    height: size,
-                    // Вторая группа 6/8 (3+3) чуть отодвинута — группировку видно глазом.
-                    marginLeft: accent === 'medium' ? '8px' : 0,
-                    borderRadius: '50%',
-                    background: isActive
-                      ? (isFirst ? 'var(--sig-in)' : 'var(--brand)')
-                      : 'var(--ink-800)',
-                    // Обводка активной доли — цветом основного текста: белая пропадала на белой странице.
-                    border: `2px solid ${isActive ? 'var(--ink-050)' : 'var(--ink-700)'}`,
-                    boxShadow: isActive ? `0 0 16px ${isFirst ? 'var(--sig-in)' : 'var(--brand)'}` : 'none',
-                    transition: 'all 60ms ease'
-                  }}
                 />
               );
             })}
           </div>
         ) : (
           /* 16-шаговая визуальная сетка барабанов */
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', gap: '3px', width: '100%' }}>
+          <div className="metro-seq">
+            <div className="metro-steps">
               {Array.from({ length: selectedPattern.stepsCount }).map((_, i) => {
                 const isActive = isPlaying && currentStep === i;
                 const isDownbeat = selectedPattern.stepsCount === 16 ? i % 4 === 0 : i % 3 === 0;
@@ -388,74 +350,44 @@ export const MetronomeScreen: React.FC = () => {
                 return (
                   <div
                     key={i}
+                    className={isDownbeat ? 'metro-step metro-step--downbeat' : 'metro-step'}
                     data-testid={`seq-step-${i}`}
                     data-active={String(isActive)}
-                    style={{
-                      flex: 1,
-                      height: '14px',
-                      borderRadius: '2px',
-                      background: isActive
-                        ? 'var(--sig-in)'
-                        : isDownbeat
-                        ? 'var(--ink-600)'
-                        : 'var(--ink-800)',
-                      boxShadow: isActive ? '0 0 10px var(--sig-in)' : 'none',
-                      transition: 'background 40ms linear'
-                    }}
                   />
                 );
               })}
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--ink-300)', textAlign: 'center' }}>
+            <span className="metro-seq-desc">
               {selectedPattern.description}
             </span>
           </div>
         )}
 
         {/* Крупный дисплей BPM */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+        <div className="metro-readout">
           <span
             data-testid="mt-bpm"
-            className="mono"
-            style={{
-              fontSize: '80px',
-              fontWeight: 800,
-              lineHeight: 1,
-              letterSpacing: '-0.04em',
-              color: isPlaying ? 'var(--brand)' : 'var(--ink-050)'
-            }}
+            className={isPlaying ? 'mono metro-bpm metro-bpm--playing' : 'mono metro-bpm'}
           >
             {bpm}
           </span>
-          <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink-300)' }}>BPM</span>
+          <span className="metro-bpm-unit">BPM</span>
         </div>
 
         {/* Управление темпом: -5, -1, slider, +1, +5 (адаптивная сетка, не вылезает на мобильных) */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '6px',
-            alignItems: 'center',
-            width: '100%',
-            maxWidth: '440px',
-            justifyContent: 'center',
-            boxSizing: 'border-box'
-          }}
-        >
+        <div className="metro-tempo">
           <button
             data-testid="mt-minus-5"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm metro-nudge metro-nudge--five"
             onClick={() => changeBpm(-5)}
-            style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
             title="Уменьшить темп на 5 BPM"
           >
             -5
           </button>
           <button
             data-testid="mt-minus-1"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm metro-nudge"
             onClick={() => changeBpm(-1)}
-            style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
             title="Уменьшить темп на 1 BPM"
           >
             <Minus size={15} />
@@ -464,6 +396,7 @@ export const MetronomeScreen: React.FC = () => {
           {/* Ползунок темпа (адаптивный) */}
           <input
             data-testid="mt-bpm-slider"
+            className="metro-slider"
             aria-label="Темп"
             aria-valuetext={`${bpm} ударов в минуту`}
             type="range"
@@ -471,29 +404,20 @@ export const MetronomeScreen: React.FC = () => {
             max={MAX_BPM}
             value={bpm}
             onChange={(e) => setBpm(clampBpm(Number(e.target.value)))}
-            style={{
-              flex: 1,
-              minWidth: '60px',
-              maxWidth: '220px',
-              accentColor: 'var(--brand)',
-              cursor: 'pointer'
-            }}
           />
 
           <button
             data-testid="mt-plus-1"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm metro-nudge"
             onClick={() => changeBpm(1)}
-            style={{ padding: '6px 8px', minWidth: '32px', flexShrink: 0 }}
             title="Увеличить темп на 1 BPM"
           >
             <Plus size={15} />
           </button>
           <button
             data-testid="mt-plus-5"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm metro-nudge metro-nudge--five"
             onClick={() => changeBpm(5)}
-            style={{ fontWeight: 700, padding: '6px 8px', minWidth: '34px', flexShrink: 0 }}
             title="Увеличить темп на 5 BPM"
           >
             +5
@@ -502,16 +426,15 @@ export const MetronomeScreen: React.FC = () => {
 
         {/* Выбор размера такта (для метронома) */}
         {activeTab === 'metronome' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span className="eyebrow" style={{ marginRight: '4px' }}>Размер:</span>
+          <div className="metro-meters">
+            <span className="eyebrow metro-meters-label">Размер:</span>
             {METERS.map(m => (
               <button
                 key={m.id}
                 data-testid={meterTestId(m)}
-                className={`btn btn-sm ${meterId === m.id ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-sm metro-meter-btn ${meterId === m.id ? 'btn-primary' : 'btn-ghost'}`}
                 aria-pressed={meterId === m.id}
                 onClick={() => setMeterId(m.id)}
-                style={{ fontWeight: 700, padding: '6px 12px' }}
               >
                 {m.id}
               </button>
@@ -520,12 +443,11 @@ export const MetronomeScreen: React.FC = () => {
         )}
 
         {/* Кнопка запуска / остановки */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center', width: '100%', flexWrap: 'wrap' }}>
+        <div className="metro-actions">
           <button
             data-testid="mt-toggle"
-            className={`btn ${isPlaying ? 'btn-danger' : 'btn-primary'}`}
+            className={`btn metro-toggle ${isPlaying ? 'btn-danger' : 'btn-primary'}`}
             onClick={handleToggle}
-            style={{ flex: 1, minWidth: '140px', maxWidth: '200px', padding: '14px 20px', fontSize: '17px', justifyContent: 'center' }}
           >
             {isPlaying ? (
               <>
@@ -541,9 +463,8 @@ export const MetronomeScreen: React.FC = () => {
           {/* Tap Tempo */}
           <button
             data-testid="mt-tap"
-            className="btn btn-ghost"
+            className="btn btn-ghost metro-tap"
             onClick={handleTap}
-            style={{ flex: 1, minWidth: '130px', maxWidth: '180px', padding: '14px 16px', fontSize: '14px', border: '1px solid var(--ink-700)', justifyContent: 'center' }}
             title="Нажимайте в такт музыке для определения BPM"
           >
             <HeartHandshake size={16} /> Tap Tempo
@@ -551,7 +472,7 @@ export const MetronomeScreen: React.FC = () => {
         </div>
 
         {audioError && (
-          <div data-testid="mt-audio-error" role="alert" className="banner err" style={{ width: '100%', boxSizing: 'border-box' }}>
+          <div data-testid="mt-audio-error" role="alert" className="banner err metro-audio-error">
             {audioError}
           </div>
         )}

@@ -1,0 +1,268 @@
+/* Экран «Ритм»: метроном и драм-машина.
+   Селекторы вложены в .metro-screen: правила должны перекрывать общие классы
+   (.btn, .btn-sm, .panel, .eyebrow, h2) независимо от порядка подключения файлов. */
+
+.metro-screen {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+/* — Заголовок и переключатель режима — */
+.metro-screen .metro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.metro-screen .metro-title {
+  font-size: 20px;
+  margin: 0;
+}
+
+/* — Пресеты драм-машины — */
+.metro-screen .metro-patterns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--s2);
+}
+
+.metro-screen .metro-pattern {
+  background: var(--ink-900);
+  border: 2px solid var(--ink-700);
+  border-radius: var(--r-md);
+  padding: 10px var(--s3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.metro-screen .metro-pattern[aria-pressed="true"] {
+  background: var(--ink-800);
+  border-color: var(--brand);
+}
+
+.metro-screen .metro-pattern-name {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink-050);
+}
+
+.metro-screen .metro-pattern[aria-pressed="true"] .metro-pattern-name {
+  color: var(--brand);
+}
+
+.metro-screen .metro-pattern-genre {
+  font-size: 11px;
+  color: var(--ink-300);
+  margin-top: 2px;
+}
+
+/* — Панель метронома / ритма — */
+.metro-screen .metro-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s6) var(--s4);
+  gap: var(--s6);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* — Индикатор долей: размер по акценту, подсветка по data-active — */
+.metro-screen .metro-beats {
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.metro-screen .metro-beat {
+  width: 16px;
+  height: 16px;
+  margin-left: 0;
+  border-radius: 50%;
+  background: var(--ink-800);
+  border: 2px solid var(--ink-700);
+  box-shadow: none;
+  transition: all 60ms ease;
+}
+
+.metro-screen .metro-beat[data-accent="strong"] {
+  width: 22px;
+  height: 22px;
+}
+
+/* Вторая группа 6/8 (3+3) чуть отодвинута — группировку видно глазом. */
+.metro-screen .metro-beat[data-accent="medium"] {
+  width: 19px;
+  height: 19px;
+  margin-left: var(--s2);
+}
+
+/* Обводка активной доли — цветом основного текста: белая пропадала на белой странице. */
+.metro-screen .metro-beat[data-active="true"] {
+  background: var(--brand);
+  border-color: var(--ink-050);
+  box-shadow: 0 0 16px var(--brand);
+}
+
+.metro-screen .metro-beat[data-active="true"][data-accent="strong"] {
+  background: var(--sig-in);
+  box-shadow: 0 0 16px var(--sig-in);
+}
+
+/* — Сетка шагов драм-машины — */
+.metro-screen .metro-seq {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.metro-screen .metro-steps {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+}
+
+.metro-screen .metro-step {
+  flex: 1;
+  height: 14px;
+  border-radius: var(--r-sm);
+  background: var(--ink-800);
+  box-shadow: none;
+  transition: background 40ms linear;
+}
+
+.metro-screen .metro-step--downbeat {
+  background: var(--ink-600);
+}
+
+.metro-screen .metro-step[data-active="true"] {
+  background: var(--sig-in);
+  box-shadow: 0 0 10px var(--sig-in);
+}
+
+.metro-screen .metro-seq-desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+  text-align: center;
+}
+
+/* — Крупный дисплей BPM — */
+.metro-screen .metro-readout {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.metro-screen .metro-bpm {
+  font-size: 80px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--ink-050);
+}
+
+.metro-screen .metro-bpm--playing {
+  color: var(--brand);
+}
+
+.metro-screen .metro-bpm-unit {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-300);
+}
+
+/* — Управление темпом: -5, -1, ползунок, +1, +5 — */
+.metro-screen .metro-tempo {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.metro-screen .metro-nudge {
+  padding: 6px var(--s2);
+  min-width: 32px;
+  flex-shrink: 0;
+}
+
+.metro-screen .metro-nudge--five {
+  font-weight: 700;
+  min-width: 34px;
+}
+
+.metro-screen .metro-slider {
+  flex: 1;
+  min-width: 60px;
+  max-width: 220px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+/* — Размер такта — */
+.metro-screen .metro-meters {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.metro-screen .metro-meters-label {
+  margin-right: var(--s1);
+}
+
+.metro-screen .metro-meter-btn {
+  font-weight: 700;
+  padding: 6px var(--s3);
+}
+
+/* — Старт / стоп и Tap Tempo — */
+.metro-screen .metro-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.metro-screen .metro-toggle {
+  flex: 1;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 14px 20px;
+  font-size: 17px;
+  justify-content: center;
+}
+
+/* Три класса: рамка не должна светлеть по .btn-ghost:hover — так было и при
+   инлайновом стиле, который перекрывал наведение. */
+.metro-screen .btn.metro-tap {
+  flex: 1;
+  min-width: 130px;
+  max-width: 180px;
+  padding: 14px var(--s4);
+  font-size: var(--fs-body);
+  border: var(--hairline) solid var(--ink-700);
+  justify-content: center;
+}
+
+.metro-screen .metro-audio-error {
+  width: 100%;
+  box-sizing: border-box;
+}
