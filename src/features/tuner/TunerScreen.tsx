@@ -360,6 +360,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               const found = availableTunings.find(t => t.id === e.target.value);
               if (found) onTuningChange(found);
             }}
+            name="tuning"
             data-testid="tuning-select"
             aria-label="Выбор строя гитары"
             style={{
@@ -434,6 +435,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               type="checkbox"
               checked={autoAdvance}
               onChange={(e) => setAutoAdvance(e.target.checked)}
+              name="auto-advance"
               data-testid="master-mode"
               style={{ accentColor: 'var(--brand)' }}
             />
