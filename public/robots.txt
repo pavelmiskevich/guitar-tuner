@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://guitar-tuner.miskevich.ru/sitemap.xml
