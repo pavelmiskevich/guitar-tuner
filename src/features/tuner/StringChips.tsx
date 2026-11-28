@@ -3,6 +3,7 @@ import type { StringSpec, Tuning } from '../../domain/tunings';
 import type { NotationSystem } from '../../domain/notes';
 import { formatNoteName, midiToFrequency } from '../../domain/notes';
 import { Volume2 } from 'lucide-react';
+import './tuner.css';
 
 /** Состояние звучащей струны: настроена, вне допуска или в допуске, но ещё не удержана. */
 export type SoundingState = 'done' | 'off' | 'active';
@@ -38,13 +39,8 @@ export const StringChips = React.memo(function StringChips({
 }: StringChipsProps) {
   return (
     <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${tuning.strings.length}, minmax(0, 1fr))`,
-        gap: '6px',
-        width: '100%',
-        padding: '2px 0'
-      }}
+      className="tun-chips"
+      style={{ '--tun-chip-count': String(tuning.strings.length) } as React.CSSProperties}
     >
       {tuning.strings.map((str, idx) => {
         const isSelected = lockedStringIndex === idx;
@@ -63,7 +59,7 @@ export const StringChips = React.memo(function StringChips({
           // Кнопка эталона — соседка чипа, а не его потомок (#11): вложенная в
           // <button> интерактивность недостижима с клавиатуры и не видна
           // скринридеру.
-          <div key={str.stringNumber} style={{ position: 'relative', minWidth: 0 }}>
+          <div key={str.stringNumber} className="tun-chip-cell">
             <button
               className="schip"
               data-state={state}
@@ -71,7 +67,6 @@ export const StringChips = React.memo(function StringChips({
               aria-pressed={isSelected}
               onClick={() => onChipClick(idx)}
               title={`${str.stringNumber}-я струна: ${strNoteName}${str.open.octave} (${strFreq} Гц) · Нажмите для выбора и воспроизведения`}
-              style={{ minWidth: 0, width: '100%' }}
             >
               {/* Имя кнопки — из видимой ноты и скрытых пояснений: голосовое
                   управление находит кнопку по тому, что написано на ней. */}

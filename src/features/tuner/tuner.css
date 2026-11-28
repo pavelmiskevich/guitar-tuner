@@ -1,0 +1,543 @@
+/* Экран «Тюнер».
+   Селекторы экрана вложены в .tun-screen: правила должны перекрывать общие
+   классы (.btn, .btn-sm, .panel, .banner, h2) независимо от порядка подключения
+   файлов. Части экрана — шкала центов, аура, чипы струн — отдельные компоненты
+   со своими корневыми классами: общих классов, с которыми они спорили бы,
+   у них нет. */
+
+.tun-screen {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+/* — Заголовок и селектор строя — */
+.tun-screen .tun-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.tun-screen .tun-title {
+  font-size: 20px;
+  margin: 0;
+}
+
+.tun-screen .tun-header-actions {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+}
+
+.tun-screen .tun-select {
+  background: var(--ink-800);
+  color: var(--ink-050);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* — VU-индикатор входного уровня на плашке микрофона.
+   Заполнение приходит из рендера через --tun-vu-level. — */
+.tun-screen .tun-vu {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 1;
+  max-width: 140px;
+}
+
+.tun-screen .tun-vu-track {
+  flex: 1;
+  height: 6px;
+  background: var(--ink-800);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.tun-screen .tun-vu-fill {
+  --tun-vu-level: 0%;
+  width: var(--tun-vu-level);
+  height: 100%;
+  background: var(--brand);
+  transition: width 60ms linear;
+}
+
+/* Громкий сигнал — цветом «в строе», перегрузка — цветом «расстроено». */
+.tun-screen .tun-vu-fill--loud {
+  background: var(--sig-in);
+}
+
+.tun-screen .tun-vu-fill--clip {
+  background: var(--sig-off);
+}
+
+.tun-screen .tun-vu-max {
+  color: var(--sig-off);
+  font-weight: 700;
+  font-size: 10px;
+}
+
+/* — Опции: автоопределение струны и мастер настройки — */
+.tun-screen .tun-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.tun-screen .tun-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tun-screen .tun-mode-controls {
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.tun-screen .tun-master {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  cursor: pointer;
+}
+
+.tun-screen .tun-master-input {
+  accent-color: var(--brand);
+}
+
+.tun-screen .tun-reset {
+  color: var(--brand);
+  text-decoration: underline;
+  font-size: var(--fs-caption);
+  min-height: 24px;
+  padding: 0 var(--s1);
+}
+
+/* — Центральный дисплей с нотой и аурой — */
+.tun-screen .tun-display {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s8) var(--s6);
+  overflow: hidden;
+  min-height: 270px;
+}
+
+/* Команда действия (FR-TN-18). Цвет рамки и текста — по тону показаний. */
+.tun-screen .tun-action {
+  --tun-action-color: var(--ink-300);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--tun-action-color);
+  color: var(--tun-action-color);
+  border-radius: var(--r-pill);
+  padding: 6px var(--s4);
+  font-size: var(--fs-body);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  z-index: 2;
+  margin-bottom: var(--s3);
+  transition: all 150ms ease;
+}
+
+.tun-screen .tun-action--in {
+  --tun-action-color: var(--sig-in);
+}
+
+.tun-screen .tun-action--near {
+  --tun-action-color: var(--sig-near);
+}
+
+.tun-screen .tun-action--off {
+  --tun-action-color: var(--sig-off);
+}
+
+.tun-screen .tun-action-cents {
+  font-size: var(--fs-caption);
+  opacity: 0.9;
+}
+
+/* Крупная нота-кнопка. Переход только по прозрачности: так было и при
+   инлайновом стиле, который перекрывал переходы .tuner-note-interactive.
+   Звучание эталона — общий класс .tuner-note-playing на кнопке. */
+.tun-screen .tun-note {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  z-index: 2;
+  opacity: 1;
+  transition: opacity 300ms ease;
+}
+
+/* Без звука и без эталона нота чуть приглушена. */
+.tun-screen .tun-note--dim {
+  opacity: 0.85;
+}
+
+.tun-screen .tun-note-name {
+  font-size: var(--fs-display);
+  font-weight: 800;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-tight);
+  color: var(--ink-100);
+  transition: color 150ms ease;
+}
+
+.tun-screen .tun-note-name--in {
+  color: var(--sig-in);
+}
+
+.tun-screen .tun-note-name--near {
+  color: var(--sig-near);
+}
+
+.tun-screen .tun-note-name--off {
+  color: var(--sig-off);
+}
+
+.tun-screen .tun-note-octave {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink-300);
+  margin-left: var(--s1);
+}
+
+/* Значок динамика в углу ноты */
+.tun-screen .tun-note-speaker {
+  position: absolute;
+  right: -14px;
+  top: var(--s2);
+  background: var(--ink-800);
+  color: var(--ink-300);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px var(--shadow-soft);
+  transition: all 150ms ease;
+}
+
+/* Звучит эталон: нота и октава — цветом бренда, значок — на заливке.
+   Три класса: цвет эталона главнее тона показаний (.tun-note-name--in и др.). */
+.tun-screen .tuner-note-playing .tun-note-name,
+.tun-screen .tuner-note-playing .tun-note-octave {
+  color: var(--brand);
+}
+
+.tun-screen .tuner-note-playing .tun-note-speaker {
+  background: var(--brand-strong);
+  color: var(--on-brand);
+}
+
+/* Кнопка-подсказка под нотой. Три класса: фон и рамка не должны меняться
+   по .btn-ghost:hover — так было и при инлайновом стиле, который перекрывал
+   наведение. */
+.tun-screen .btn.tun-hint {
+  z-index: 2;
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 3px 10px;
+  color: var(--ink-300);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--r-pill);
+  border: var(--hairline) dashed var(--ink-700);
+  background: transparent;
+}
+
+.tun-screen .btn.tun-hint--playing {
+  color: var(--brand);
+  border: var(--hairline) solid var(--brand);
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
+}
+
+/* Частоты: измеренная / целевая */
+.tun-screen .tun-freqs {
+  margin-top: var(--s2);
+  font-size: var(--fs-body);
+  color: var(--ink-300);
+  display: flex;
+  gap: var(--s4);
+  z-index: 1;
+  opacity: 1;
+}
+
+.tun-screen .tun-freqs--dim {
+  opacity: 0.65;
+}
+
+.tun-screen .tun-freq-value {
+  color: var(--ink-050);
+}
+
+.tun-screen .tun-scale-wrap {
+  width: 100%;
+  margin-top: var(--s6);
+  z-index: 1;
+}
+
+/* — Совет мастера (FR-TN-20) — */
+.tun-screen .tun-tip {
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--sig-near);
+  color: var(--ink-100);
+  font-size: 13px;
+}
+
+/* — Мини-спектрограмма гармоник — */
+.tun-screen .tun-spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tun-screen .tun-spectrum-toggle {
+  align-self: flex-start;
+  font-size: var(--fs-caption);
+}
+
+.tun-screen .tun-spectrum-panel {
+  padding: var(--s2) var(--s3);
+  height: 60px;
+}
+
+/* ============================================================
+   Шкала центов (CentsScale).
+   Тон показаний — модификатор корня (--in / --near / --off), он задаёт
+   --tun-cents-color для стрелки и числа. Положения стрелки, зоны строя
+   и засечек приходят из рендера переменными.
+   ============================================================ */
+
+.tun-cents {
+  --tun-cents-color: var(--sig-idle);
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  user-select: none;
+}
+
+.tun-cents--in {
+  --tun-cents-color: var(--sig-in);
+}
+
+.tun-cents--near {
+  --tun-cents-color: var(--sig-near);
+}
+
+.tun-cents--off {
+  --tun-cents-color: var(--sig-off);
+}
+
+.tun-cents-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-family: var(--font-num);
+  color: var(--ink-300);
+  margin-bottom: 6px;
+  padding: 0 var(--s1);
+}
+
+.tun-cents-zero-label {
+  color: var(--ink-100);
+  font-weight: 700;
+}
+
+.tun-cents--in .tun-cents-zero-label {
+  color: var(--sig-in);
+}
+
+.tun-cents-track {
+  position: relative;
+  height: 24px;
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+/* Зелёная зона строя; по умолчанию — допуск ±5 центов. */
+.tun-cents-zone {
+  --tun-zone-left: 37.5%;
+  --tun-zone-width: 25%;
+  position: absolute;
+  left: var(--tun-zone-left);
+  width: var(--tun-zone-width);
+  height: 100%;
+  background: color-mix(in srgb, var(--sig-in) 12%, transparent);
+  border-left: var(--hairline) solid color-mix(in srgb, var(--sig-in) 30%, transparent);
+  border-right: var(--hairline) solid color-mix(in srgb, var(--sig-in) 30%, transparent);
+}
+
+/* Центральная нулевая засечка */
+.tun-cents-zero-mark {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ink-500);
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.tun-cents--in .tun-cents-zero-mark {
+  background: var(--sig-in);
+}
+
+/* Засечки делений */
+.tun-cents-tick {
+  --tun-tick-left: 50%;
+  position: absolute;
+  left: var(--tun-tick-left);
+  top: var(--s1);
+  bottom: var(--s1);
+  width: 1px;
+  background: var(--ink-700);
+  transform: translateX(-50%);
+}
+
+/* Стрелка-индикатор отклонения */
+.tun-cents-needle {
+  --tun-needle-left: 50%;
+  position: absolute;
+  left: var(--tun-needle-left);
+  top: 2px;
+  bottom: 2px;
+  width: var(--s2);
+  background: var(--tun-cents-color);
+  border-radius: var(--r-pill);
+  transform: translateX(-50%);
+  box-shadow: none;
+  transition: left 80ms linear, background 150ms ease, box-shadow 150ms ease;
+  z-index: 3;
+}
+
+.tun-cents--in .tun-cents-needle {
+  box-shadow: var(--glow-in);
+}
+
+.tun-cents--off .tun-cents-needle {
+  box-shadow: var(--glow-off);
+}
+
+/* Текстовая подсказка отклонения */
+.tun-cents-hints {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--s2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tun-cents-hint {
+  color: var(--ink-300);
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+/* Струну пора подтянуть или ослабить. */
+.tun-cents-hint--alert {
+  color: var(--sig-off);
+}
+
+/* Число центов. Цвет текста отделён от цвета стрелки: у графики требование
+   к контрасту 3:1, у текста — 4.5:1, и приглушённый --sig-idle его не проходит.
+   Поэтому без сигнала число — цветом второстепенного текста. */
+.tun-cents-readout {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-300);
+  padding: 2px var(--s2);
+  background: var(--ink-800);
+  border-radius: var(--r-sm);
+  border: var(--hairline) solid var(--ink-700);
+}
+
+.tun-cents--active .tun-cents-readout {
+  color: var(--tun-cents-color);
+}
+
+/* ============================================================
+   Аура под нотой (TunerAura). Тон — модификатором, он задаёт цвет
+   и яркость свечения.
+   ============================================================ */
+
+.tun-aura {
+  --tun-aura-color: color-mix(in srgb, var(--sig-idle) 15%, transparent);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 320px;
+  height: 320px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--tun-aura-color) 0%, transparent 70%);
+  filter: blur(30px);
+  pointer-events: none;
+  opacity: 0.4;
+  transition: background 250ms ease, opacity 250ms ease;
+  z-index: 0;
+}
+
+.tun-aura--in {
+  --tun-aura-color: color-mix(in srgb, var(--sig-in) 45%, transparent);
+  opacity: 0.8;
+}
+
+.tun-aura--near {
+  --tun-aura-color: color-mix(in srgb, var(--sig-near) 35%, transparent);
+  opacity: 0.6;
+}
+
+.tun-aura--off {
+  --tun-aura-color: color-mix(in srgb, var(--sig-off) 40%, transparent);
+  opacity: 0.7;
+}
+
+/* ============================================================
+   Чипы струн (StringChips): ровная сетка на всю ширину, число колонок —
+   по числу струн строя, приходит из рендера через --tun-chip-count.
+   ============================================================ */
+
+.tun-chips {
+  --tun-chip-count: 6;
+  display: grid;
+  grid-template-columns: repeat(var(--tun-chip-count), minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 2px 0;
+}
+
+.tun-chip-cell {
+  position: relative;
+  min-width: 0;
+}
