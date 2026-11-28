@@ -1,0 +1,215 @@
+/* ============================================================
+   ЭКРАН ПРОВЕРКИ АККОРДА (ChordCheckScreen)
+   Префикс chk- — чтобы не пересекаться с глобальными классами.
+   Литералы, у которых нет точного токена, оставлены как были.
+   ============================================================ */
+
+.chk-screen {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+/* Шапка: заголовок и переключатель режимов */
+.chk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.chk-title {
+  font-size: 20px;
+  margin: 0;
+}
+
+/* Крупная кнопка захвата удара (Режим B) */
+.chk-strum-btn {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: var(--fs-subhead);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  box-shadow: 0 4px 20px var(--shadow-brand);
+}
+
+/* Быстрый выбор аккорда */
+.chk-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+}
+
+.chk-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.chk-voicings {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.chk-voicing {
+  font-weight: 700;
+}
+
+/* Мелкие пояснения под выбором аккорда и под полосой захвата */
+.chk-note {
+  font-size: var(--fs-caption);
+  color: var(--ink-300);
+}
+
+/* Захват удара: ожидание и запись */
+.chk-strum-waiting {
+  padding: var(--s4);
+  text-align: center;
+  font-weight: 700;
+  color: var(--brand);
+  font-size: 15px;
+}
+
+.chk-strum-recording {
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: center;
+}
+
+.chk-strum-recording-title {
+  font-weight: 700;
+  color: var(--brand);
+  font-size: 15px;
+}
+
+.chk-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--ink-800);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+/* Ширина полосы — динамическая, задаётся инлайном. */
+.chk-progress-fill {
+  height: 100%;
+  background: var(--brand);
+  transition: width 50ms linear;
+}
+
+/* Поздравление при успешной проверке */
+.chk-complete {
+  animation: pulse 1s ease;
+}
+
+.chk-complete-body {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* Сетка: схема аккорда + список струн */
+.chk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+
+.chk-strings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+/* Строка струны */
+.chk-string {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--ink-900);
+  border: var(--hairline) solid var(--ink-700);
+  border-radius: var(--r-md);
+  transition: all 150ms ease;
+}
+
+/* Струна, которая звучит сейчас */
+.chk-string--sounding {
+  background: color-mix(in srgb, var(--brand) 12%, var(--ink-900));
+  border-color: var(--brand);
+}
+
+.chk-string-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Кружок с номером струны */
+.chk-string-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink-800);
+  border: var(--hairline) solid var(--ink-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.chk-string-target {
+  font-weight: 700;
+  font-size: var(--fs-body);
+}
+
+.chk-string-fret {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-300);
+  margin-left: 6px;
+}
+
+.chk-string-freq {
+  font-size: 10px;
+  color: var(--ink-300);
+}
+
+.chk-string-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* Плашка статуса: цвет зависит от статуса струны и приходит
+   из рендера через переменную --chk-badge. */
+.chk-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--chk-badge);
+  padding: 3px var(--s2);
+  background: var(--ink-800);
+  border-radius: var(--r-pill);
+  border: var(--hairline) solid var(--chk-badge);
+}
+
+/* Кнопка «Настроить» */
+.chk-tune-btn {
+  padding: var(--s1) var(--s2);
+  font-size: 11px;
+}

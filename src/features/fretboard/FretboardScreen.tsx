@@ -21,6 +21,7 @@ import {
 import { getPublicSiteUrl } from '../../domain/siteUrl';
 import { copyToClipboard } from '../../ui/clipboard';
 import { buildStandaloneSvg, downloadText, safeFileName } from '../../ui/exportSvg';
+import './fretboard.css';
 
 interface FretboardScreenProps {
   tuning: Tuning;
@@ -236,12 +237,12 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div className="fbs-screen">
       {/* Шапка грифа */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="fbs-header">
         <div>
           <span className="eyebrow">Интерактивный гриф</span>
-          <h2 style={{ fontSize: '20px', margin: 0 }}>Карта грифа и аппликатуры</h2>
+          <h2 className="fbs-title">Карта грифа и аппликатуры</h2>
         </div>
 
         {/* Переключатель режимов */}
@@ -258,24 +259,17 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
       </div>
 
       {/* Панель управления выбранным режимом */}
-      <div className="panel" style={{ padding: 'var(--s4)', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="panel fbs-controls">
         {viewMode === 'scales' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div className="fbs-group">
             <div>
-              <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Тоника</span>
+              <span className="eyebrow fbs-field-label">Тоника</span>
               <select
                 value={selectedRoot}
                 data-testid="fb-root"
                 aria-label="Тоника гаммы"
                 onChange={(e) => setSelectedRoot(e.target.value as NoteName)}
-                style={{
-                  background: 'var(--ink-800)',
-                  color: 'var(--ink-050)',
-                  border: '1px solid var(--ink-700)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '6px 12px',
-                  fontWeight: 600
-                }}
+                className="fbs-select fbs-select-md"
               >
                 {NOTE_NAMES.map(n => (
                   <option key={n} value={n}>{formatNoteName(n, notation)}</option>
@@ -284,20 +278,13 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             </div>
 
             <div>
-              <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Лад / Гамма</span>
+              <span className="eyebrow fbs-field-label">Лад / Гамма</span>
               <select
                 value={selectedScaleId}
                 data-testid="fb-scale"
                 aria-label="Лад или гамма"
                 onChange={(e) => setSelectedScaleId(e.target.value)}
-                style={{
-                  background: 'var(--ink-800)',
-                  color: 'var(--ink-050)',
-                  border: '1px solid var(--ink-700)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '6px 12px',
-                  fontWeight: 600
-                }}
+                className="fbs-select fbs-select-md"
               >
                 {SCALES.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -305,7 +292,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               </select>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+            <div className="fbs-label-toggle">
               <button
                 className={`btn btn-sm ${labelMode === 'note' ? 'btn-primary' : 'btn-ghost'}`}
                 aria-pressed={labelMode === 'note'}
@@ -325,23 +312,15 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         )}
 
         {viewMode === 'chords' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div className="fbs-group">
             <div>
-              <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Аппликатура аккорда</span>
+              <span className="eyebrow fbs-field-label">Аппликатура аккорда</span>
               <select
                 value={selectedVoicing.id}
                 data-testid="fb-voicing"
                 aria-label="Аппликатура аккорда"
                 onChange={(e) => setSelectedVoicingId(e.target.value)}
-                style={{
-                  background: 'var(--ink-800)',
-                  color: 'var(--ink-050)',
-                  border: '1px solid var(--ink-700)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '6px 14px',
-                  fontWeight: 700,
-                  fontSize: '15px'
-                }}
+                className="fbs-select fbs-select-lg"
               >
                 {voicings.map(v => (
                   <option key={v.id} value={v.id}>
@@ -351,7 +330,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
               </select>
             </div>
             {!hasChordLibrary && (
-              <span data-testid="fb-no-chords" style={{ fontSize: '12px', color: 'var(--ink-300)', maxWidth: '320px' }}>
+              <span data-testid="fb-no-chords" className="fbs-no-chords">
                 Для этого строя библиотеки аккордов нет — доступны только открытые струны.
               </span>
             )}
@@ -359,13 +338,13 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         )}
 
         {viewMode === 'explore' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="fbs-explore">
             <div>
               <span className="eyebrow">Обратный поиск аккорда</span>
               <div
                 aria-live="polite"
                 data-testid="fb-detected-chord"
-                style={{ fontSize: '16px', fontWeight: 800, color: detectedChord ? 'var(--sig-in)' : 'var(--ink-300)' }}
+                className={`fbs-detected${detectedChord ? ' fbs-detected--found' : ''}`}
               >
                 {detectedChord ? `Распознан: ${detectedChord}` : 'Нажмите лады на струнах для построения'}
               </div>
@@ -382,22 +361,15 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         )}
 
         {/* Быстрые параметры грифа: Каподастр, Диапазон ладов и Экспорт */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="fbs-group">
           <div>
-            <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Каподастр</span>
+            <span className="eyebrow fbs-field-label">Каподастр</span>
             <select
               value={capo === null ? 'none' : capo}
               data-testid="fb-capo"
               aria-label="Положение каподастра"
               onChange={(e) => setCapo(e.target.value === 'none' ? null : Number(e.target.value))}
-              style={{
-                background: 'var(--ink-800)',
-                color: 'var(--ink-050)',
-                border: '1px solid var(--ink-700)',
-                borderRadius: 'var(--r-md)',
-                padding: '4px 8px',
-                fontSize: '12px'
-              }}
+              className="fbs-select fbs-select-sm"
             >
               <option value="none">Без капо</option>
               {[1, 2, 3, 4, 5, 6, 7].map(f => (
@@ -407,7 +379,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
           </div>
 
           <div>
-            <span className="eyebrow" style={{ display: 'block', marginBottom: '4px' }}>Лады</span>
+            <span className="eyebrow fbs-field-label">Лады</span>
             <select
               value={`${fretRange.from}-${fretRange.to}`}
               data-testid="fb-range"
@@ -416,14 +388,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
                 const [from, to] = e.target.value.split('-').map(Number);
                 setFretRange({ from, to });
               }}
-              style={{
-                background: 'var(--ink-800)',
-                color: 'var(--ink-050)',
-                border: '1px solid var(--ink-700)',
-                borderRadius: 'var(--r-md)',
-                padding: '4px 8px',
-                fontSize: '12px'
-              }}
+              className="fbs-select fbs-select-sm"
             >
               <option value="0-12">0–12 лады</option>
               <option value="0-15">0–15 лады</option>
@@ -432,35 +397,33 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
             </select>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ink-100)', cursor: 'pointer', marginTop: '14px' }}>
+          <label className="fbs-lefty">
             <input
               type="checkbox"
               checked={leftHanded}
               data-testid="fb-lefty"
               onChange={(e) => setLeftHanded(e.target.checked)}
-              style={{ accentColor: 'var(--brand)' }}
+              className="fbs-lefty-input"
             />
             Левша
           </label>
 
-          <div style={{ display: 'flex', gap: '6px', marginTop: '14px' }}>
+          <div className="fbs-actions">
             <button
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm fbs-icon-btn"
               data-testid="fb-share"
               onClick={handleShareLink}
               title="Скопировать ссылку на эту схему (строй, капо, гамма или аппликатура, ноты, ориентация)"
               aria-label="Скопировать ссылку на эту схему грифа"
-              style={{ padding: '6px 8px' }}
             >
               {shareStatus === 'copied' ? <Check size={14} color="var(--sig-in)" /> : <Share2 size={14} />}
             </button>
             <button
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm fbs-icon-btn"
               data-testid="fb-export"
               onClick={handleExportSVG}
               title="Экспортировать SVG"
               aria-label="Экспортировать схему грифа в SVG"
-              style={{ padding: '6px 8px' }}
             >
               <Download size={14} />
             </button>
@@ -484,7 +447,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
       />
 
       {/* Информационная подсказка */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--ink-300)', gap: '12px', flexWrap: 'wrap' }}>
+      <div className="fbs-hint">
         <span id={hintId}>
           💡 Нажмите на любой лад струны, чтобы услышать щипок струны (Karplus-Strong). С клавиатуры: Tab — на гриф,
           стрелки — по ладам и струнам, Enter — сыграть ноту.
@@ -492,7 +455,7 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
         {/* Область всегда в DOM — иначе скринридер не озвучит появившуюся ноту. */}
         <span aria-live="polite">
           {lastClickedNote && (
-            <span data-testid="fb-last-note" style={{ color: 'var(--ink-050)', fontWeight: 700 }}>
+            <span data-testid="fb-last-note" className="fbs-last-note">
               Струна {lastClickedNote.str}, Лад {lastClickedNote.fret}: {lastClickedNote.note}
             </span>
           )}
@@ -501,25 +464,24 @@ export const FretboardScreen: React.FC<FretboardScreenProps> = ({
 
       {/* Пояснение к шарингу схемы (FR-FB-18) */}
       <div
-        className="panel"
+        className="panel fbs-share-hint"
         data-testid="fb-share-hint"
-        style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: '6px' }}
       >
         <span className="eyebrow">🔗 Ссылка на схему</span>
-        <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-100)', lineHeight: 1.5 }}>
-          Кнопка <Share2 size={12} style={{ verticalAlign: '-1px' }} /> копирует ссылку на то, что вы видите
+        <p className="fbs-share-text">
+          Кнопка <Share2 size={12} className="fbs-share-icon" /> копирует ссылку на то, что вы видите
           сейчас: строй, каподастр, диапазон ладов, ориентацию грифа и содержимое режима — гамму с тоникой,
           аппликатуру аккорда или ноты, расставленные вручную. Тот, кто её откроет, попадёт сразу на вкладку
           «Гриф» с этой же схемой. Адрес в браузере обновляется на лету, так что ссылку можно скопировать
           и прямо из адресной строки.
         </p>
         {shareStatus === 'copied' && (
-          <span data-testid="fb-share-copied" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sig-in)' }}>
+          <span data-testid="fb-share-copied" className="fbs-share-status fbs-share-status--ok">
             Ссылка скопирована в буфер обмена
           </span>
         )}
         {shareStatus === 'failed' && (
-          <span data-testid="fb-share-failed" role="alert" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sig-off)' }}>
+          <span data-testid="fb-share-failed" role="alert" className="fbs-share-status fbs-share-status--fail">
             Не удалось скопировать — скопируйте ссылку из адресной строки браузера
           </span>
         )}
