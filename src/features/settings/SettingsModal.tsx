@@ -2,12 +2,8 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import type { NotationSystem, NoteName } from '../../domain/notes';
 import { NOTE_NAMES, pitchFromName } from '../../domain/notes';
 import type { Tuning } from '../../domain/tunings';
-import {
-  loadSavedCustomTunings,
-  saveCustomTuning,
-  deleteCustomTuning,
-  createStringsFromMidi
-} from '../../domain/tunings';
+import { createStringsFromMidi } from '../../domain/tunings';
+import { loadSavedCustomTunings, saveCustomTuning, deleteCustomTuning } from '../../domain/customTunings';
 import { X, Sun, Moon, Sliders, Plus, Trash2, Check } from 'lucide-react';
 import { APP_COMMIT, APP_VERSION } from '../../buildInfo';
 
