@@ -1,4 +1,5 @@
 import React from 'react';
+import './tuner.css';
 
 interface CentsScaleProps {
   cents: number;          // -50..+50
@@ -39,161 +40,75 @@ export const CentsScale: React.FC<CentsScaleProps> = ({
   const isOff = isActive && absCents > 15;
 
   const needlePos = isActive ? centsToPercent(cents) : 50;
+  const isLow = cents < -inTuneThreshold && isActive;
+  const isHigh = cents > inTuneThreshold && isActive;
 
-  let needleColor = 'var(--sig-idle)';
-  // Цвет текста отделён от цвета стрелки: у графики требование к контрасту 3:1,
+  // Тон шкалы задаёт цвет стрелки и числа (см. tuner.css). Цвет числа без
+  // сигнала отделён от цвета стрелки: у графики требование к контрасту 3:1,
   // у текста — 4.5:1, и приглушённый --sig-idle его не проходит.
-  let readoutColor = 'var(--ink-300)';
+  let rootClass = 'tun-cents';
   if (isActive) {
-    if (isInTune) needleColor = 'var(--sig-in)';
-    else if (isNear) needleColor = 'var(--sig-near)';
-    else if (isOff) needleColor = 'var(--sig-off)';
-    readoutColor = needleColor;
+    rootClass += ' tun-cents--active';
+    if (isInTune) rootClass += ' tun-cents--in';
+    else if (isNear) rootClass += ' tun-cents--near';
+    else if (isOff) rootClass += ' tun-cents--off';
   }
 
+  const zoneLeft = centsToPercent(-inTuneThreshold);
+  const zoneWidth = centsToPercent(inTuneThreshold) - zoneLeft;
+
   return (
-    <div style={{ width: '100%', maxWidth: '420px', margin: '0 auto', userSelect: 'none' }}>
+    <div className={rootClass}>
       {/* Метки шкалы */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '11px',
-          fontFamily: 'var(--font-num)',
-          color: 'var(--ink-300)',
-          marginBottom: '6px',
-          padding: '0 4px'
-        }}
-      >
+      <div className="tun-cents-labels">
         <span>−50¢</span>
-        <span style={{ color: 'var(--ink-300)' }}>−20</span>
-        <span style={{ color: 'var(--ink-300)' }}>−10</span>
-        <span style={{ color: isInTune ? 'var(--sig-in)' : 'var(--ink-100)', fontWeight: 700 }}>0¢</span>
-        <span style={{ color: 'var(--ink-300)' }}>+10</span>
-        <span style={{ color: 'var(--ink-300)' }}>+20</span>
+        <span>−20</span>
+        <span>−10</span>
+        <span className="tun-cents-zero-label">0¢</span>
+        <span>+10</span>
+        <span>+20</span>
         <span>+50¢</span>
       </div>
 
       {/* Трек шкалы */}
-      <div
-        style={{
-          position: 'relative',
-          height: '24px',
-          background: 'var(--ink-900)',
-          border: '1px solid var(--ink-700)',
-          borderRadius: 'var(--r-pill)',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center'
-        }}
-      >
+      <div className="tun-cents-track">
         {/* Зеленая зона строя (±5 центов) */}
         <div
-          style={{
-            position: 'absolute',
-            left: `${centsToPercent(-inTuneThreshold)}%`,
-            width: `${centsToPercent(inTuneThreshold) - centsToPercent(-inTuneThreshold)}%`,
-            height: '100%',
-            background: 'color-mix(in srgb, var(--sig-in) 12%, transparent)',
-            borderLeft: '1px solid color-mix(in srgb, var(--sig-in) 30%, transparent)',
-            borderRight: '1px solid color-mix(in srgb, var(--sig-in) 30%, transparent)'
-          }}
+          className="tun-cents-zone"
+          style={{ '--tun-zone-left': `${zoneLeft}%`, '--tun-zone-width': `${zoneWidth}%` } as React.CSSProperties}
         />
 
         {/* Центральная нулевая засечка */}
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: 0,
-            bottom: 0,
-            width: '2px',
-            background: isInTune ? 'var(--sig-in)' : 'var(--ink-500)',
-            transform: 'translateX(-50%)',
-            zIndex: 1
-          }}
-        />
+        <div className="tun-cents-zero-mark" />
 
         {/* Засечки делений */}
         {[-20, -10, 10, 20].map(c => (
           <div
             key={c}
-            style={{
-              position: 'absolute',
-              left: `${centsToPercent(c)}%`,
-              top: '4px',
-              bottom: '4px',
-              width: '1px',
-              background: 'var(--ink-700)',
-              transform: 'translateX(-50%)'
-            }}
+            className="tun-cents-tick"
+            style={{ '--tun-tick-left': `${centsToPercent(c)}%` } as React.CSSProperties}
           />
         ))}
 
         {/* Стрелка / Индикатор отклонения */}
         <div
-          style={{
-            position: 'absolute',
-            left: `${needlePos}%`,
-            top: '2px',
-            bottom: '2px',
-            width: '8px',
-            background: needleColor,
-            borderRadius: 'var(--r-pill)',
-            transform: 'translateX(-50%)',
-            boxShadow: isInTune ? 'var(--glow-in)' : isOff ? 'var(--glow-off)' : 'none',
-            transition: 'left 80ms linear, background 150ms ease, box-shadow 150ms ease',
-            zIndex: 3
-          }}
+          className="tun-cents-needle"
+          style={{ '--tun-needle-left': `${needlePos}%` } as React.CSSProperties}
         />
       </div>
 
       {/* Текстовая подсказка отклонения */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '8px',
-          fontSize: '13px',
-          fontWeight: 600
-        }}
-      >
-        <span
-          style={{
-            color: cents < -inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-300)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
-        >
-          {cents < -inTuneThreshold && isActive ? '▲ ПОДТЯНУТЬ' : 'Низко (♭)'}
+      <div className="tun-cents-hints">
+        <span className={isLow ? 'tun-cents-hint tun-cents-hint--alert' : 'tun-cents-hint'}>
+          {isLow ? '▲ ПОДТЯНУТЬ' : 'Низко (♭)'}
         </span>
 
-        <span
-          className="mono"
-          style={{
-            fontSize: '15px',
-            fontWeight: 700,
-            color: readoutColor,
-            padding: '2px 8px',
-            background: 'var(--ink-800)',
-            borderRadius: 'var(--r-sm)',
-            border: '1px solid var(--ink-700)'
-          }}
-        >
+        <span className="mono tun-cents-readout">
           {isActive ? `${cents > 0 ? '+' : ''}${cents.toFixed(1)} ¢` : '0.0 ¢'}
         </span>
 
-        <span
-          style={{
-            color: cents > inTuneThreshold && isActive ? 'var(--sig-off)' : 'var(--ink-300)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
-        >
-          {cents > inTuneThreshold && isActive ? 'ОСЛАБИТЬ ▼' : 'Высоко (♯)'}
+        <span className={isHigh ? 'tun-cents-hint tun-cents-hint--alert' : 'tun-cents-hint'}>
+          {isHigh ? 'ОСЛАБИТЬ ▼' : 'Высоко (♯)'}
         </span>
       </div>
     </div>

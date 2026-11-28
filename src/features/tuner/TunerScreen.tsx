@@ -18,6 +18,7 @@ import { DonateCard } from '../donate/DonateCard';
 import { LiveRegion } from '../../ui/LiveRegion';
 import { useThrottledAnnouncement } from '../../ui/useThrottledAnnouncement';
 import { tunerAnnouncement } from '../../domain/announcements';
+import './tuner.css';
 import {
   Volume2,
   CheckCircle2,
@@ -323,37 +324,51 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
           ? 'off'
           : 'active';
 
-  // Определение команды действия тюнера (FR-TN-18)
+  // Определение команды действия тюнера (FR-TN-18). Тон задаёт цвет плашки.
   let actionCommandText = 'Сыграйте струну';
-  let actionCommandColor = 'var(--ink-300)';
+  let actionTone: 'idle' | 'in' | 'near' | 'off' = 'idle';
   let ActionIcon = Music;
 
   if (isListening && measuredFreq > 0 && isSoundActive) {
     if (Math.abs(cents) <= inTuneThreshold) {
       actionCommandText = 'В СТРОЕ';
-      actionCommandColor = 'var(--sig-in)';
+      actionTone = 'in';
       ActionIcon = CheckCircle2;
     } else if (cents < 0) {
       actionCommandText = 'ПОДТЯНУТЬ';
-      actionCommandColor = cents > -15 ? 'var(--sig-near)' : 'var(--sig-off)';
+      actionTone = cents > -15 ? 'near' : 'off';
       ActionIcon = RotateCcw; // Натяжение колка
     } else {
       actionCommandText = 'ОСЛАБИТЬ';
-      actionCommandColor = cents < 15 ? 'var(--sig-near)' : 'var(--sig-off)';
+      actionTone = cents < 15 ? 'near' : 'off';
       ActionIcon = RotateCw; // Спуск колка
     }
   }
 
+  // Тон крупной ноты: по показаниям, пока микрофон слушает и частота есть.
+  const noteTone =
+    isListening && measuredFreq > 0
+      ? (Math.abs(cents) <= inTuneThreshold ? 'in' : Math.abs(cents) <= 15 ? 'near' : 'off')
+      : null;
+
+  // Заполнение VU-метра и его цвет: перегрузка, громкий сигнал, обычный.
+  const vuLevel = `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`;
+  const vuFillClass = isClipping
+    ? 'tun-vu-fill tun-vu-fill--clip'
+    : inputLevelDb > -25
+      ? 'tun-vu-fill tun-vu-fill--loud'
+      : 'tun-vu-fill';
+
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: '580px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--s6)' }}>
+    <div className="tun-screen">
       {/* Заголовок и селектор строя */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="tun-header">
         <div>
           <span className="eyebrow">Монофонический тюнер</span>
-          <h2 style={{ fontSize: '20px', margin: 0 }}>{tuning.name}</h2>
+          <h2 className="tun-title">{tuning.name}</h2>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="tun-header-actions">
           <select
             value={tuning.id}
             onChange={(e) => {
@@ -363,17 +378,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
             name="tuning"
             data-testid="tuning-select"
             aria-label="Выбор строя гитары"
-            style={{
-              background: 'var(--ink-800)',
-              color: 'var(--ink-050)',
-              border: '1px solid var(--ink-700)',
-              borderRadius: 'var(--r-pill)',
-              padding: '8px 14px',
-              fontFamily: 'var(--font-ui)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+            className="tun-select"
           >
             {availableTunings.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -385,18 +390,14 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       {/* Верхний блок микрофона: крупная кнопка ДО включения, компактная плашка ПОСЛЕ включения */}
       <MicBar mic={mic} testIds={{ start: 'mic-toggle', status: 'mic-status' }}>
         {/* Компактный VU-индикатор входного уровня */}
-        <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '140px' }}>
-          <div style={{ flex: 1, height: '6px', background: 'var(--ink-800)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+        <div aria-hidden="true" className="tun-vu">
+          <div className="tun-vu-track">
             <div
-              style={{
-                width: `${Math.max(0, Math.min(100, (inputLevelDb + 60) * 2))}%`,
-                height: '100%',
-                background: isClipping ? 'var(--sig-off)' : inputLevelDb > -25 ? 'var(--sig-in)' : 'var(--brand)',
-                transition: 'width 60ms linear'
-              }}
+              className={vuFillClass}
+              style={{ '--tun-vu-level': vuLevel } as React.CSSProperties}
             />
           </div>
-          {isClipping && <span style={{ color: 'var(--sig-off)', fontWeight: 700, fontSize: '10px' }}>MAX!</span>}
+          {isClipping && <span className="tun-vu-max">MAX!</span>}
         </div>
       </MicBar>
 
@@ -420,8 +421,8 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       />
 
       {/* Опции: Режим автоопределения / Мастер настройки */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--ink-300)', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="tun-options">
+        <div className="tun-mode">
           <Compass size={14} color="var(--brand)" />
           <span>
             {lockedStringIndex !== null
@@ -429,22 +430,22 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
               : 'Автоопределение струны: активно'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+        <div className="tun-mode-controls">
+          <label className="tun-master">
             <input
               type="checkbox"
               checked={autoAdvance}
               onChange={(e) => setAutoAdvance(e.target.checked)}
               name="auto-advance"
               data-testid="master-mode"
-              style={{ accentColor: 'var(--brand)' }}
+              className="tun-master-input"
             />
             Мастер (автошаг)
           </label>
           {lockedStringIndex !== null && (
             <button
               onClick={() => onSelectString(null)}
-              style={{ color: 'var(--brand)', textDecoration: 'underline', fontSize: '12px', minHeight: '24px', padding: '0 4px' }}
+              className="tun-reset"
             >
               Сброс на авто
             </button>
@@ -453,45 +454,18 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       </div>
 
       {/* Центральный дисплей тюнера с нотой и аурой */}
-      <div
-        className="panel"
-        style={{
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--s8) var(--s6)',
-          overflow: 'hidden',
-          minHeight: '270px'
-        }}
-      >
+      <div className="panel tun-display">
         <TunerAura cents={cents} isActive={isListening && measuredFreq > 0 && isSoundActive} inTuneThreshold={inTuneThreshold} />
 
         {/* Команда действия (FR-TN-18: Подтянуть / Ослабить / В строе) */}
         <div
           data-testid="tuner-action"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'var(--ink-900)',
-            border: `1px solid ${actionCommandColor}`,
-            color: actionCommandColor,
-            borderRadius: 'var(--r-pill)',
-            padding: '6px 16px',
-            fontSize: '14px',
-            fontWeight: 800,
-            letterSpacing: '0.05em',
-            zIndex: 2,
-            marginBottom: '12px',
-            transition: 'all 150ms ease'
-          }}
+          className={actionTone === 'idle' ? 'tun-action' : `tun-action tun-action--${actionTone}`}
         >
           <ActionIcon size={16} />
           <span>{actionCommandText}</span>
           {isListening && measuredFreq > 0 && isSoundActive && Math.abs(cents) > inTuneThreshold && (
-            <span className="mono" style={{ fontSize: '12px', opacity: 0.9 }}>
+            <span className="mono tun-action-cents">
               ({cents > 0 ? `+${cents.toFixed(0)}` : cents.toFixed(0)}¢)
             </span>
           )}
@@ -501,66 +475,27 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         <button
           type="button"
           onClick={handlePlayCurrentNote}
-          className={`tuner-note-interactive ${isPlayingSample ? 'tuner-note-playing' : ''}`}
+          className={[
+            'tuner-note-interactive tun-note',
+            isPlayingSample && 'tuner-note-playing',
+            !isSoundActive && !isPlayingSample && 'tun-note--dim'
+          ].filter(Boolean).join(' ')}
           data-testid="tuner-note-button"
           aria-label={`${displayNoteName}${currentDisplayNote.octave} — прослушать эталон`}
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'baseline',
-            zIndex: 2,
-            opacity: isSoundActive || isPlayingSample ? 1 : 0.85,
-            transition: 'opacity 300ms ease'
-          }}
           title="Нажмите на ноту, чтобы услышать эталонное звучание струны"
         >
           <span
             data-testid="tuner-note"
-            style={{
-              fontSize: 'var(--fs-display)',
-              fontWeight: 800,
-              letterSpacing: 'var(--ls-display)',
-              lineHeight: 'var(--lh-tight)',
-              color: isPlayingSample
-                ? 'var(--brand)'
-                : isListening && measuredFreq > 0
-                ? (Math.abs(cents) <= inTuneThreshold ? 'var(--sig-in)' : Math.abs(cents) <= 15 ? 'var(--sig-near)' : 'var(--sig-off)')
-                : 'var(--ink-100)',
-              transition: 'color 150ms ease'
-            }}
+            className={noteTone ? `tun-note-name tun-note-name--${noteTone}` : 'tun-note-name'}
           >
             {displayNoteName}
           </span>
-          <span
-            style={{
-              fontSize: '28px',
-              fontWeight: 600,
-              color: isPlayingSample ? 'var(--brand)' : 'var(--ink-300)',
-              marginLeft: '4px'
-            }}
-          >
+          <span className="tun-note-octave">
             {currentDisplayNote.octave}
           </span>
 
           {/* Иконка динамика на ноте */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              right: '-14px',
-              top: '8px',
-              background: isPlayingSample ? 'var(--brand-strong)' : 'var(--ink-800)',
-              color: isPlayingSample ? 'var(--on-brand)' : 'var(--ink-300)',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px var(--shadow-soft)',
-              transition: 'all 150ms ease'
-            }}
-          >
+          <span aria-hidden="true" className="tun-note-speaker">
             <Volume2 size={13} />
           </span>
         </button>
@@ -568,20 +503,7 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         {/* Кнопка-подсказка под нотой */}
         <button
           onClick={handlePlayCurrentNote}
-          className="btn btn-ghost btn-sm"
-          style={{
-            zIndex: 2,
-            marginTop: '6px',
-            fontSize: '11px',
-            padding: '3px 10px',
-            color: isPlayingSample ? 'var(--brand)' : 'var(--ink-300)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            borderRadius: 'var(--r-pill)',
-            border: isPlayingSample ? '1px solid var(--brand)' : '1px dashed var(--ink-700)',
-            background: isPlayingSample ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'transparent'
-          }}
+          className={`btn btn-ghost btn-sm tun-hint${isPlayingSample ? ' tun-hint--playing' : ''}`}
           title="Воспроизвести эталонный гитарный звук"
         >
           <Volume2 size={12} />
@@ -589,31 +511,20 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
         </button>
 
         {/* Частоты: измеренная / целевая */}
-        <div
-          className="mono"
-          style={{
-            marginTop: '8px',
-            fontSize: '14px',
-            color: 'var(--ink-300)',
-            display: 'flex',
-            gap: '16px',
-            zIndex: 1,
-            opacity: isSoundActive ? 1 : 0.65
-          }}
-        >
-          <span>Измерено: <strong data-testid="tuner-measured" style={{ color: 'var(--ink-050)' }}>{measuredFreq > 0 ? `${measuredFreq.toFixed(1)} Гц` : '—'}</strong></span>
-          <span>Цель: <strong data-testid="tuner-target" style={{ color: 'var(--ink-050)' }}>{targetFreq > 0 ? `${targetFreq.toFixed(1)} Гц` : '—'}</strong></span>
+        <div className={isSoundActive ? 'mono tun-freqs' : 'mono tun-freqs tun-freqs--dim'}>
+          <span>Измерено: <strong data-testid="tuner-measured" className="tun-freq-value">{measuredFreq > 0 ? `${measuredFreq.toFixed(1)} Гц` : '—'}</strong></span>
+          <span>Цель: <strong data-testid="tuner-target" className="tun-freq-value">{targetFreq > 0 ? `${targetFreq.toFixed(1)} Гц` : '—'}</strong></span>
         </div>
 
         {/* Нелинейная шкала центов */}
-        <div style={{ width: '100%', marginTop: '24px', zIndex: 1 }}>
+        <div className="tun-scale-wrap">
           <CentsScale cents={cents} inTuneThreshold={inTuneThreshold} isActive={isListening && measuredFreq > 0 && isSoundActive} />
         </div>
       </div>
 
       {/* Подсказка FR-TN-20: Подходите к ноте снизу при перетянутой струне */}
       {isListening && isSoundActive && cents > 15 && (
-        <div data-testid="master-tip" className="banner" style={{ background: 'var(--ink-900)', border: '1px solid var(--sig-near)', color: 'var(--ink-100)', fontSize: '13px' }}>
+        <div data-testid="master-tip" className="banner tun-tip">
           <Info size={16} color="var(--sig-near)" />
           <div>
             <b>Совет мастера:</b> Ослабьте колок чуть ниже цели и плавно подтяните вверх, чтобы устранить люфт механики колка.
@@ -622,19 +533,18 @@ export const TunerScreen: React.FC<TunerScreenProps> = ({
       )}
 
       {/* Мини-спектрограмма гармоник (сворачиваемая) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="tun-spectrum">
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm tun-spectrum-toggle"
           onClick={() => setShowSpectrum(!showSpectrum)}
           aria-expanded={showSpectrum}
           data-testid="spectrum-toggle"
-          style={{ alignSelf: 'flex-start', fontSize: '12px' }}
         >
           <SlidersHorizontal size={13} /> {showSpectrum ? 'Скрыть спектр гармоник' : 'Показать спектр гармоник'}
         </button>
 
         {showSpectrum && (
-          <div className="panel" aria-hidden="true" style={{ padding: '8px 12px', height: '60px' }}>
+          <div className="panel tun-spectrum-panel" aria-hidden="true">
             <SpectrumCanvas dimmed={!isListening} />
           </div>
         )}
